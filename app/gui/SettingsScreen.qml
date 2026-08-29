@@ -3191,15 +3191,16 @@ FocusScope {
                                     id: accentSelector
                                     anchors.verticalCenter: parent.verticalCenter
 
-                                    // Ion first, because it is the default (see theme.cpp) and the
-                                    // first pill is where anyone looks for it. Signal — the green
-                                    // the app wore until 5.0.0 — sits next to it.
+                                    // Moon first, because it is the default (see theme.cpp) —
+                                    // the logo's own navy. Ion — the cyan the app shipped with —
+                                    // sits next to it, and Signal — the green the app wore until
+                                    // 5.0.0 — after that.
                                     //
                                     // ⚠️ The two arrays are parallel and indexed together by both
                                     // the Binding below and onActivated: reordering one without
                                     // the other silently assigns the wrong colour to every name.
-                                    labels: [qsTr("Ion"), qsTr("Signal"), qsTr("Ember"), qsTr("Amber"), qsTr("Ultra")]
-                                    readonly property var _hexes: ["#00d3f2", "#00e676", "#ff6a3d", "#ffb300", "#c060ff"]
+                                    labels: [qsTr("Moon"), qsTr("Ion"), qsTr("Signal"), qsTr("Ember"), qsTr("Amber"), qsTr("Ultra")]
+                                    readonly property var _hexes: ["#102a44", "#00d3f2", "#00e676", "#ff6a3d", "#ffb300", "#c060ff"]
 
                                     // -1, not 0, when the colour matches no preset: a typed
                                     // colour must leave every pill unlit rather than light up

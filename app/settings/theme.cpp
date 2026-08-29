@@ -12,7 +12,8 @@ namespace
     // colour that says two things says neither. The cyan sits beside the online green without
     // being mistaken for it, which is exactly what an accent has to do, since the semantic
     // colours deliberately never follow it.
-    const QColor DefaultAccent = QColor(0x00, 0xd3, 0xf2);
+    // ArtMoon default: the logo's own navy (#102a44). "Ion" cyan remains as a preset.
+    const QColor DefaultAccent = QColor(0x10, 0x2a, 0x44);
 
     const char* SER_ACCENT = "theme/accent";
     const char* SER_REDUCE = "theme/reduceanimations";
