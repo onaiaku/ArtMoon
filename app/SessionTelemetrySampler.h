@@ -35,6 +35,15 @@ public:
      */
     void flushAndStop();
 
+    /**
+     * One sampling tick: collect the current decoder window stats and send a
+     * batch to StreamTweak. Called by the 1s QTimer in normal (GUI-thread alive)
+     * operation, and by Session::exec()'s SDL loop directly on each 1-second
+     * SDL_WaitEventTimeout timeout while streaming — the Qt event loop is
+     * suspended during a stream, so the timer alone cannot fire there.
+     */
+    void tick();
+
 private slots:
     void onSampleTimer();
 

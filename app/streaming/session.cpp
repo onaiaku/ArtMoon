@@ -2561,7 +2561,20 @@ void Session::exec()
     // Hijack this thread to be the SDL main thread. We have to do this
     // because we want to suspend all Qt processing until the stream is over.
     SDL_Event event;
+    Uint32 lastTelemetryTickMs = SDL_GetTicks();
     for (;;) {
+        // The Qt event loop is suspended while we own this thread, so the
+        // telemetry sampler's QTimer cannot fire during a stream. Drive one
+        // sample+send tick per second from this loop instead. Time-based, not
+        // timeout-based: at high frame rates SDL_CODE_FRAME_READY events keep
+        // the queue non-empty, so SDL_WaitEventTimeout's 1s timeout branch may
+        // never be reached. Same thread that created the sampler, so its state
+        // is touched safely.
+        if (m_TelemetrySampler && m_StreamTweakEnabled && !m_UnlockMode &&
+            SDL_GetTicks() - lastTelemetryTickMs >= 1000) {
+            lastTelemetryTickMs = SDL_GetTicks();
+            m_TelemetrySampler->tick();
+        }
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform
         // support to block on events rather than polling on Windows, macOS, X11,

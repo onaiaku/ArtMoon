@@ -4,6 +4,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <SDL_log.h>
+
 #include "streaming/session.h"
 #include "streaming/video/ffmpeg.h"
 
@@ -24,13 +26,27 @@ void SessionTelemetrySampler::start(const QString& hostAddress, int targetFps, i
     // Start sampling immediately — no session ID negotiation needed.
     // StreamTweak accepts batches whenever a session is active, regardless
     // of NIC throttle mode. Telemetry is fully independent of streaming settings.
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "[telemetry] sampler start: host=%s targetFps=%d targetBitrateKbps=%d",
+                hostAddress.toUtf8().constData(), targetFps, targetBitrateKbps);
     m_SampleTimer.start();
+}
+
+void SessionTelemetrySampler::tick()
+{
+    // Public tick, callable from the SDL stream loop (main thread, Qt loop
+    // suspended). onSampleTimer is the same body; this wrapper lets the SDL
+    // loop drive sampling without touching the QTimer.
+    onSampleTimer();
 }
 
 void SessionTelemetrySampler::onSampleTimer()
 {
     Session* session = Session::get();
-    if (!session) return;
+    if (!session) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[telemetry] tick: no active session");
+        return;
+    }
 
     // Retrieve last-window stats via the thread-safe accessor
     SDL_LockMutex(session->decoderLock());
@@ -40,6 +56,11 @@ void SessionTelemetrySampler::onSampleTimer()
         auto* ffDec = dynamic_cast<FFmpegVideoDecoder*>(dec);
         if (ffDec)
             ws = ffDec->getLastWindowStats();
+        else
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[telemetry] tick: decoder is not FFmpegVideoDecoder");
+    }
+    else {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[telemetry] tick: no video decoder");
     }
     SDL_UnlockMutex(session->decoderLock());
 

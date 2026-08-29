@@ -9,6 +9,8 @@
 #include <QTextStream>
 #include <QTimer>
 
+#include <SDL_log.h>
+
 #include <memory>
 
 #include <openssl/evp.h>
@@ -297,7 +299,16 @@ void StreamTweakBridge::sendSessionData(const QString& hostAddress, const QStrin
         lines << auth;
     lines << QStringLiteral("SESSIONDATA");
     lines << jsonPayload;
-    sendRawRequest(hostAddress, lines, nullptr);
+
+    // Warn (once per occurrence) when a batch gets no reply. Expected during session
+    // start-up, before StreamTweak considers the session live; afterwards every batch
+    // is answered with OK. Persistent warnings here mean the host is dropping telemetry.
+    sendRawRequest(hostAddress, lines, [](const QString& result) {
+        if (result.isEmpty()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "[telemetry-bridge] SESSIONDATA: no reply (error or timeout)");
+        }
+    });
 }
 
 void StreamTweakBridge::sendSessionDataSync(const QString& hostAddress, const QString& jsonPayload)
