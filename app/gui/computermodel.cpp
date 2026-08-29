@@ -1095,7 +1095,7 @@ QVariantMap ComputerModel::getCachedAppStores(int computerIndex) const
     return m_appStoresCache.value(computer->uuid, QVariantMap());
 }
 
-// ── Per-host streaming profiles (StreamLight 4.0.0) ──────────────────────────
+// ── Per-host streaming profiles (ArtMoon 4.0.0) ──────────────────────────
 int ComputerModel::hostProfileCount(int computerIndex) const
 {
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return 0;

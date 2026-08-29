@@ -37,7 +37,7 @@ public:
 
     Q_INVOKABLE int getConnectedGamepads();
 
-    // Debug-only: write a line to the streamlight_pad.log file from QML.
+    // Debug-only: write a line to the artmoon_pad.log file from QML.
     Q_INVOKABLE void dbgLog(const QString& msg);
 
     // Simulate a key press+release pair on the focused window. Used by the

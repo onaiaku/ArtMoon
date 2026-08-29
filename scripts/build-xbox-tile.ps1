@@ -1,6 +1,6 @@
 param(
-    [string]$IcoSource = 'C:\Users\marce\source\repos\StreamLight\app\streamlight.ico',
-    [string]$Out       = 'C:\Users\marce\source\repos\StreamLight\app\xbox-tile-preview.png',
+    [string]$IcoSource = 'C:\Users\marce\source\repos\ArtMoon\app\artmoon.ico',
+    [string]$Out       = 'C:\Users\marce\source\repos\ArtMoon\app\xbox-tile-preview.png',
     [int]   $Size      = 1024,
     [double]$LogoScale = 0.65,
     [string]$TopHex    = '#151515',

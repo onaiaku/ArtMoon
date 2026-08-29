@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ArtMoon
+GenericName=Game Stream Client
+Comment=Stream games and other applications from another PC running Sunshine, Apollo or GeForce Experience
+Exec=artmoon
+Icon=artmoon
+Terminal=false
+Type=Application
+Categories=Qt;Game;Network;RemoteAccess;
+Keywords=moonlight;gamestream;stream;sunshine;apollo;remote play;
+StartupWMClass=ArtMoon

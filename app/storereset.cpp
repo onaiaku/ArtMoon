@@ -9,7 +9,7 @@
 #define SER_STOREVERSION "storeversion"
 #define STORE_VERSION 2
 
-// The store StreamLight used up to and including 5.3.0 — Moonlight's own.
+// The store ArtMoon used up to and including 5.3.0 — Moonlight's own.
 #define LEGACY_ORG "Moonlight Game Streaming Project"
 #define LEGACY_APP "Moonlight"
 
@@ -18,8 +18,8 @@ namespace
     bool s_Probed = false;
     bool s_WasReset = false;
 
-    // Keys that only StreamLight ever writes. Moonlight has none of them, so finding
-    // one in the shared store proves a StreamLight install lived there — which is the
+    // Keys that only ArtMoon ever writes. Moonlight has none of them, so finding
+    // one in the shared store proves a ArtMoon install lived there — which is the
     // difference between "your settings were reset" (true) and "welcome, new user"
     // (also true, for someone who merely has Moonlight installed). Telling a first-time
     // user that their settings were reset is worse than telling nobody.
@@ -40,7 +40,7 @@ namespace
         "matchrefreshrate",    // 5.2.1
     };
 
-    bool legacyStreamLightStorePresent()
+    bool legacyArtMoonStorePresent()
     {
         // ⚠️ The format has to be passed EXPLICITLY. QSettings::setDefaultFormat() —
         // which main.cpp calls for portable mode — only applies to the constructors
@@ -55,14 +55,14 @@ namespace
 
         for (const char* key : LEGACY_FINGERPRINT) {
             if (legacy.contains(QLatin1String(key))) {
-                qInfo() << "Legacy shared store carries StreamLight key:" << key;
+                qInfo() << "Legacy shared store carries ArtMoon key:" << key;
                 return true;
             }
         }
 
         // The accent colour lives in its own group and predates some of the keys above.
         if (legacy.childGroups().contains(QStringLiteral("theme"))) {
-            qInfo() << "Legacy shared store carries StreamLight's theme group";
+            qInfo() << "Legacy shared store carries ArtMoon's theme group";
             return true;
         }
 
@@ -83,7 +83,7 @@ void StoreReset::probe()
         return;
     }
 
-    s_WasReset = legacyStreamLightStorePresent();
+    s_WasReset = legacyArtMoonStorePresent();
 
     if (!s_WasReset) {
         // A genuinely new install. Stamp the marker now so the probe never runs again;

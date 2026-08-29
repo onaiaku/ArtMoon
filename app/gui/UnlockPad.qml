@@ -26,7 +26,7 @@ Item {
     property string hostName : ""
 
     // Clock and date, laid out like the screen this stands in for, because that is the one
-    // thing that says at a glance "this is Windows asking, not StreamLight". It is this
+    // thing that says at a glance "this is Windows asking, not ArtMoon". It is this
     // device's time, not the host's — the two agree in every case worth drawing.
     property var _now : new Date()
     Timer {

@@ -1,16 +1,16 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Build release completo di StreamLight — FoggyBytes
+    Build release completo di ArtMoon — FoggyBytes
     Esegui con doppio clic o da PowerShell senza parametri.
 
 .DESCRIPTION
     1. Aggiunge Qt 6.8.3 e 7-Zip al PATH della sessione
     2. Esegue build-arch.bat release (clean build completo)
        Il bat fallisce volutamente alla fine (flag windeployqt non supportato) — e' normale
-    3. Verifica che StreamLight.exe sia stato prodotto
+    3. Verifica che ArtMoon.exe sia stato prodotto
     4. Esegue windeployqt con i flag corretti per Qt 6.8.3
-    5. Copia StreamLight.exe e le DLL di libs nella cartella di output finale
+    5. Copia ArtMoon.exe e le DLL di libs nella cartella di output finale
     6. Apre la cartella output in Explorer
 #>
 
@@ -29,16 +29,16 @@ trap {
 # ---------------------------------------------------------------------------
 # Percorsi fissi
 # ---------------------------------------------------------------------------
-$StreamLightRoot  = 'C:\Users\marce\source\repos\StreamLight'
+$ArtMoonRoot  = 'C:\Users\marce\source\repos\ArtMoon'
 $QtBinPath        = 'C:\Qt\6.8.3\msvc2022_64\bin'
 $SevenZipPath     = 'C:\Program Files\7-Zip'
 $WinDeployQt      = Join-Path $QtBinPath 'windeployqt.exe'
-$BuildArchBat     = Join-Path $StreamLightRoot 'scripts\build-arch.bat'
-$QmlDir           = Join-Path $StreamLightRoot 'app\gui'
-$CompiledExe      = Join-Path $StreamLightRoot 'build\build-x64-release\app\release\StreamLight.exe'
-$DeployFolder     = Join-Path $StreamLightRoot 'build\deploy-x64-release'
-$LibsFolder       = Join-Path $StreamLightRoot 'libs\windows\lib\x64'
-$OutputFolder     = Join-Path $StreamLightRoot 'build\release'
+$BuildArchBat     = Join-Path $ArtMoonRoot 'scripts\build-arch.bat'
+$QmlDir           = Join-Path $ArtMoonRoot 'app\gui'
+$CompiledExe      = Join-Path $ArtMoonRoot 'build\build-x64-release\app\release\ArtMoon.exe'
+$DeployFolder     = Join-Path $ArtMoonRoot 'build\deploy-x64-release'
+$LibsFolder       = Join-Path $ArtMoonRoot 'libs\windows\lib\x64'
+$OutputFolder     = Join-Path $ArtMoonRoot 'build\release'
 
 # ---------------------------------------------------------------------------
 # Funzioni di utilita'
@@ -70,7 +70,7 @@ function Write-Fail {
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "========================================" -ForegroundColor White
-Write-Host "  StreamLight — Build Release Completo" -ForegroundColor White
+Write-Host "  ArtMoon — Build Release Completo" -ForegroundColor White
 Write-Host "  FoggyBytes" -ForegroundColor White
 Write-Host "========================================" -ForegroundColor White
 Write-Host "  Data: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
@@ -133,12 +133,12 @@ Write-Host "    Questo step richiede diversi minuti. Attendere..."
 Write-Host "    NOTA: il bat terminera' con un errore su --no-quickcontrols2fluentwinui3styleimpl"
 Write-Host "          Questo e' atteso e normale su Qt 6.8.3."
 
-Push-Location $StreamLightRoot
+Push-Location $ArtMoonRoot
 try {
     # Esegue il bat catturando l'output ma stampandolo in tempo reale
     $batProcess = Start-Process -FilePath 'cmd.exe' `
         -ArgumentList "/c `"$BuildArchBat`" release" `
-        -WorkingDirectory $StreamLightRoot `
+        -WorkingDirectory $ArtMoonRoot `
         -NoNewWindow `
         -PassThru `
         -Wait
@@ -150,7 +150,7 @@ try {
 
 # Il bat fallisce volutamente — verifichiamo che l'exe esista prima di considerarlo un errore reale
 if (-not (Test-Path $CompiledExe)) {
-    Write-Fail "build-arch.bat ha fallito E StreamLight.exe non e' stato prodotto."
+    Write-Fail "build-arch.bat ha fallito E ArtMoon.exe non e' stato prodotto."
     Write-Fail "Controlla l'output sopra per errori di compilazione reali."
     Write-Fail "Exit code bat: $batExitCode"
     Write-Host ""
@@ -162,7 +162,7 @@ if (-not (Test-Path $CompiledExe)) {
     exit 1
 }
 
-Write-OK "StreamLight.exe prodotto correttamente"
+Write-OK "ArtMoon.exe prodotto correttamente"
 Write-Warn "build-arch.bat ha restituito exit code $batExitCode (atteso — step windeployqt del bat ignorato)"
 
 # ---------------------------------------------------------------------------
@@ -252,13 +252,13 @@ if ($LASTEXITCODE -ne 0) {
 Write-OK "windeployqt completato"
 
 # ---------------------------------------------------------------------------
-# Step 7 — Copia StreamLight.exe nella cartella di output
+# Step 7 — Copia ArtMoon.exe nella cartella di output
 # (windeployqt non copia l'exe — lo fa questo step)
 # ---------------------------------------------------------------------------
-Write-Step "Copia StreamLight.exe nell'output finale"
+Write-Step "Copia ArtMoon.exe nell'output finale"
 
 Copy-Item $CompiledExe -Destination $OutputFolder -Force
-Write-OK "StreamLight.exe copiato in $OutputFolder"
+Write-OK "ArtMoon.exe copiato in $OutputFolder"
 
 # ---------------------------------------------------------------------------
 # Step 8 — Pulizia directory Qt inutilizzate (speculare a build-arch.bat)
@@ -286,7 +286,7 @@ Write-OK "Pulizia completata"
 # ---------------------------------------------------------------------------
 # Riepilogo finale
 # ---------------------------------------------------------------------------
-$exeInOutput = Join-Path $OutputFolder 'StreamLight.exe'
+$exeInOutput = Join-Path $OutputFolder 'ArtMoon.exe'
 $fileCount   = (Get-ChildItem -Recurse -File $OutputFolder).Count
 
 Write-Host ""

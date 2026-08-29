@@ -6,10 +6,10 @@ QT += core quick network quickcontrols2 svg quickdialogs2
 CONFIG += c++17
 
 unix:!macx {
-    TARGET = moonlight
+    TARGET = artmoon
 } else {
     # On macOS, this is the name displayed in the global menu bar
-    TARGET = StreamLight
+    TARGET = ArtMoon
 }
 
 include(../globaldefs.pri)
@@ -534,22 +534,22 @@ unix:!macx: {
 
     target.path = $$PREFIX/$$BINDIR/
 
-    desktop.files = deploy/linux/com.moonlight_stream.Moonlight.desktop
+    desktop.files = deploy/linux/io.github.onaiaku.ArtMoon.desktop
     desktop.path = $$PREFIX/$$DATADIR/applications/
 
-    icons.files = res/moonlight.svg
-    icons.path = $$PREFIX/$$DATADIR/icons/hicolor/scalable/apps/
+    icons.files = res/artmoon.png
+    icons.path = $$PREFIX/$$DATADIR/icons/hicolor/256x256/apps/
 
-    appstream.files = deploy/linux/com.moonlight_stream.Moonlight.appdata.xml
+    appstream.files = deploy/linux/io.github.onaiaku.ArtMoon.appdata.xml
     appstream.path = $$PREFIX/$$DATADIR/metainfo/
 
     INSTALLS += target desktop icons appstream
 }
 win32 {
-    RC_ICONS = streamlight.ico
+    RC_ICONS = artmoon.ico
     QMAKE_TARGET_COMPANY = FoggyBytes
-    QMAKE_TARGET_DESCRIPTION = StreamLight - A Moonlight Fork
-    QMAKE_TARGET_PRODUCT = StreamLight
+    QMAKE_TARGET_DESCRIPTION = ArtMoon - A Moonlight Fork
+    QMAKE_TARGET_PRODUCT = ArtMoon
 
     CONFIG -= embed_manifest_exe
     QMAKE_LFLAGS += /MANIFEST:embed /MANIFESTINPUT:$${PWD}/Moonlight.exe.manifest
@@ -562,7 +562,7 @@ macx {
 
     QMAKE_INFO_PLIST = $$OUT_PWD/Info.plist
 
-    APP_BUNDLE_RESOURCES.files = moonlight.icns
+    APP_BUNDLE_RESOURCES.files = artmoon.icns
     APP_BUNDLE_RESOURCES.path = Contents/Resources
 
     APP_BUNDLE_PLIST.files = $$OUT_PWD/Info.plist

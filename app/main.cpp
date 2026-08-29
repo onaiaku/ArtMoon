@@ -293,7 +293,7 @@ LONG WINAPI UnhandledExceptionHandler(struct _EXCEPTION_POINTERS *ExceptionInfo)
     }
 
     WCHAR dmpFileName[MAX_PATH];
-    swprintf_s(dmpFileName, L"%ls\\StreamLight-%I64u.dmp",
+    swprintf_s(dmpFileName, L"%ls\\ArtMoon-%I64u.dmp",
                (PWCHAR)QDir::toNativeSeparators(Path::getLogDir()).utf16(), QDateTime::currentSecsSinceEpoch());
     QString qDmpFileName = QString::fromUtf16((const char16_t*)dmpFileName);
     HANDLE dumpHandle = CreateFileW(dmpFileName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -429,7 +429,7 @@ void configureSignalHandlers()
 int main(int argc, char *argv[])
 {
     // Installer hook: the Inno Setup post-install [Run] step invokes
-    //   StreamLight.exe --register-xbox-tile
+    //   ArtMoon.exe --register-xbox-tile
     // when the user opts in (default ON) to seed the Xbox app "My Apps"
     // entry with branded tile artwork. We handle this BEFORE constructing
     // QGuiApplication / SDL so the call is fast (~50 ms), runs hidden, and
@@ -437,6 +437,10 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--register-xbox-tile") == 0) {
             QCoreApplication coreApp(argc, argv);
+            // "StreamLight" here is the SETTINGS-STORE IDENTITY, not branding —
+            // QCoreApplication::applicationName feeds the QSettings registry path
+            // (Software\FoggyBytes\StreamLight). Renaming it would silently reset
+            // every user's settings. User-facing name is ArtMoon; this stays.
             QCoreApplication::setApplicationName("StreamLight");
             XboxTileArtwork::registerEntry();
             return 0;
@@ -457,7 +461,7 @@ int main(int argc, char *argv[])
     //
     // Until 5.3.0 these three lines named Moonlight exactly — organization
     // "Moonlight Game Streaming Project", application "Moonlight" — so an
-    // installation of Moonlight and an installation of StreamLight shared ONE
+    // installation of Moonlight and an installation of ArtMoon shared ONE
     // settings store and ONE cache directory. That is not a cosmetic overlap:
     //
     //   · 31 preference keys are identical in name and meaning between the two
@@ -475,13 +479,18 @@ int main(int argc, char *argv[])
     //
     // Deliberately NOT migrated: the old store is left exactly where it is and
     // is never written to, so Moonlight keeps its own data and a downgrade to
-    // 5.3.0 still finds everything. StreamLight starts clean — settings AND
+    // 5.3.0 still finds everything. ArtMoon starts clean — settings AND
     // identity — which means paired hosts have to be paired again once. That
     // cost was accepted knowingly (see changelog 5.4.0); StoreReset below is
     // what tells the user it happened.
     // ═════════════════════════════════════════════════════════════════════════
     QCoreApplication::setOrganizationName("FoggyBytes");
     QCoreApplication::setOrganizationDomain("foggybytes.dev");
+    // "StreamLight" is the SETTINGS-STORE IDENTITY, not branding: it names the
+    // QSettings registry path (Software\FoggyBytes\StreamLight). Renaming it to
+    // ArtMoon would silently reset every user's settings on first launch. The
+    // user-facing product name is ArtMoon everywhere else; this one stays until
+    // a proper settings migration is written.
     QCoreApplication::setApplicationName("StreamLight");
 
     if (QFile(QDir::currentPath() + "/portable.dat").exists()) {
@@ -523,7 +532,7 @@ int main(int argc, char *argv[])
     if (IS_UNSPECIFIED_HANDLE(oldConErr))
 #endif
     {
-        s_LoggerFile = new QFile(tempDir.filePath(QString("StreamLight-%1.log").arg(QDateTime::currentSecsSinceEpoch())));
+        s_LoggerFile = new QFile(tempDir.filePath(QString("ArtMoon-%1.log").arg(QDateTime::currentSecsSinceEpoch())));
         if (s_LoggerFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream(stderr) << "Redirecting log output to " << s_LoggerFile->fileName() << Qt::endl;
             s_LoggerStream.setDevice(s_LoggerFile);
@@ -556,7 +565,7 @@ int main(int argc, char *argv[])
 
 #ifdef LOG_TO_FILE
     // Prune the oldest existing logs if there are more than 10
-    QStringList existingLogNames = tempDir.entryList(QStringList("StreamLight-*.log"), QDir::NoFilter, QDir::SortFlag::Time);
+    QStringList existingLogNames = tempDir.entryList(QStringList("ArtMoon-*.log"), QDir::NoFilter, QDir::SortFlag::Time);
     for (int i = 10; i < existingLogNames.size(); i++) {
         qInfo() << "Removing old log file:" << existingLogNames.at(i);
         QFile(tempDir.filePath(existingLogNames.at(i))).remove();
@@ -849,15 +858,15 @@ int main(int argc, char *argv[])
     // list) are one-shot and must remain re-entrant even while the GUI is up.
     SingleInstance* singleInstance = nullptr;
     if (commandLineParserResult == GlobalCommandLineParser::NormalStartRequested) {
-        singleInstance = new SingleInstance(QStringLiteral("StreamLight-SingleInstance"), &app);
+        singleInstance = new SingleInstance(QStringLiteral("ArtMoon-SingleInstance"), &app);
         if (!singleInstance->attach()) {
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                        "Another StreamLight instance is already running; raising it and exiting.");
+                        "Another ArtMoon instance is already running; raising it and exiting.");
             return 0;
         }
 
         // Auto-start Tailscale before the host discovery layer comes up, so the
-        // Tailscale VPN is available when StreamLight starts reaching out to
+        // Tailscale VPN is available when ArtMoon starts reaching out to
         // paired hosts via their Tailscale IPs. The preference is set in
         // Settings > Network. We launch unconditionally if not already running;
         // we never terminate it (the OFF toggle only affects the next launch).
@@ -957,11 +966,11 @@ int main(int argc, char *argv[])
 #ifndef Q_OS_DARWIN
     // Set the window icon except on macOS where we want to keep the
     // modified macOS 11 style rounded corner icon.
-    app.setWindowIcon(QIcon(":/streamlight.ico"));
+    app.setWindowIcon(QIcon(":/artmoon.ico"));
 #endif
 
     // Sync the Windows Xbox app "My Apps" tile artwork for this exe if the
-    // user has added StreamLight to their custom library. No-op when:
+    // user has added ArtMoon to their custom library. No-op when:
     //  - not on Windows
     //  - Xbox app is not installed
     //  - this exe is not in the CustomLibraryManagement manifest
@@ -969,7 +978,7 @@ int main(int argc, char *argv[])
     // See XboxTileArtwork.h for the full mechanism description.
     XboxTileArtwork::applyIfRegistered();
 
-    // Real-time watcher: if the user adds StreamLight to "Le mie app" while
+    // Real-time watcher: if the user adds ArtMoon to "Le mie app" while
     // this process is already running, react to the manifest change within
     // ~250 ms and re-patch the tile PNG. Singleton parented to qApp; lives
     // for the whole session.

@@ -352,11 +352,11 @@ Item {
         }
 
         // Not when the failure was diagnosed as host-side: audio reached us, so a line about
-        // this network blocking StreamLight contradicts the message it would be appended to.
+        // this network blocking ArtMoon contradicts the message it would be appended to.
         // It stays true in general — it just has nothing to do with this failure.
         if (portTestResult !== 0 && portTestResult !== -1 && streamSegueErrorDialog.text
                 && !(session && session.hostSideVideoFailure())) {
-            streamSegueErrorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking StreamLight. Streaming over the Internet may not work while connected to this network.")
+            streamSegueErrorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking ArtMoon. Streaming over the Internet may not work while connected to this network.")
         }
 
         // An unlock session that ends without the pad having decided anything — the launch

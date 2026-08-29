@@ -23,8 +23,8 @@ Write-Host "cl: $(& where.exe cl 2>&1)"
 if ($CopyOnly) {
     Write-Host "--- CopyOnly mode: skipping compile ---"
 } else {
-    $jom      = 'C:\Users\marce\source\repos\StreamLight\scripts\jom.exe'
-    $buildDir = 'C:\Users\marce\source\repos\StreamLight\build\build-x64-release\app'
+    $jom      = 'C:\Users\marce\source\repos\ArtMoon\scripts\jom.exe'
+    $buildDir = 'C:\Users\marce\source\repos\ArtMoon\build\build-x64-release\app'
 
     Push-Location $buildDir
     try {
@@ -42,8 +42,8 @@ if ($CopyOnly) {
     Write-Host "--- jom succeeded ---"
 }
 
-$src = 'C:\Users\marce\source\repos\StreamLight\build\build-x64-release\app\release\StreamLight.exe'
-$dst = 'C:\Users\marce\source\repos\StreamLight\build\deploy-x64-release\StreamLight.exe'
+$src = 'C:\Users\marce\source\repos\ArtMoon\build\build-x64-release\app\release\ArtMoon.exe'
+$dst = 'C:\Users\marce\source\repos\ArtMoon\build\deploy-x64-release\ArtMoon.exe'
 Copy-Item $src $dst -Force
 Write-Host "--- EXE copied to deploy directory ---"
 Write-Host "DONE"

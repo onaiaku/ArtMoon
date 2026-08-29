@@ -1,11 +1,11 @@
-; StreamLight 5.4.0 — Moonlight fork with StreamTweak integration.
+; ArtMoon 5.4.0 — Moonlight fork with StreamTweak integration.
 ; SourceDir is the self-contained runtime built by build-arch.bat +
 ; manual windeployqt (see CLAUDE.md §3).
-#define AppName "StreamLight"
+#define AppName "ArtMoon"
 #define AppVersion "5.4.0"
-#define AppPublisher "FoggyBytes"
-#define AppURL "https://github.com/FoggyBytes/StreamLight"
-#define AppExeName "StreamLight.exe"
+#define AppPublisher "onaiaku"
+#define AppURL "https://github.com/onaiaku/ArtMoon"
+#define AppExeName "ArtMoon.exe"
 #define SourceDir "build\deploy-x64-release"
 
 [Setup]
@@ -19,9 +19,9 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 InfoBeforeFile=changelog.txt
-SetupIconFile=installer\resources\streamlight.ico
-WizardSmallImageFile=installer\resources\streamlight.png
-WizardImageFile=installer\resources\streamlightinstaller.png
+SetupIconFile=installer\resources\artmoon.ico
+WizardSmallImageFile=installer\resources\artmoon.png
+WizardImageFile=installer\resources\artmooninstaller.png
 UninstallDisplayIcon={app}\{#AppExeName}
 AllowNoIcons=yes
 DirExistsWarning=no
@@ -29,11 +29,11 @@ CloseApplications=yes
 Compression=lzma2
 SolidCompression=yes
 OutputDir=build\installer
-OutputBaseFilename=StreamLight_{#AppVersion}_Installer
+OutputBaseFilename=ArtMoon_{#AppVersion}_Installer
 WizardStyle=modern
 DisableWelcomePage=no
 MinVersion=10.0
-; 64-bit Setup binary (Inno Setup 7+). StreamLight.exe is x64, so a 32-bit installer
+; 64-bit Setup binary (Inno Setup 7+). ArtMoon.exe is x64, so a 32-bit installer
 ; bought nothing; this also gets high-entropy ASLR by default. Note this drops
 ; Windows 10 on ARM64, which only emulates x86 — but the x64 app could never have
 ; run there anyway. Windows 11 on ARM64 emulates x64 and is unaffected.
@@ -47,7 +47,7 @@ ArchitecturesAllowed=x64compatible
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WelcomeLabel1=Welcome to the StreamLight Setup Wizard
+WelcomeLabel1=Welcome to the ArtMoon Setup Wizard
 WelcomeLabel2=
 
 [Tasks]
@@ -66,10 +66,10 @@ Name: "xboxtile"; Description: "Add an icon to the Xbox app's 'My apps' section"
 ; *.bat excluded: the deploy directory is where throwaway launchers get dropped while
 ; chasing a bug, and a build machine's scratch scripts must never reach a user.
 Source: "{#SourceDir}\*"; DestDir: "{app}"; \
-    Excludes: "*.log,*.bat,sl_*.txt,streamlight_pad.log,portable.dat,cache\*"; \
+    Excludes: "*.log,*.bat,sl_*.txt,artmoon_pad.log,portable.dat,cache\*"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\gamecontrollerdb.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "installer\resources\streamlight.png"; Flags: dontcopy
+Source: "installer\resources\artmoon.png"; Flags: dontcopy
 Source: "changelog.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -93,7 +93,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 
 [Run]
 ; If the user opted in to "Add an icon to the Xbox app's My apps", seed the
-; CustomLibraryManagement manifest with the StreamLight entry + branded tile
+; CustomLibraryManagement manifest with the ArtMoon entry + branded tile
 ; PNG. Runs hidden, blocking, finishes in ~50 ms.
 ; runasoriginaluser is critical: PrivilegesRequired defaults to "admin" so
 ; the installer is elevated, and a vanilla [Run] would inherit the elevated
@@ -191,8 +191,8 @@ begin
   // Before anything is laid out: the window exists by now, but has not been shown.
   MakeWizardFixedSize;
 
-  ExtractTemporaryFile('streamlight.png');
-  TmpFileName := ExpandConstant('{tmp}\streamlight.png');
+  ExtractTemporaryFile('artmoon.png');
+  TmpFileName := ExpandConstant('{tmp}\artmoon.png');
 
   LogoImage := TBitmapImage.Create(WizardForm);
   LogoImage.Parent := WizardForm.WelcomePage;
@@ -219,7 +219,7 @@ begin
   DevelopedByLabel.Parent := WizardForm.WelcomePage;
   DevelopedByLabel.Left := LogoImage.Left;
   DevelopedByLabel.Top := LogoImage.Top + LogoImage.Height + ScaleY(30);
-  DevelopedByLabel.Caption := 'Developed by FoggyBytes © 2026';
+  DevelopedByLabel.Caption := 'Developed by onaiaku & Rias © 2026';
   DevelopedByLabel.Font.Size := 10;
   DevelopedByLabel.AutoSize := True;
 
@@ -237,7 +237,7 @@ begin
   // bullet list room to breathe (the Welcome page's right panel is too narrow).
   StreamTweakPage := CreateCustomPage(wpWelcome,
     'StreamTweak — recommended companion app', #13#10 +
-    'Install StreamTweak on the host PC to unlock StreamLight''s advanced features.');
+    'Install StreamTweak on the host PC to unlock ArtMoon''s advanced features.');
 
   StreamTweakIntroLabel := TNewStaticText.Create(StreamTweakPage);
   StreamTweakIntroLabel.Parent := StreamTweakPage.Surface;
@@ -247,7 +247,7 @@ begin
   StreamTweakIntroLabel.WordWrap := True;
   StreamTweakIntroLabel.AutoSize := True;
   StreamTweakIntroLabel.Caption :=
-    'StreamLight works as a standalone Moonlight client. When paired with StreamTweak — ' +
+    'ArtMoon works as a standalone Moonlight client. When paired with StreamTweak — ' +
     'a free open-source companion app for the host PC, also developed by FoggyBytes — ' +
     'it gains the following advanced features:';
 
@@ -280,7 +280,7 @@ begin
   StreamTweakOutroLabel.AutoSize := True;
   StreamTweakOutroLabel.Caption :=
     'StreamTweak is optional — you can install it on the host PC at any time, ' +
-    'no need to interrupt this setup. Click Next to continue installing StreamLight.';
+    'no need to interrupt this setup. Click Next to continue installing ArtMoon.';
 
   StreamTweakLearnMoreLabel := TNewStaticText.Create(StreamTweakPage);
   StreamTweakLearnMoreLabel.Parent := StreamTweakPage.Surface;

@@ -1139,7 +1139,7 @@ void Session::refreshHostCapabilities()
 bool Session::validateLaunch(SDL_Window* testWindow)
 {
     if (!m_Computer->isSupportedServerVersion) {
-        emit displayLaunchError(tr("The version of GeForce Experience on %1 is not supported by this build of StreamLight. You must update StreamLight to stream from %1.").arg(m_Computer->name));
+        emit displayLaunchError(tr("The version of GeForce Experience on %1 is not supported by this build of ArtMoon. You must update ArtMoon to stream from %1.").arg(m_Computer->name));
         return false;
     }
 
@@ -1368,7 +1368,7 @@ bool Session::validateLaunch(SDL_Window* testWindow)
 
     // Check for unmapped gamepads
     if (!SdlInputHandler::getUnmappedGamepads().isEmpty()) {
-        emitLaunchWarning(tr("An attached gamepad has no mapping and won't be usable. Visit the StreamLight help to resolve this."));
+        emitLaunchWarning(tr("An attached gamepad has no mapping and won't be usable. Visit the ArtMoon help to resolve this."));
     }
 
     // If we removed all codecs with the checks above, use H.264 as the codec of last resort.
@@ -2022,7 +2022,7 @@ bool Session::startConnectionAsync()
     // and revealing is the one thing that must never happen here. It would also answer
     // "not_applicable" for the Desktop app we launch, which finishes the gate immediately.
     //
-    // And only when the user asked to wait. Off by default: StreamLight then behaves as it
+    // And only when the user asked to wait. Off by default: ArtMoon then behaves as it
     // always did, and the window appears on the first frame. Left on for a title that opens its
     // own launcher the gate would run to its ninety-second cap with the launcher sitting on
     // screen unseen, which is why the wait is overridable per game as well.
@@ -2399,7 +2399,7 @@ void Session::exec()
 #ifdef Q_OS_DARWIN
     std::string windowName = QString(m_Computer->name).toStdString();
 #else
-    std::string windowName = QString(m_Computer->name + " - StreamLight").toStdString();
+    std::string windowName = QString(m_Computer->name + " - ArtMoon").toStdString();
 #endif
 
     m_Window = SDL_CreateWindow(windowName.c_str(),
@@ -2443,7 +2443,7 @@ void Session::exec()
     m_InputHandler->attachAlreadyConnectedGamepads();
 
     // Without the wait there is no gate to finish, so the reveal is asked for now and happens
-    // as soon as the first frame lands — the behaviour StreamLight has always had. This is the
+    // as soon as the first frame lands — the behaviour ArtMoon has always had. This is the
     // default path; holding the window back is the opt-in.
     if (!m_UnlockMode && !waitsForGame()) {
         revealStreamWindow();
@@ -2453,7 +2453,7 @@ void Session::exec()
     // to drive. Still nothing reaches the host: the buttons become Qt keys for the pad.
     m_InputHandler->setUnlockMode(m_UnlockMode);
 
-    QImage iconImage = QIcon(":/streamlight.ico").pixmap(ICON_SIZE, ICON_SIZE).toImage().convertToFormat(QImage::Format_RGBA8888);
+    QImage iconImage = QIcon(":/artmoon.ico").pixmap(ICON_SIZE, ICON_SIZE).toImage().convertToFormat(QImage::Format_RGBA8888);
     SDL_Surface* iconSurface = iconImage.isNull() ? nullptr :
         SDL_CreateRGBSurfaceWithFormatFrom((void*)iconImage.constBits(),
                                            iconImage.width(),

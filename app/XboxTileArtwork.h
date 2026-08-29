@@ -17,25 +17,25 @@ class QTimer;
  *
  * For curated launchers (Steam, Epic, GOG, ...) Microsoft ships pre-bundled
  * tile artwork. For everything else, the Xbox app extracts a PNG from the
- * .exe's embedded icon — which gives StreamLight an ugly grey square because
+ * .exe's embedded icon — which gives ArtMoon an ugly grey square because
  * the .ico's swoosh sits on transparency.
  *
  * This class provides three layers of self-healing for the tile artwork,
  * all based on overwriting the imagePath PNG with the embedded gradient
- * artwork from qrc:/streamlightxbox.png:
+ * artwork from qrc:/artmoonxbox.png:
  *
- *   1. applyIfRegistered()  — boot patch (StreamLight startup).
+ *   1. applyIfRegistered()  — boot patch (ArtMoon startup).
  *                              If an entry already exists, sync its PNG.
  *
  *   2. registerEntry()      — proactive pre-population. Writes a manifest
  *                              entry pointing to our PNG so the user sees
- *                              StreamLight in "Le mie app" with the proper
+ *                              ArtMoon in "Le mie app" with the proper
  *                              tile WITHOUT ever clicking "+". Invoked by
  *                              the Inno Setup installer via the
  *                              --register-xbox-tile CLI flag when the user
  *                              opts in during install.
  *
- *   3. startWatching()      — runtime FileSystemWatcher. While StreamLight
+ *   3. startWatching()      — runtime FileSystemWatcher. While ArtMoon
  *                              is running, react to manifest changes (eg.
  *                              user clicks "+" anyway, or Xbox app rewrites
  *                              the PNG) and re-patch within ~250 ms.
@@ -56,7 +56,7 @@ public:
     static void applyIfRegistered();
 
     /// Pre-populate (or refresh) the manifest entry for the current exe so
-    /// the Xbox app shows StreamLight in "Le mie app" with the gradient
+    /// the Xbox app shows ArtMoon in "Le mie app" with the gradient
     /// tile from the start. Preserves existing entries from other apps.
     /// Called from the installer post-install hook.
     static void registerEntry();

@@ -8,8 +8,8 @@ call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\v
 set PATH=C:\Qt\6.8.3\msvc2022_64\bin;C:\Program Files\7-Zip;%PATH%
 
 :: Directory di build
-set BUILD_DIR=C:\Users\marce\source\repos\StreamLight\build\build-x64-release\app
-set JOM=C:\Users\marce\source\repos\StreamLight\scripts\jom.exe
+set BUILD_DIR=C:\Users\marce\source\repos\ArtMoon\build\build-x64-release\app
+set JOM=C:\Users\marce\source\repos\ArtMoon\scripts\jom.exe
 
 :: Lancia jom incrementale
 cd /d "%BUILD_DIR%"

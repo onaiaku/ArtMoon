@@ -736,7 +736,7 @@ FocusScope {
         if (!success) {
             errorDialog.text = qsTr("Unable to connect to the specified PC.")
             if (detectedPortBlocking) {
-                errorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking StreamLight. Streaming over the Internet may not work while connected to this network.")
+                errorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking ArtMoon. Streaming over the Internet may not work while connected to this network.")
             } else {
                 errorDialog.helpText = qsTr("Click the Help button for possible solutions.")
             }
@@ -1247,7 +1247,9 @@ FocusScope {
 
         Image {
             id: brandIcon
-            source: "qrc:/streamlight.ico"
+            // PNG, not the .ico: Qt's ICO plugin picks a small frame (16/32px)
+            // and upscales it, blurring the header mark. Brand PNG is 256px.
+            source: "qrc:/res/artmoon-brand.png"
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: 46; height: 46
@@ -1268,10 +1270,10 @@ FocusScope {
             // the clock opposite it.
             spacing: 4
 
-            // Uniform wordmark: "STREAMLIGHT" all caps, single size, Black weight, wide
+            // Uniform wordmark: "ARTMOON" all caps, single size, Black weight, wide
             // letter-spacing. Avoids the optical-weight mismatch of synthesised small-caps.
             Label {
-                text: "STREAMLIGHT"
+                text: "ARTMOON"
                 font.family: Theme.family
                 font.pixelSize: 30
                 font.weight: Font.Black
@@ -1561,7 +1563,7 @@ FocusScope {
         case "open":
             if (h.statusUnknown) return
             if (!h.serverSupported) {
-                errorDialog.text = qsTr("The version of GeForce Experience on %1 is not supported by this build of StreamLight. You must update StreamLight to stream from %1.").arg(h.name)
+                errorDialog.text = qsTr("The version of GeForce Experience on %1 is not supported by this build of ArtMoon. You must update ArtMoon to stream from %1.").arg(h.name)
                 errorDialog.helpText = ""
                 errorDialog.open()
                 return
@@ -1797,21 +1799,21 @@ FocusScope {
         onClosed: navRoot.forceActiveFocus()
 
         onAboutToShow: {
-            text = qsTr("StreamLight is testing your network connection to determine if any required ports are blocked.") +
+            text = qsTr("ArtMoon is testing your network connection to determine if any required ports are blocked.") +
                    "\n\n" + qsTr("This may take a few seconds…")
             showSpinner = true
         }
 
         function connectionTestComplete(result, blockedPorts) {
             if (result === -1) {
-                text = qsTr("The network test could not be performed because none of StreamLight's connection testing servers were reachable from this PC. Check your Internet connection or try again later.")
+                text = qsTr("The network test could not be performed because none of ArtMoon's connection testing servers were reachable from this PC. Check your Internet connection or try again later.")
                 imageSrc = "qrc:/res/baseline-warning-24px.svg"
             } else if (result === 0) {
-                text = qsTr("This network does not appear to be blocking StreamLight. If you still have trouble connecting, check your PC's firewall settings.") + "\n\n" +
+                text = qsTr("This network does not appear to be blocking ArtMoon. If you still have trouble connecting, check your PC's firewall settings.") + "\n\n" +
                        qsTr("If you are trying to stream over the Internet, install the Moonlight Internet Hosting Tool on your gaming PC and run the included Internet Streaming Tester to check your gaming PC's Internet connection.")
                 imageSrc = "qrc:/res/baseline-check_circle_outline-24px.svg"
             } else {
-                text = qsTr("Your PC's current network connection seems to be blocking StreamLight. Streaming over the Internet may not work while connected to this network.") + "\n\n" +
+                text = qsTr("Your PC's current network connection seems to be blocking ArtMoon. Streaming over the Internet may not work while connected to this network.") + "\n\n" +
                        qsTr("The following network ports were blocked:") + "\n"
                 text += blockedPorts
                 imageSrc = "qrc:/res/baseline-error_outline-24px.svg"

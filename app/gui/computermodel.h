@@ -218,7 +218,7 @@ public:
     /** Clears any Tailscale session pin on all hosts (poller reverts to LAN-first). */
     Q_INVOKABLE void clearTailscalePreferences();
 
-    // ── Per-host streaming profiles (StreamLight 4.0.0) ──────────────────────
+    // ── Per-host streaming profiles (ArtMoon 4.0.0) ──────────────────────
     Q_INVOKABLE int hostProfileCount(int computerIndex) const;
     Q_INVOKABLE int hostActiveProfile(int computerIndex) const;       // slot, or -1
     Q_INVOKABLE QString hostActiveProfileName(int computerIndex) const;

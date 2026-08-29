@@ -260,7 +260,7 @@ void StreamingPreferences::reload()
     // resurrecting itself in an upgrade is not something anyone asked for. Whoever wants
     // it back turns it back on.
     matchRefreshRate = settings.value(SER_MATCHREFRESHRATE, false).toBool();
-    // Off by default: without it StreamLight behaves as it always did, showing the stream as
+    // Off by default: without it ArtMoon behaves as it always did, showing the stream as
     // soon as the session is up. Holding the launch screen until the host says the game is on
     // screen is the opt-in, because it is the answer to a problem not everyone has — and a
     // title that opens its own launcher never satisfies it at all.
@@ -331,7 +331,7 @@ void StreamingPreferences::reload()
                                                         // Try to load from the old preference value too
                                                         static_cast<int>(settings.value(SER_FULLSCREEN, true).toBool() ?
                                                                              recommendedFullScreenMode : WindowMode::WM_WINDOWED)).toInt());
-    // StreamLight 3.0 default: maximised — so the gamepad status bar is
+    // ArtMoon 3.0 default: maximised — so the gamepad status bar is
     // visible at any screen resolution on first launch. Users can still
     // pick a different mode in Settings > Session > GUI mode.
     uiDisplayMode = static_cast<UIDisplayMode>(settings.value(SER_UIDISPLAYMODE,

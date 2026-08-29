@@ -26,15 +26,15 @@ constexpr const char* kManifestRelative =
 constexpr const char* kManifestFile = "CustomLibraryManagement.manifest";
 
 // Embedded gradient tile (1024x1024 PNG, RGB), shipped via resources.qrc.
-constexpr const char* kEmbeddedTile = ":/streamlightxbox.png";
+constexpr const char* kEmbeddedTile = ":/artmoonxbox.png";
 
 // Static identifiers for proactive pre-population. The UUID is arbitrary —
-// it just has to be unique to "StreamLight by FoggyBytes" and stable across
+// it just has to be unique to "ArtMoon by FoggyBytes" and stable across
 // installs / updates so we always find/update the same entry. Format must
 // match the UUID-v4-style canonical pattern Xbox uses elsewhere.
-constexpr const char* kStreamLightUuid     = "8b3f5d1e-9c2a-4e6f-a847-7b9d2c1e8a5f";
-constexpr const char* kStreamLightImageId  = "9220176001457765510"; // numeric PNG basename
-constexpr const char* kStreamLightTitle    = "StreamLight";
+constexpr const char* kArtMoonUuid     = "8b3f5d1e-9c2a-4e6f-a847-7b9d2c1e8a5f";
+constexpr const char* kArtMoonImageId  = "9220176001457765510"; // numeric PNG basename
+constexpr const char* kArtMoonTitle    = "ArtMoon";
 
 QString normalizeDir(const QString& path)
 {
@@ -45,14 +45,14 @@ QString normalizeDir(const QString& path)
     return p;
 }
 
-// Diagnostic log: written under %TEMP%\streamlight-xbox-tile.log so users can
+// Diagnostic log: written under %TEMP%\artmoon-xbox-tile.log so users can
 // share a single file if pre-population doesn't behave as expected. Append-only,
 // timestamped, ~one line per major step. Best-effort; failures are swallowed.
 void diagLog(const QString& line)
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
     if (dir.isEmpty()) return;
-    QFile f(QDir(dir).filePath("streamlight-xbox-tile.log"));
+    QFile f(QDir(dir).filePath("artmoon-xbox-tile.log"));
     if (!f.open(QIODevice::Append | QIODevice::Text)) return;
     QTextStream ts(&f);
     ts << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
@@ -266,7 +266,7 @@ void XboxTileArtwork::registerEntry()
 
     // Try to find an existing entry that matches the current exe path
     // (installLocation + executableName). Preserve its id/imagePath if so;
-    // otherwise use our static StreamLight identifiers.
+    // otherwise use our static ArtMoon identifiers.
     QString matchedKey;
     QJsonObject existingEntry;
     for (auto it = gameCache.constBegin(); it != gameCache.constEnd(); ++it) {
@@ -284,12 +284,12 @@ void XboxTileArtwork::registerEntry()
 
     const QString uuid = !matchedKey.isEmpty()
         ? matchedKey
-        : QString::fromLatin1(kStreamLightUuid);
+        : QString::fromLatin1(kArtMoonUuid);
 
     QString imagePath = existingEntry.value(QLatin1String("imagePath")).toString();
     if (imagePath.isEmpty()) {
         imagePath = QDir(imgDir).filePath(
-            QString::fromLatin1(kStreamLightImageId) + QLatin1String(".png"));
+            QString::fromLatin1(kArtMoonImageId) + QLatin1String(".png"));
         imagePath = QDir::toNativeSeparators(imagePath);
     }
 
@@ -303,7 +303,7 @@ void XboxTileArtwork::registerEntry()
             QString::number(QDateTime::currentMSecsSinceEpoch());
     }
     entry[QLatin1String("imagePath")]            = imagePath;
-    entry[QLatin1String("title")]                = QString::fromLatin1(kStreamLightTitle);
+    entry[QLatin1String("title")]                = QString::fromLatin1(kArtMoonTitle);
     entry[QLatin1String("installLocation")]      = QDir::toNativeSeparators(myDir);
     entry[QLatin1String("executableName")]       = myExe;
     entry[QLatin1String("executableCommandArgs")] = QString();
@@ -366,7 +366,7 @@ void XboxTileArtwork::startWatching()
     if (!QDir(mDir).exists()) {
         // The Xbox app has never been opened. Nothing to watch yet — we
         // could poll, but that's not worth the effort. The boot patch on
-        // the *next* StreamLight launch will catch up.
+        // the *next* ArtMoon launch will catch up.
         return;
     }
 

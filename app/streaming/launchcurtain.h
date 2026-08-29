@@ -12,7 +12,7 @@
  * <p>There is one curtain and QML draws all of it, because the stream window stays hidden
  * until the launch is over. This class is what it reads: the state, and the wording with it.
  * The wording is English here rather than qsTr in QML because it is composed alongside the
- * state that produces it — and StreamLight ships English-only, so nothing is lost.</p>
+ * state that produces it — and ArtMoon ships English-only, so nothing is lost.</p>
  */
 class LaunchCurtain : public QObject
 {

@@ -155,7 +155,7 @@ public:
     QString stageColorFrom;    // derived, "#rrggbb"
     QString stageColorTo;      // derived, "#rrggbb"
 
-    // Whether StreamLight may use the StreamTweak integration on this host: link matching,
+    // Whether ArtMoon may use the StreamTweak integration on this host: link matching,
     // remote power and Windows Update, the PIN unlock, the last-session panel, store
     // badges, host metrics, the launch curtain, session telemetry. Streaming is never
     // affected either way.

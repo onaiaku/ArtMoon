@@ -1,6 +1,6 @@
 #pragma once
 
-// Per-app (per-game) settings overrides (StreamLight 4.0.0).
+// Per-app (per-game) settings overrides (ArtMoon 4.0.0).
 //
 // Each game can override a subset of the global StreamingPreferences. At launch
 // the global preferences are cloned and the game's overrides applied on top, so
@@ -115,7 +115,7 @@ private:
     static QString keyFor(const QString& hostUuid, int appId);
 };
 
-// Per-host streaming profiles (StreamLight 4.0.0): up to 3 named profiles per
+// Per-host streaming profiles (ArtMoon 4.0.0): up to 3 named profiles per
 // host, each an AppOverride; one is active. The active profile is applied as a
 // host-level override at launch (below per-game). Stored via QSettings.
 class HostProfileManager

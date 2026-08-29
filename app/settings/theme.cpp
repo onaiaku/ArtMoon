@@ -6,7 +6,7 @@ namespace
 {
     // "Ion" — the cyan, and the default since 5.0.0.
     //
-    // It replaced StreamLight's own green (#00e676, still available as the "Signal" preset)
+    // It replaced ArtMoon's own green (#00e676, still available as the "Signal" preset)
     // for one reason: that green was doing two jobs at once. It meant "you have the focus
     // here" AND it is within a shade of the green that means "this host is online" — and a
     // colour that says two things says neither. The cyan sits beside the online green without

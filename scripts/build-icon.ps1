@@ -1,7 +1,7 @@
 param(
-    [string]$Source       = 'C:\Users\marce\source\repos\StreamLight\app\streamlight.ico',
-    [string]$Out          = 'C:\Users\marce\source\repos\StreamLight\app\streamlight.ico',
-    [string]$OutInstaller = 'C:\Users\marce\source\repos\StreamLight\installer\resources\streamlight.ico',
+    [string]$Source       = 'C:\Users\marce\source\repos\ArtMoon\app\artmoon.ico',
+    [string]$Out          = 'C:\Users\marce\source\repos\ArtMoon\app\artmoon.ico',
+    [string]$OutInstaller = 'C:\Users\marce\source\repos\ArtMoon\installer\resources\artmoon.ico',
     [string]$TopHex       = '#151515',
     [string]$BottomHex    = '#0A3B22',
     [switch]$Preview

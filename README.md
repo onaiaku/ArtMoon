@@ -1,12 +1,12 @@
 ## 🎮 ArtMoon
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg)](https://github.com/FoggyBytes/StreamLight) [![Framework](https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg)](https://www.qt.io/) [![Downloads](.badges/downloads.svg)](https://github.com/FoggyBytes/StreamLight/releases) [![Built on Moonlight](https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github)](https://github.com/moonlight-stream/moonlight-qt) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-brightgreen.svg)](https://claude.ai/code)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg)](https://github.com/onaiaku/ArtMoon) [![Framework](https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg)](https://www.qt.io/) [![Downloads](.badges/downloads.svg)](https://github.com/onaiaku/ArtMoon/releases) [![Built on Moonlight](https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github)](https://github.com/moonlight-stream/moonlight-qt) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-brightgreen.svg)](https://claude.ai/code)
 
 <div align="center">
   <img width="960" height="540" alt="Immagine 2026-08-29 122012" src="https://github.com/user-attachments/assets/86a91fa4-0ee6-42d3-841b-2d64e8358171" />
 </div>
 
-**StreamLight** is the client half of the FoggyBytes streaming duo: a fork of [Moonlight](https://github.com/moonlight-stream/moonlight-qt) with a gamepad-first interface and native integration with its host-side companion, [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak).
+**ArtMoon** is the client half of the FoggyBytes streaming duo: a fork of [Moonlight](https://github.com/moonlight-stream/moonlight-qt) with a gamepad-first interface and native integration with its host-side companion, [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak).
 
 The streaming engine is untouched from upstream Moonlight — FFmpeg, D3D11VA, DXVA2, libplacebo, `moonlight-common-c`. What is new sits around it: the interface, and everything the two apps can do together over a local TCP bridge — host link matching, host metrics in the overlay, the store each game comes from, session quality reports, remote power-off and Windows Update, Tailscale, and signing a woken host in with its PIN from the sofa.
 
@@ -18,9 +18,9 @@ The streaming engine is untouched from upstream Moonlight — FFmpeg, D3D11VA, D
 
 Windows 10 and 11. Works as an ordinary Moonlight-compatible client against any **Sunshine / Apollo / Vibeshine / Vibepollo** host, and unlocks its paired feature set when [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) is running on the host.
 
-> 🔐 **The bridge is authenticated.** Every command StreamLight sends is signed with its existing Moonlight identity certificate; the host approves each client once, via a 4-digit PIN shown on both screens. **Streaming never depends on it** — without approval you stream normally and simply lose the paired features. Each host card shows its state as a badge (AUTHORIZED / PENDING / DENIED).
+> 🔐 **The bridge is authenticated.** Every command ArtMoon sends is signed with its existing Moonlight identity certificate; the host approves each client once, via a 4-digit PIN shown on both screens. **Streaming never depends on it** — without approval you stream normally and simply lose the paired features. Each host card shows its state as a badge (AUTHORIZED / PENDING / DENIED).
 
-> ⚠️ **Not affiliated with or endorsed by the Moonlight project.** StreamLight is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
+> ⚠️ **Not affiliated with or endorsed by the Moonlight project.** ArtMoon is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
 
 ## 🔥 Features
 
@@ -61,34 +61,34 @@ Everything below is in the current release, whichever version first introduced i
 
 These cross the bridge and need both apps. The version shown is the **minimum StreamTweak** on the host.
 
-All of them are switched on **per host**, in **Settings → StreamTweak** — a host added from StreamLight 5.2.0 on starts off, and hosts you were already using StreamTweak with are switched on for you on first run. Streaming itself is never affected either way.
+All of them are switched on **per host**, in **Settings → StreamTweak** — a host added from ArtMoon 5.2.0 on starts off, and hosts you were already using StreamTweak with are switched on for you on first run. Streaming itself is never affected either way.
 
-- **Host link matching** *(8.1.0+)* — before each launch StreamLight measures the wired link that actually reaches that host, asks the host to come down to it, and starts the stream only once the host confirms. A host running faster than the client sends each frame as a burst the slower link cannot drain, and the packets that die first are the few carrying audio: the symptom is sound cutting out while the picture stays perfect. The client decides the speed because only the client knows its own connection; the host keeps the permission and the restore
+- **Host link matching** *(8.1.0+)* — before each launch ArtMoon measures the wired link that actually reaches that host, asks the host to come down to it, and starts the stream only once the host confirms. A host running faster than the client sends each frame as a burst the slower link cannot drain, and the packets that die first are the few carrying audio: the symptom is sound cutting out while the picture stays perfect. The client decides the speed because only the client knows its own connection; the host keeps the permission and the restore
 - **Seamless launch** *(8.1.0+, opt-in)* — with **Wait for the game to appear** on, the stream window stays hidden until the host reports the game is really on screen, so you watch the game's cover art instead of the host's desktop rearranging itself. **B** or **Esc** reveals the host at any moment
 - **Remote PIN unlock** *(8.1.0+)* — after a **Wake**, if the host comes up at its lock screen, a controller-navigable number pad takes its Windows PIN. The session carrying the PIN is never shown and never recorded on the host; wrong attempts stop at three, since Windows suspends the PIN after a few failures
 - **Host session report** *(8.1.0+)* — the host's last finished session on its card: grade, age, duration, RTT and peak, host frame latency, drop rate, and the covers of what was played
 - **Host metrics in the overlay** *(4.4.0+)* — GPU %, encoder %, GPU temperature, VRAM, CPU and network TX, hidden entirely when StreamTweak is unreachable
 - **Store badges** *(5.0.0+)* — which store the selected game comes from, its mark beside its name on the host page: Steam, Epic, GOG, Ubisoft, Xbox, Battle.net and EA App
 - **Session quality reporting** *(5.2.0+)* — FPS, drops, RTT, jitter, decode latency and bitrate sent every second; StreamTweak turns them into a grade and charts
-- **Delivered vs target bitrate** *(8.0.0+)* — StreamLight reports the rate it was told to aim for, so the host can show what it actually delivered against it. Neither side can work that out alone
+- **Delivered vs target bitrate** *(8.0.0+)* — ArtMoon reports the rate it was told to aim for, so the host can show what it actually delivered against it. Neither side can work that out alone
 - **Remote host power-off** *(7.2.0+)* — a **Power…** chooser for the host, this PC, or both, on an authorized host only
 - **Remote Windows Update** *(7.3.0+)* — scan, classify and install updates on the host, rebooting only if required, with a backgroundable progress view. Updates can also be installed before a shutdown
 - **Remote session pause** *(6.0.0+)* — the Pause button on StreamTweak's dashboard ends the stream client-side
-- **Tailscale in one tile** *(6.3.0+)* — a host reachable both on the LAN and over Tailscale stays a single tile that tracks both addresses and uses whichever is available, with an option to force the `100.x` endpoint. Pairs with the **Auto-start Tailscale** toggle, so opening StreamLight is enough to stream from anywhere
+- **Tailscale in one tile** *(6.3.0+)* — a host reachable both on the LAN and over Tailscale stays a single tile that tracks both addresses and uses whichever is available, with an option to force the `100.x` endpoint. Pairs with the **Auto-start Tailscale** toggle, so opening ArtMoon is enough to stream from anywhere
 
 ## ✨ What's New in 5.4.0 — Own House
 
-StreamLight keeps its settings in its own place instead of sharing Moonlight's. Client-side, works with any host.
+ArtMoon keeps its settings in its own place instead of sharing Moonlight's. Client-side, works with any host.
 
-> ⚠️ **Read before updating.** This version starts from scratch once: no hosts, default settings. Pair each host again; if you use StreamTweak, approve this device on the host **and** switch the integration back on for each host in *Settings* — a newly paired host starts with it off, so the bridge stays silent until you do. Nothing is deleted — the old settings stay where they were, so 5.3.0 still finds them. If you normally wake your host from StreamLight, wake it *before* updating: Wake-on-LAN needs the host's stored address, and that goes with the rest.
+> ⚠️ **Read before updating.** This version starts from scratch once: no hosts, default settings. Pair each host again; if you use StreamTweak, approve this device on the host **and** switch the integration back on for each host in *Settings* — a newly paired host starts with it off, so the bridge stays silent until you do. Nothing is deleted — the old settings stay where they were, so 5.3.0 still finds them. If you normally wake your host from ArtMoon, wake it *before* updating: Wake-on-LAN needs the host's stored address, and that goes with the rest.
 
-- **Its own settings store.** Installed side by side, StreamLight and Moonlight used to share one — the same registry key and the same cache folder — so each one overwrote the other's resolution, bitrate, V-Sync and codec every time it saved
+- **Its own settings store.** Installed side by side, ArtMoon and Moonlight used to share one — the same registry key and the same cache folder — so each one overwrote the other's resolution, bitrate, V-Sync and codec every time it saved
 - **Per-host settings survive having Moonlight installed.** Moonlight rewrites the whole host list whenever it saves, dropping every field it does not know about: the Tailscale address, the stage artwork, the pinned address, the per-host StreamTweak switch. Hosts that kept forgetting their Tailscale endpoint were this
 - **A one-time notice on first launch** says the settings were reset, what to do about it, and that nothing was thrown away — an empty host list with no explanation reads as a fault
-- **"Restart now" actually restarts.** Answering *Yes* to the Tailscale restart prompt used to close StreamLight and leave nothing running: the replacement started while the old one was still shutting down, saw it was there, and stepped aside
+- **"Restart now" actually restarts.** Answering *Yes* to the Tailscale restart prompt used to close ArtMoon and leave nothing running: the replacement started while the old one was still shutting down, saw it was there, and stepped aside
 - **GUI mode asks to restart.** *Windowed / Maximized / Fullscreen* is read when the window is built, so it only takes effect on the next launch — it now says so instead of appearing to do nothing. *No* keeps the choice for next time
 - **LB/RB switch profiles on a host with only one.** The cycle runs through *Global* too, so one profile is already two stops — but the shoulders stayed dead until a second profile existed, while the on-screen hints said they would work
-- **No more black stripe down the right edge of the large cover.** The drop shadow draws a black backing plate behind the artwork, and it was coming out a couple of pixels wider than the picture laid over it — which is why the stripe arrived with 5.3.0 and showed at some window sizes and not others. Reported in [issue #11](https://github.com/FoggyBytes/StreamLight/issues/11)
+- **No more black stripe down the right edge of the large cover.** The drop shadow draws a black backing plate behind the artwork, and it was coming out a couple of pixels wider than the picture laid over it — which is why the stripe arrived with 5.3.0 and showed at some window sizes and not others. Reported in [issue #11](https://github.com/onaiaku/ArtMoon/issues/11)
 
 ## ✨ What's New in 5.3.0 — One Scale
 
@@ -98,7 +98,7 @@ The interface is drawn at one scale from end to end, and the settings you overri
 - **And the row stops offering that value twice.** With *Global* at 1080p the resolution row reads *Global · 1080p | 720p | 1440p | 4K*: the option that would only repeat the inherited answer is gone, and comes back as soon as it stops being a repetition. A value you pinned yourself is never hidden
 - **One scale, everywhere.** *Settings* was written in fixed pixels while the host page and every dialog already grew with the window, so on a large screen the same row came out one size there and another in a dialog opened on top of it. The segmented pickers and the pill buttons follow now too — they were the last controls left at a fixed size
 - **The per-game and host profile panels are wider**, using the space they were leaving empty at both sides rather than getting taller
-- **The cover no longer comes back deformed from a stream.** The drop shadow's automatic padding was resizing the effect under the artwork; the shadow is now cast by a separate silhouette and the picture never passes through a padded pass. Reported in [issue #10](https://github.com/FoggyBytes/StreamLight/issues/10)
+- **The cover no longer comes back deformed from a stream.** The drop shadow's automatic padding was resizing the effect under the artwork; the shadow is now cast by a separate silhouette and the picture never passes through a padded pass. Reported in [issue #10](https://github.com/onaiaku/ArtMoon/issues/10)
 - **The version in the corner is read from the app itself** — it had been typed by hand at every release, and 5.2.1 shipped saying 5.2.0
 
 ## ✨ What's New in 5.2.1 — One To One
@@ -112,19 +112,19 @@ The refresh rate match is back, as an addition on top of Moonlight's presentatio
 
 ## ✨ What's New in 5.2.0 — Hands Off
 
-StreamLight stops taking the presentation of frames into its own hands: between the decoder and your screen it now runs Moonlight's own code, with Moonlight's current protocol and video libraries alongside it. And everything that needs StreamTweak on the host moves behind one switch per host, in a Settings tab of its own.
+ArtMoon stops taking the presentation of frames into its own hands: between the decoder and your screen it now runs Moonlight's own code, with Moonlight's current protocol and video libraries alongside it. And everything that needs StreamTweak on the host moves behind one switch per host, in a Settings tab of its own.
 
-- **A StreamTweak tab in Settings.** Everything StreamLight can do only with StreamTweak on the host, listed in one place, with a switch for each of your hosts and the download link that used to sit in About. Each row says whether StreamTweak is actually answering on that host
-- **Frame pacing is Moonlight's again.** The half-rate cadence added in 3.4.0 smoothed 60 FPS on a 120 Hz screen by holding each frame for two refreshes — but holding frames that way makes them pile up in the graphics driver, and that is the drifting delay behind [issue #9](https://github.com/FoggyBytes/StreamLight/issues/9). Frames are now presented the moment they are ready, and any evening out is the same software pacer Moonlight uses
+- **A StreamTweak tab in Settings.** Everything ArtMoon can do only with StreamTweak on the host, listed in one place, with a switch for each of your hosts and the download link that used to sit in About. Each row says whether StreamTweak is actually answering on that host
+- **Frame pacing is Moonlight's again.** The half-rate cadence added in 3.4.0 smoothed 60 FPS on a 120 Hz screen by holding each frame for two refreshes — but holding frames that way makes them pile up in the graphics driver, and that is the drifting delay behind [issue #9](https://github.com/onaiaku/ArtMoon/issues/9). Frames are now presented the moment they are ready, and any evening out is the same software pacer Moonlight uses
 - **Frame pacing is now Off or On.** *Automatic* and *Software* both meant the same thing once there was no hardware path left, and *Hardware* meant nothing at all. Your setting carries over
 - ⚠️ **Refresh rate switching has been removed**, and with it *Match frame rate*. Your screen goes to the highest refresh rate your frame rate divides into, as Moonlight does. Stated plainly: a 60 FPS stream on a 120 Hz screen can judder on camera pans again, and the fix is to halve the refresh rate at the driver level — NVIDIA Profile Inspector, or Special-K elsewhere
 - **The code that talks to your host is Moonlight's current version again**, after six months behind — error correction on the processor's own instructions, malformed replies turned away rather than parsed, and Windows socket failures reported for what they are
 - **The video libraries move up for the first time since March** — FFmpeg goes up a major version and the Vulkan renderer with it
-- **The picture is asked for at full colour range** — all 256 levels per channel instead of the 16-235 broadcast range, which keeps detail in dark scenes. If your host answers with limited range instead, StreamLight follows what it actually sends
+- **The picture is asked for at full colour range** — all 256 levels per channel instead of the 16-235 broadcast range, which keeps detail in dark scenes. If your host answers with limited range instead, ArtMoon follows what it actually sends
 - **Everything in Settings answers the mouse now.** The outline under the pointer brightens, in a neutral colour so it can never be confused with the accent the pad and keyboard use, and the focus ring steps aside while you are pointing. The pointer itself gets out of the way when you pick up the controller
 - **The settings that need StreamTweak grey themselves out**, naming the host, when that host has the integration switched off — and *Wait for the game to appear* now states the dependency it always had
 - **The performance overlay has no Frame pacing line any more**, and the *Cadence* line added in 5.1.2 is gone with the measurement behind it. Nothing else about your overlay changes
-- **Fixes** — the host-page cover is no longer left stretched after a stream, the PIN pad no longer blames your PIN when the host simply stopped answering, the banded stripes across host cards are gone, a stream that ends with no picture points at the host's graphics drivers rather than your own firewall, and StreamLight stops knocking on the StreamTweak port on hosts that do not run it
+- **Fixes** — the host-page cover is no longer left stretched after a stream, the PIN pad no longer blames your PIN when the host simply stopped answering, the banded stripes across host cards are gone, a stream that ends with no picture points at the host's graphics drivers rather than your own firewall, and ArtMoon stops knocking on the StreamTweak port on hosts that do not run it
 
 *Older releases are in [changelog.txt](changelog.txt).*
 
@@ -135,7 +135,7 @@ A Qt 6 / QML fork of Moonlight-Qt. The decoder pipeline — FFmpeg, D3D11VA, DXV
 Integration with StreamTweak runs over a TCP bridge on **port 47998** (LAN, line-delimited ASCII), carrying link speed (`NETINFO`, `SETSPEED`), host metrics (`STATS`), store data (`APPSTORES`), telemetry (`SESSIONDATA`), Tailscale presence, launch state (`GAMESTATE`), lock state, and the power and Windows Update commands. Each command is preceded by an `AUTH1` line signing it with the client's Moonlight certificate (RSA-SHA256); a one-time `ENROLL` registers the client with the host for approval.
 
 ```
-StreamLight (Qt, client PC)
+ArtMoon (Qt, client PC)
     │  TCP port 47998
     ▼
 StreamTweak (WinUI 3, host PC)  →  Named Pipe  →  StreamTweakService (LocalSystem)
@@ -148,18 +148,18 @@ StreamTweak (WinUI 3, host PC)  →  Named Pipe  →  StreamTweakService (LocalS
 
 ## 📝 Installation
 
-Download the latest installer from the [Releases](https://github.com/FoggyBytes/StreamLight/releases) page and run it.
+Download the latest installer from the [Releases](https://github.com/onaiaku/ArtMoon/releases) page and run it.
 
-Settings — paired hosts, video / audio / input preferences, client certificate — live under `HKCU\Software\FoggyBytes\StreamLight`, and box art is cached in `%LOCALAPPDATA%\FoggyBytes\StreamLight`. Upgrades from 5.4.0 onward keep everything.
+Settings — paired hosts, video / audio / input preferences, client certificate — live under `HKCU\Software\FoggyBytes\ArtMoon`, and box art is cached in `%LOCALAPPDATA%\FoggyBytes\ArtMoon`. Upgrades from 5.4.0 onward keep everything.
 
-Up to 5.3.0 both lived under `Moonlight Game Streaming Project\Moonlight` — upstream Moonlight's own store, shared with it. 5.4.0 moved out of it and does not migrate anything, so the upgrade to 5.4.0 resets settings and pairing once. The old store is left untouched: an older StreamLight, or a Moonlight installation, still finds its data there.
+Up to 5.3.0 both lived under `Moonlight Game Streaming Project\Moonlight` — upstream Moonlight's own store, shared with it. 5.4.0 moved out of it and does not migrate anything, so the upgrade to 5.4.0 resets settings and pairing once. The old store is left untouched: an older ArtMoon, or a Moonlight installation, still finds its data there.
 
 ## 🙏 Support the Project
 [![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/foggypunk)
 
 ## 🤝 Acknowledgements
 
-- [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) — the host-side companion, designed in lockstep with StreamLight
+- [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) — the host-side companion, designed in lockstep with ArtMoon
 - [**Moonlight**](https://github.com/moonlight-stream/moonlight-qt) — the open-source client this fork is built on; full credit to its contributors
 - [**Sunshine**](https://github.com/LizardByte/Sunshine) — the streaming host that started it all
 - [**Apollo**](https://github.com/ClassicOldSong/Apollo) — community-driven Sunshine fork
@@ -168,4 +168,4 @@ Up to 5.3.0 both lived under `Moonlight Game Streaming Project\Moonlight` — up
 ## License
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-StreamLight is released under the GPL v3 License, in accordance with the upstream Moonlight license.
+ArtMoon is released under the GPL v3 License, in accordance with the upstream Moonlight license.

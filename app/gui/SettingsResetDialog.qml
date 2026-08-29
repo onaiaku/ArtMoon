@@ -3,7 +3,7 @@ import QtQuick.Controls 2.15
 import Theme 1.0
 
 // Shown once, on the first launch after upgrading from a build that shared Moonlight's
-// settings store (5.3.0 and earlier). From 5.4.0 StreamLight has its own store and
+// settings store (5.3.0 and earlier). From 5.4.0 ArtMoon has its own store and
 // nothing carries over, so the app comes up with no hosts and default settings.
 //
 // This exists because that is indistinguishable from a fault. The app never shows its
@@ -73,7 +73,7 @@ Popup {
             // everything else works and the bridge just stays silent, because a
             // freshly discovered host record starts with the integration off
             // (nvcomputer.cpp) — the same default any new host gets.
-            text: qsTr("StreamLight no longer shares its settings with Moonlight, so this version starts from scratch. Pair your hosts again; then, if you use StreamTweak, approve this device on the host and switch the integration back on for each host in Settings.")
+            text: qsTr("ArtMoon no longer shares its settings with Moonlight, so this version starts from scratch. Pair your hosts again; then, if you use StreamTweak, approve this device on the host and switch the integration back on for each host in Settings.")
             font.family: Theme.family; font.pixelSize: dlg._px(15)
             color: Theme.text2
             wrapMode: Text.WordWrap

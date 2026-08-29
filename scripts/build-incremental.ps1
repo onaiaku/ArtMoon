@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Build incrementale di StreamLight (release x64).
+    Build incrementale di ArtMoon (release x64).
 
 .DESCRIPTION
     Attiva l'ambiente MSVC, esegue qmake solo se necessario,
@@ -31,12 +31,12 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------------------------------------------------------
 # Percorsi
 # ---------------------------------------------------------------------------
-$repoRoot   = 'C:\Users\marce\source\repos\StreamLight'
+$repoRoot   = 'C:\Users\marce\source\repos\ArtMoon'
 $appPro     = "$repoRoot\app\app.pro"
 $buildDir   = "$repoRoot\build\build-x64-release\app"
 $deployDir  = "$repoRoot\build\deploy-x64-release"
-$exeBuild   = "$buildDir\release\StreamLight.exe"
-$exeDeploy  = "$deployDir\StreamLight.exe"
+$exeBuild   = "$buildDir\release\ArtMoon.exe"
+$exeDeploy  = "$deployDir\ArtMoon.exe"
 $jom        = "$repoRoot\scripts\jom.exe"
 $vswhere    = "$repoRoot\scripts\vswhere.exe"
 $qtBin      = 'C:\Qt\6.8.3\msvc2022_64\bin'
@@ -142,7 +142,7 @@ Pop-Location
 # ---------------------------------------------------------------------------
 # 6. Copia exe nella deploy directory
 # ---------------------------------------------------------------------------
-Write-Step "Copia StreamLight.exe in deploy/"
+Write-Step "Copia ArtMoon.exe in deploy/"
 if (-not (Test-Path $exeBuild)) {
     Write-Host "[ERRORE] Exe non trovato: $exeBuild" -ForegroundColor Red
     exit 1

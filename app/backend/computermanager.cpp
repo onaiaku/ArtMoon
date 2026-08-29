@@ -964,7 +964,7 @@ private:
 
         // Tag this entry as a local clone (e.g. Tailscale dual-tile) if requested.
         // The uuid stays the real one (Moonlight protocol identity); aliasSuffix is
-        // purely a StreamLight-local namespacing tag used in m_KnownHosts.
+        // purely a ArtMoon-local namespacing tag used in m_KnownHosts.
         if (!m_AliasSuffix.isEmpty()) {
             newComputer->aliasSuffix = m_AliasSuffix;
             newComputer->isAddressPinned = true;

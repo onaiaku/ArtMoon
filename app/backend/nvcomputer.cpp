@@ -279,7 +279,7 @@ NvComputer::NvComputer(NvHTTP& http, QString serverInfo)
 
     // We can get an IPv4 loopback address if we're using the GS IPv6 Forwarder
     this->localAddress = NvAddress(NvHTTP::getXmlString(serverInfo, "LocalIP"), http.httpPort());
-    // Reached over loopback — which happens whenever StreamLight runs on the machine that is
+    // Reached over loopback — which happens whenever ArtMoon runs on the machine that is
     // also the host — the server reports 127.0.0.1 as its LocalIP, the same way it reports
     // its Tailscale IP when reached over Tailscale. Was a `startsWith("127.")` string test,
     // which is blind to ::1.

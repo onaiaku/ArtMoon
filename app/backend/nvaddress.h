@@ -31,7 +31,7 @@ public:
      * Loopback — 127.0.0.0/8 or ::1.
      *
      * An address that names whoever is asking, not the host. It reaches a record when
-     * StreamLight runs on the machine that is also the host: the server answers over
+     * ArtMoon runs on the machine that is also the host: the server answers over
      * loopback and reports the interface it was reached on, exactly as it does with the
      * Tailscale interface. Unlike a Tailscale address this one is not reclaimed anywhere —
      * it identifies no host and is useful to nobody.

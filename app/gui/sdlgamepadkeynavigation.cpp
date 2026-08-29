@@ -19,7 +19,7 @@ static void slDbg(const QString& line)
 {
     static QFile* f = nullptr;
     if (!f) {
-        f = new QFile(QCoreApplication::applicationDirPath() + "/streamlight_pad.log");
+        f = new QFile(QCoreApplication::applicationDirPath() + "/artmoon_pad.log");
         f->open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
     }
     if (f->isOpen()) {

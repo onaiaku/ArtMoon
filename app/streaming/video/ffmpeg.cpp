@@ -937,7 +937,7 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
 
     if (showHostSection && anyClientItem) {
         ret = snprintf(&output[offset], length - offset,
-                       "--- Client Metrics (StreamLight) ---\n");
+                       "--- Client Metrics (ArtMoon) ---\n");
         if (ret < 0 || ret >= length - offset) {
             SDL_assert(false);
             return;

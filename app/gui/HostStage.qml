@@ -377,7 +377,7 @@ Item {
                                : qsTr("Automatic discovery is off — add the host by address")
         return statusUnknown    ? qsTr("Checking this host…")
              : online && paired ? (serverSupported ? qsTr("Ready to stream")
-                                                   : qsTr("This host needs a newer StreamLight"))
+                                                   : qsTr("This host needs a newer ArtMoon"))
              : online           ? qsTr("Not paired yet")
              : wakeable         ? qsTr("Offline · can be woken up")
              :                    qsTr("Offline")

@@ -1,32 +1,32 @@
 ==========================================
-StreamLight - ChangeLog - Developed by FoggyBytes
+ArtMoon - ChangeLog - Developed by FoggyBytes
 ==========================================
 
-https://github.com/FoggyBytes/StreamLight
+https://github.com/FoggyBytes/ArtMoon
 
 --------------------------------------
 Version 5.4.0 - Own House (29/08/2026)
 --------------------------------------
 
-No StreamTweak update required — everything in 5.4.0 is client-side and works with any host. StreamLight keeps its settings in its own place instead of sharing Moonlight's, which means this version starts from scratch once: your hosts have to be paired again, and StreamTweak has to approve this device again.
+No StreamTweak update required — everything in 5.4.0 is client-side and works with any host. ArtMoon keeps its settings in its own place instead of sharing Moonlight's, which means this version starts from scratch once: your hosts have to be paired again, and StreamTweak has to approve this device again.
 
 ⚠️ COMPATIBILITY:
-• Read this before updating — StreamLight starts with no hosts and default settings, so pair each host again; if you use StreamTweak, approve this device on the host and switch the integration back on for each host in Settings, since a newly paired host starts with it off. Nothing is deleted: the old settings are left exactly where they were, so 5.3.0 still finds them if you go back
-• If your host is usually asleep and you wake it from StreamLight, wake it before updating — Wake-on-LAN needs the host's address, and that goes with everything else
+• Read this before updating — ArtMoon starts with no hosts and default settings, so pair each host again; if you use StreamTweak, approve this device on the host and switch the integration back on for each host in Settings, since a newly paired host starts with it off. Nothing is deleted: the old settings are left exactly where they were, so 5.3.0 still finds them if you go back
+• If your host is usually asleep and you wake it from ArtMoon, wake it before updating — Wake-on-LAN needs the host's address, and that goes with everything else
 
 ✨ IMPROVEMENTS:
-• StreamLight and Moonlight no longer share one settings store — installed side by side they used the same one, so each overwrote the other's resolution, bitrate, V-Sync and codec every time it saved
+• ArtMoon and Moonlight no longer share one settings store — installed side by side they used the same one, so each overwrote the other's resolution, bitrate, V-Sync and codec every time it saved
 • Per-host settings survive having Moonlight installed — Moonlight rewrote the whole host list whenever it saved, silently dropping everything it does not know about: the Tailscale address, the stage artwork, the pinned address and the StreamTweak switch. Hosts that kept forgetting their Tailscale endpoint were this
 • A one-time notice on first launch says the settings were reset, what to do about it, and that nothing was thrown away
 
 🐛 FIXES:
-• "Restart now" actually restarts — answering Yes to the Tailscale restart prompt closed StreamLight and left nothing running, because the replacement started while the old one was still shutting down, found it, and stepped aside
-• GUI mode asks to restart — switching between Windowed, Maximized and Fullscreen only takes effect when StreamLight starts, so it now offers the restart instead of appearing to do nothing. Answering No keeps the choice for the next launch
+• "Restart now" actually restarts — answering Yes to the Tailscale restart prompt closed ArtMoon and left nothing running, because the replacement started while the old one was still shutting down, found it, and stepped aside
+• GUI mode asks to restart — switching between Windowed, Maximized and Fullscreen only takes effect when ArtMoon starts, so it now offers the restart instead of appearing to do nothing. Answering No keeps the choice for the next launch
 • LB/RB switch profiles on a host that has just one — the cycle runs through Global as well, so one profile is already two stops, but the shoulders were dead until a second profile existed while the on-screen hints said otherwise
 • The black stripe down the right edge of the large cover is gone — the drop shadow was drawing its own black backing plate a couple of pixels wider than the artwork laid over it, which is why it arrived with 5.3.0 and showed at some window sizes and not others
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/11) for the report that started this — a version that kept misbehaving after a downgrade turned out to be two clients writing to one place, and the black stripe he spotted on the cover in the same breath is fixed here too
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/11) for the report that started this — a version that kept misbehaving after a downgrade turned out to be two clients writing to one place, and the black stripe he spotted on the cover in the same breath is fixed here too
 
 --------------------------------------
 Version 5.3.0 - One Scale (29/08/2026)
@@ -48,7 +48,7 @@ No StreamTweak update required — everything in 5.3.0 is client-side and works 
 • The version shown in the corner is read from the app itself — it was a number typed by hand at every release, and 5.2.1 shipped saying 5.2.0
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/10) for the cover report, and for catching the wrong version number in the same breath
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/10) for the cover report, and for catching the wrong version number in the same breath
 
 ---------------------------------------
 Version 5.2.1 - One To One (28/08/2026)
@@ -61,28 +61,28 @@ No StreamTweak update required — everything in 5.2.1 is client-side and works 
 • Overridable per host profile, directly under Display mode — the row it depends on, so a profile that is not on Fullscreen greys it out and names the reason instead of holding a setting that cannot act
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/9) for asking for this one back with the reason attached
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/9) for asking for this one back with the reason attached
 
 --------------------------------------
 Version 5.2.0 - Hands Off (28/08/2026)
 --------------------------------------
 
-StreamLight stops taking the presentation of frames into its own hands: between the decoder and your screen it now runs Moonlight's own code, with Moonlight's current protocol and video libraries alongside it. And everything that needs StreamTweak on the host moves behind one switch per host, in a Settings tab of its own.
+ArtMoon stops taking the presentation of frames into its own hands: between the decoder and your screen it now runs Moonlight's own code, with Moonlight's current protocol and video libraries alongside it. And everything that needs StreamTweak on the host moves behind one switch per host, in a Settings tab of its own.
 
 ✨ NEW FEATURES:
-• A StreamTweak tab in Settings — everything StreamLight can do only with StreamTweak on the host, listed in one place, with a switch per host and the download link that used to sit in About
+• A StreamTweak tab in Settings — everything ArtMoon can do only with StreamTweak on the host, listed in one place, with a switch per host and the download link that used to sit in About
 • Each host in that tab says whether StreamTweak is actually answering on it, asked once while the tab is open
 
 🔧 IMPROVEMENTS:
 • Frame pacing is Moonlight's again — the half-rate cadence added in 3.4.0 smoothed 60 FPS on a 120 Hz screen by holding each frame for two refreshes, but holding them that way makes them pile up in the graphics driver, and that is the drifting delay behind issue #9. Frames are now presented the moment they are ready, and any evening out is the software pacer Moonlight uses
 • The code that talks to your host is Moonlight's current version again after six months behind — error correction now uses the processor's own instructions, malformed or absurdly long replies are turned away rather than parsed, and Windows socket failures are reported for what they are
 • The video libraries move up for the first time since March — FFmpeg goes up a major version and the Vulkan renderer with it, bringing five months of fixes
-• The picture is asked for at full colour range — all 256 levels per channel instead of the 16-235 broadcast range, which keeps detail in dark scenes and reduces banding. If your host answers with limited range instead, StreamLight follows what it actually sends
+• The picture is asked for at full colour range — all 256 levels per channel instead of the 16-235 broadcast range, which keeps detail in dark scenes and reduces banding. If your host answers with limited range instead, ArtMoon follows what it actually sends
 
 🎨 UI:
 • Frame pacing is now Off or On — Automatic and Software both meant the same thing once there was no hardware path left, and Hardware meant nothing at all. Your setting carries over, with Hardware becoming On only if you have V-Sync enabled
 • Everything in Settings answers the mouse now — the outline under the pointer brightens, in a neutral colour so it can never be confused with the accent the pad and keyboard use, and the focus ring steps aside while you are pointing. In the segmented pickers the option under the pointer lightens instead, and the one you already chose stays as it is
-• The pointing hand appears only on what can actually be clicked, and the pointer itself gets out of the way when you pick up the controller — over StreamLight's own window only, since elsewhere the pointer belongs to Windows
+• The pointing hand appears only on what can actually be clicked, and the pointer itself gets out of the way when you pick up the controller — over ArtMoon's own window only, since elsewhere the pointer belongs to Windows
 • The buttons in the StreamTweak and About tabs match the rest of Settings at last — same fill, same rounding, same focus ring
 • The settings that need StreamTweak grey themselves out, naming the host, when that host has the integration off — Host link speed under Network and Wait for the game to appear under Session, which now also states the dependency it always had
 • Waking a host whose StreamTweak switch is off no longer waits for StreamTweak — two steps instead of three, and it closes the moment the host is on the network
@@ -92,7 +92,7 @@ StreamLight stops taking the presentation of frames into its own hands: between 
 🐛 FIXES:
 • The game's cover on the host page is no longer left stretched when you come back from a stream — 5.1.2 found part of this cause and this repairs the rest
 • The PIN pad no longer reports a wrong PIN when the host simply stopped answering, and that case no longer counts against your three attempts
-• StreamLight no longer knocks on the StreamTweak port forever on hosts that do not run it, streaming included
+• ArtMoon no longer knocks on the StreamTweak port forever on hosts that do not run it, streaming included
 • The last session on a host's card refreshes while you are on the home screen, instead of describing the one before it
 • The banded stripes across a host's card are gone — two stacked gradients were collapsing the 48 shades underneath into eight, so they are one gradient now, and the card draws in two fewer passes when it has no picture behind it
 • A stream that ends with no picture points at the host's display and graphics drivers, naming its virtual display when the host reports one, instead of your own firewall — sound having played already proves the path works
@@ -106,7 +106,7 @@ StreamLight stops taking the presentation of frames into its own hands: between 
 • Switching a host off also stops the per-second stream statistics — its sessions still appear in StreamTweak's history with their duration and what you played, but without a grade or charts
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/9), who asked for this directly after weeks of testing across two machines — including the removal of a feature he had requested himself in issue #2, once his own measurements said the driver did the job better than we did
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/9), who asked for this directly after weeks of testing across two machines — including the removal of a feature he had requested himself in issue #2, once his own measurements said the driver did the job better than we did
 
 --------------------------------------
 Version 5.1.3 - As It Was (21/08/2026)
@@ -119,13 +119,13 @@ Frame pacing goes back to doing exactly what 5.1.0 did, the busy spinner is draw
 • On Intel graphics the Cadence line no longer prints V-blank counts — the driver's presentation counter there disagrees with its own panel, reporting one V-blank per frame where two is the only physical answer and flagging every single frame as a cadence slip; the wait and queue figures beside it are measured separately and are still shown
 
 🎨 UI:
-• The busy spinner is drawn by StreamLight now, everywhere it turns up — launching, quitting, waking a host, pairing, finding hosts, checking for updates. The stock one built its arc from flat-ended segments with nothing behind them, so its outline was never really a circle and its two ends read as corners stuck to the ring; that showed at every size, including the one the control picks for itself
+• The busy spinner is drawn by ArtMoon now, everywhere it turns up — launching, quitting, waking a host, pairing, finding hosts, checking for updates. The stock one built its arc from flat-ended segments with nothing behind them, so its outline was never really a circle and its two ends read as corners stuck to the ring; that showed at every size, including the one the control picks for itself
 • Every spinner is now sized against the text it sits beside instead of by hand, so it is the same proportion in all of them — they ranged from just right to nearly twice the size of their own label, and the one in the Windows Update view was a fixed size that never grew on a high-resolution display
 • Cover art on the host page has rounded corners whatever shape it arrives in — the rounding was being applied to the frame rather than to the picture, so a cover that was not exactly 2:3 sat inside that frame keeping its own square corners, which is why two games side by side on the same screen could look different
 • The launch screen no longer says "window open on host" beneath "Loading" — the title already said it, in fewer words
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/9) for four logs, a video, and two rounds of telling me I had it wrong — both times he was right, and both times it changed the release
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/9) for four logs, a video, and two rounds of telling me I had it wrong — both times he was right, and both times it changed the release
 
 -------------------------------------------
 Version 5.1.2 - Smoother Again (20/08/2026)
@@ -140,7 +140,7 @@ A stutter that 5.1.1 introduced, an overlay that blinked once a second, four thi
 • The stutter some people saw in 5.1.1 is gone — the fix that release made to the half-refresh case did two things, and only one of them was right. Capping how many frames the driver may hold ahead of the display was right, and it stays: it is what stopped the latency building up and never coming back. Waiting for the screen before drawing the next frame was wrong, and it is gone: it made the picture run on the screen's rhythm while frames kept arriving on the stream's, and where those two didn't line up the result was anything from barely visible jitter on a slow camera pan to heavy stuttering. If 5.1.1 felt worse to you rather than better, this is why, and it is fixed
 • The performance overlay no longer blinks about once a second — it is rebuilt in the background at that rate, and the old one was being taken down before the new one was made, so any frame drawn in between had nothing to draw and the overlay simply vanished for it. The old one now stays up until the new one is ready to take its place, and a frame that lands on the swap itself redraws what it drew last instead of nothing
 • The game's cover on the host page is no longer stretched and cut off when you come back from a stream — it only ever happened to Desktop and Steam Big Picture, because their artwork is the only one that is not the usual portrait shape, and moving to another game and back was the one thing that cleared it. Two drawing steps that had been sharing a single pass — rounding the corners and casting the shadow — were disagreeing about how large the picture was, and they are now done one at a time
-• The covers in the last-session panel are sharp on a dense screen — they were drawn from the small thumbnail the host sends inside its report, sized for the panel's own layout and stretched rather than fitted, so on a 4K screen it was blown up almost threefold and any cover that was not the usual portrait shape arrived squashed. StreamLight now draws the full-size artwork it already holds for that host, the very file the game list is showing, and falls back to the host's thumbnail only for a game it has never opened or one since removed from the library
+• The covers in the last-session panel are sharp on a dense screen — they were drawn from the small thumbnail the host sends inside its report, sized for the panel's own layout and stretched rather than fitted, so on a 4K screen it was blown up almost threefold and any cover that was not the usual portrait shape arrived squashed. ArtMoon now draws the full-size artwork it already holds for that host, the very file the game list is showing, and falls back to the host's thumbnail only for a game it has never opened or one since removed from the library
 • Dark backdrops no longer step through visible bands — a host background picture, and the blurred cover behind the host page, sit under a dark veil that keeps the text readable, and darkening a picture that far leaves it only a couple of dozen distinct shades, so anything smooth in it breaks into stripes. The veil is now dithered the way the app's own gradients already were: a pattern half a shade deep, far too fine to see, which is exactly what stops the stripes forming
 • The host card no longer promises a link-speed change it will not get — for around half a minute after a session ends the host still counts one as running and turns down any request to change its adapter, so starting another game in that window showed "on launch → 1 Gbps" and then quietly did not do it. The card and the Options tile now say nothing while the host reports itself busy, and the tile gives that as the reason. The wait itself belongs to the host: StreamTweak 8.1.2 does away with it, and against an older host this at least stops a promise that was never going to be kept
 
@@ -154,14 +154,14 @@ Version 5.1.1 - Frame Pacing Latency (19/08/2026)
 No StreamTweak update required — everything in 5.1.1 is client-side and works with any host.
 
 🐛 FIXES:
-• Streaming at half your screen's refresh rate no longer builds up a frame of latency — on a 120 Hz screen fed 60 FPS the controls would start feeling soft, on and off, with nothing on any meter to explain it: the picture was flawless and the frame rate exact. What was happening is that frames were queueing up three deep inside the graphics driver, and once the queue was full every frame had to wait for room before it could be handed over. Where that queue settled was decided in the first seconds of the stream and never changed again, which is why reconnecting sometimes cured it and sometimes did not. StreamLight now waits for the screen to be ready before it draws a frame instead of after, so nothing queues: measured over a whole session, the time a frame spends waiting on the display went from 6.68 ms to 0.57 ms, and the cadence it was there to protect is untouched
+• Streaming at half your screen's refresh rate no longer builds up a frame of latency — on a 120 Hz screen fed 60 FPS the controls would start feeling soft, on and off, with nothing on any meter to explain it: the picture was flawless and the frame rate exact. What was happening is that frames were queueing up three deep inside the graphics driver, and once the queue was full every frame had to wait for room before it could be handed over. Where that queue settled was decided in the first seconds of the stream and never changed again, which is why reconnecting sometimes cured it and sometimes did not. ArtMoon now waits for the screen to be ready before it draws a frame instead of after, so nothing queues: measured over a whole session, the time a frame spends waiting on the display went from 6.68 ms to 0.57 ms, and the cadence it was there to protect is untouched
 • Your screen goes back to its normal refresh rate when the stream ends — with "Refresh rate switching" set to Match frame rate, a 60 FPS stream left a 120 Hz screen sitting at 60 Hz after you returned to the host list, and it stayed there until you changed it by hand. The desktop is now put back whenever a mode set for the stream outlives it, and nothing happens at all when it was already restored, so this never adds a mode change of its own
 
 🎨 UI:
 • The launch and quit screens stand on the game's own artwork, the same picture the host page is already showing — starting a game used to cross onto a gradient mixed from two colours sampled out of the cover, so the background changed under you at the one moment when nothing else should move. Quitting shows the artwork of what is being closed. With "Reduce animations" on, all three keep the plain gradient in your accent colour
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/9), whose measurements on three different machines pinned the latency down to a 2:1 ratio and nothing else, and who then found a way to trigger it on demand — without that the cause would still be a guess
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/9), whose measurements on three different machines pinned the latency down to a 2:1 ratio and nothing else, and who then found a way to trigger it on demand — without that the cause would still be a guess
 
 -------------------------------------------
 Version 5.1.0 - Custom Overlay (18/08/2026)
@@ -219,7 +219,7 @@ The performance overlay is now yours to shape: where it sits, what colour it is,
 • A launch that loses its host no longer strands you on the loading screen. If the host dropped off the network while it was starting a game, the app went back to the host list underneath and took the loading screen's foundations with it: when the host's reply finally arrived it had nowhere to land, so no error was ever shown, the screen never went away, and the only way out was to kill the app. Leaving for the host list now waits until the launch is over
 
 🙏 THANKS:
-• @Soladus for the overlay he described, for spotting the corner, and for the testing behind the refresh rate choice (https://github.com/FoggyBytes/StreamLight/issues/9) — the 60 FPS on 120 Hz case was measured on his hardware, not guessed at
+• @Soladus for the overlay he described, for spotting the corner, and for the testing behind the refresh rate choice (https://github.com/FoggyBytes/ArtMoon/issues/9) — the 60 FPS on 120 Hz case was measured on his hardware, not guessed at
 
 -------------------------------------------------
 Version 5.0.0 - The Spotlight Update (08/08/2026)
@@ -233,12 +233,12 @@ The interface has been rebuilt around one idea: one thing at a time, shown in fu
 • The wait is never a trap: press B — Esc if you have no controller — and the host appears immediately, whatever it says it is doing. Some launches stall on something only visible over there, a game's own launcher asking for a login or an update prompt behind the splash, and this is how you go and deal with it
 • A launch that runs long says so after twenty seconds, so a game that opens its own launcher stops looking like one that has frozen — and the prompt underneath is how you go and see what it wants
 • Nothing you press reaches the host while its window is hidden, so a stray press can't land in a game that is still loading, or answer a dialog you never saw
-• StreamLight now asks the host to match its wired link speed to this device before connecting, and starts the stream only once the host confirms the change. A host running faster than the client — 2.5 Gbps feeding a 1 Gbps handheld, say — sends each video frame in a burst the slower link can't drain in time, and the packets that die first are the few carrying audio: the symptom is sound cutting out for a couple of seconds while the picture stays perfect
+• ArtMoon now asks the host to match its wired link speed to this device before connecting, and starts the stream only once the host confirms the change. A host running faster than the client — 2.5 Gbps feeding a 1 Gbps handheld, say — sends each video frame in a burst the slower link can't drain in time, and the packets that die first are the few carrying audio: the symptom is sound cutting out for a couple of seconds while the picture stays perfect
 • The speed is worked out per host, from the interface that actually reaches it — a docked device with its cable up but its traffic on Wi-Fi is measured for what it really is, and a host reached over Wi-Fi or Tailscale is left alone
 • Nothing is ever raised: the host is only asked to come down to this device's speed, and it puts itself back afterwards
 • New "Match host link speed to this device" switch in Settings → Network, on by default, with a line showing this device's connection — or the reason the feature can't act, so it is never quietly doing nothing
 • Per-host profiles can override it, because a profile describes a situation: "docked" and "handheld" want different answers here as much as they want different resolutions
-• Waking a host now takes you all the way. StreamLight follows the wake — packet sent, host on the network, StreamTweak ready — and when the host turns out to be sitting at its lock screen, a number pad appears and you type its Windows PIN from the sofa, with the controller
+• Waking a host now takes you all the way. ArtMoon follows the wake — packet sent, host on the network, StreamTweak ready — and when the host turns out to be sitting at its lock screen, a number pad appears and you type its Windows PIN from the sofa, with the controller
 • The session that carries the PIN is never shown: you see the pad, not the host's lock screen behind it, and nothing you press on the pad reaches the host except the digits you confirm
 • Wrong PINs are counted out loud and stop at three, because Windows suspends the PIN after a few failures and burning it from across the room without noticing would be the worst way to find out
 • A host that is already unlocked skips the pad entirely, and one that predates this never offers it — nothing is assumed, every step is asked
@@ -247,7 +247,7 @@ The interface has been rebuilt around one idea: one thing at a time, shown in fu
 • Once you are in, the session that carried the PIN is closed on the host rather than just dropped, so the host goes back to reporting itself as online instead of still streaming something you never asked to watch
 
 🎨 UI:
-• The button prompts now follow whatever you are actually holding. Touch the keyboard or the mouse and every prompt in the app becomes the key to press; touch the controller and they all turn back into its glyphs, in that controller's own icons. Until now they were always controller glyphs — start StreamLight with a keyboard, never pick a pad up, and the interface still told you to press B
+• The button prompts now follow whatever you are actually holding. Touch the keyboard or the mouse and every prompt in the app becomes the key to press; touch the controller and they all turn back into its glyphs, in that controller's own icons. Until now they were always controller glyphs — start ArtMoon with a keyboard, never pick a pad up, and the interface still told you to press B
 • Everything the controller can reach, the keyboard can too. S opens Settings, P powers the host off, PgUp and PgDn move between hosts, Q and E between that host's profiles, G opens a game's own settings, D restores the recommended bitrate — alongside Esc and Enter, which already worked and simply were never shown
 • A controller button is now drawn at one size across the whole app. The combos in Settings → Shortcuts were half the size of the same buttons in the bar underneath them, because a shoulder glyph is wider than it is tall and was being squeezed into a square
 • The screen shown while a session is being closed now stands on the app's own background instead of a bare window, so ending a stream no longer drops out of the interface for a moment
@@ -295,7 +295,7 @@ The interface has been rebuilt around one idea: one thing at a time, shown in fu
 • That same summary is also complete now whatever the overlay is set to. It was being written at the overlay's verbosity, so with the overlay off — the default — the log recorded nothing but a heading, and at anything below Full it silently left out the rendering time and the frame queue delay. The people least likely to run an overlay are exactly the ones who end up sending a log in
 
 🙏 THANKS:
-• Thanks again to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/9) — the pacing line in the log was found in the logs you attached while chasing something else entirely
+• Thanks again to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/9) — the pacing line in the log was found in the logs you attached while chasing something else entirely
 
 ⚠️ COMPATIBILITY:
 • Both features need StreamTweak 8.1.0: the launch screen waits on what the host reports about the game it was asked to open, and the link matching replaces the old PREPARE command, which no longer exists. Against an older host — or any other streaming server — the window appears about two seconds after connecting, the way it always did
@@ -313,7 +313,7 @@ No StreamTweak update required — everything in 4.5.1 is client-side and works 
 • Frame Pacing is now locked when V-Sync is off — without V-Sync the stream renders as fast as it can and nothing is paced, so the control no longer offers a mode that has no effect. In Settings and in the in-stream Stream Settings overlay it now reads "Off", showing what is actually happening; the per-game overrides keep showing the override you saved, marked as needing V-Sync. Your saved mode is never discarded and comes back as soon as you re-enable V-Sync
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/8) for spotting that the frame pacing control stayed available with V-Sync disabled, and for helping settle how it should read once locked
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/8) for spotting that the frame pacing control stayed available with V-Sync disabled, and for helping settle how it should read once locked
 
 -----------------------------------------------------
 Version 4.5.0 - Bitrate Target Reporting (18/07/2026)
@@ -322,7 +322,7 @@ Version 4.5.0 - Bitrate Target Reporting (18/07/2026)
 Works with any host. StreamTweak 8.0.0 or later is needed to see the new figure on the host.
 
 ✨ IMPROVEMENTS:
-• StreamLight now tells the host which bitrate it was configured to aim for, so StreamTweak's Dashboard can show the delivered rate against your target instead of a bare number — neither side could work that out alone, since the client sets the target and the host measures what actually goes out. Everything else about telemetry is unchanged, and older hosts simply ignore the new value
+• ArtMoon now tells the host which bitrate it was configured to aim for, so StreamTweak's Dashboard can show the delivered rate against your target instead of a bare number — neither side could work that out alone, since the client sets the target and the host measures what actually goes out. Everything else about telemetry is unchanged, and older hosts simply ignore the new value
 • The installer is now a 64-bit build with crisper artwork and is about 0.9 MB lighter, with no change to what gets installed
 
 🎨 UI:
@@ -338,7 +338,7 @@ No StreamTweak update required — everything in 4.4.1 is client-side and works 
 • Performance overlay no longer reads "Frame pacing: Software" when you set Frame Pacing to Off — in exclusive fullscreen with V-Sync on, the D3D11 renderer still needs software pacing to stay in sync with VBlank, so it's force-enabled regardless of the setting; the overlay now shows "Software (forced by V-Sync)" in that case so the status is no longer misleading (turn V-Sync off, or use borderless/windowed fullscreen, to disable pacing entirely)
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/6) for spotting the misleading frame pacing status
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/6) for spotting the misleading frame pacing status
 
 -------------------------------------------------
 Version 4.4.0 - Live Stream Settings (27/06/2026)
@@ -358,11 +358,11 @@ No StreamTweak update required — everything in 4.4.0 is client-side and works 
 • The overlay's on-screen button prompts follow your controller glyph set (Xbox / PlayStation / Nintendo), including the Nintendo A/B position swap
 
 🐛 FIXES:
-• Hosts no longer get stuck on their Tailscale address at home — when a machine was reached over Tailscale its 100.x address could be saved as the LAN address, and since Tailscale answers from everywhere the app kept connecting through it (slower) even back on your local network, surviving restarts until you re-entered the IP by hand; StreamLight now keeps Tailscale addresses out of the LAN slot, cleans up any already saved that way, and switches back to the LAN automatically as soon as it's reachable
+• Hosts no longer get stuck on their Tailscale address at home — when a machine was reached over Tailscale its 100.x address could be saved as the LAN address, and since Tailscale answers from everywhere the app kept connecting through it (slower) even back on your local network, surviving restarts until you re-entered the IP by hand; ArtMoon now keeps Tailscale addresses out of the LAN slot, cleans up any already saved that way, and switches back to the LAN automatically as soon as it's reachable
 • Host tile no longer flickers between its LAN and Tailscale address (badge bouncing AVAILABLE ↔ TAILSCALE) while you're away, and connecting right after returning to the host list no longer stalls for a couple of seconds
 
 🙏 THANKS:
-• Thanks to @ziCk2077 (https://github.com/FoggyBytes/StreamLight/issues/3) — the on-the-fly bitrate discussion is what grew into this whole live-settings panel, and the report on hosts sticking to their Tailscale IP is what drove the routing fix
+• Thanks to @ziCk2077 (https://github.com/FoggyBytes/ArtMoon/issues/3) — the on-the-fly bitrate discussion is what grew into this whole live-settings panel, and the report on hosts sticking to their Tailscale IP is what drove the routing fix
 
 --------------------------------------------------
 Version 4.3.0 - Shortcuts Refinements (25/06/2026)
@@ -382,10 +382,10 @@ No StreamTweak update required — everything in 4.3.0 is client-side.
 
 🎨 UI:
 • "Gamepad" is now called "Controller" throughout the interface, matching the on-screen vendor naming
-• Rebind / Reset buttons restyled to match the rest of Settings; the redundant intro line and the "Reset all" button were removed, and the "Quit session & exit StreamLight" shortcut was dropped
+• Rebind / Reset buttons restyled to match the rest of Settings; the redundant intro line and the "Reset all" button were removed, and the "Quit session & exit ArtMoon" shortcut was dropped
 
 🙏 THANKS:
-• Thanks again to @ziCk2077 (https://github.com/FoggyBytes/StreamLight/issues/3) for thoroughly testing 4.2.0 and surfacing all of these
+• Thanks again to @ziCk2077 (https://github.com/FoggyBytes/ArtMoon/issues/3) for thoroughly testing 4.2.0 and surfacing all of these
 
 ---------------------------------------------------
 Version 4.2.0 - Configurable Shortcuts (22/06/2026)
@@ -401,7 +401,7 @@ No StreamTweak update required — everything in 4.2.0 is client-side.
 • Gamepad combos render with the correct vendor glyphs (Xbox / PlayStation / Nintendo, including the Nintendo A/B and X/Y position swap), with new icons for the D-pad, Start and Guide buttons
 
 🙏 THANKS:
-• Thanks to @ziCk2077 (https://github.com/FoggyBytes/StreamLight/issues/3) for requesting configurable shortcuts and per-machine settings
+• Thanks to @ziCk2077 (https://github.com/FoggyBytes/ArtMoon/issues/3) for requesting configurable shortcuts and per-machine settings
 
 -----------------------------------------------
 Version 4.1.0 - Custom Resolutions (22/06/2026)
@@ -418,14 +418,14 @@ No StreamTweak update required — everything in 4.1.0 is client-side.
 • The host header in the app list shows the real resolution (e.g. 1920×1200) for non-standard sizes instead of rounding to the nearest preset label
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/4) for requesting custom resolution support for 16:10 handheld displays
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/4) for requesting custom resolution support for 16:10 handheld displays
 
 --------------------------
 Version 4.0.1 (21/06/2026)
 --------------------------
 
 ✨ IMPROVEMENTS:
-• Reports host frame latency to StreamTweak — StreamLight now sends the host's per-frame processing latency (capture + encode) to StreamTweak. StreamTweak 7.4.0+ uses it to grade streaming quality more accurately and shows it as a "Host frame latency" chart in its Logs. Backward compatible — works with any StreamTweak; no effect on streaming
+• Reports host frame latency to StreamTweak — ArtMoon now sends the host's per-frame processing latency (capture + encode) to StreamTweak. StreamTweak 7.4.0+ uses it to grade streaming quality more accurately and shows it as a "Host frame latency" chart in its Logs. Backward compatible — works with any StreamTweak; no effect on streaming
 
 ------------------------------------------------
 Version 4.0.0 - The Profiles Update (20/06/2026)
@@ -449,7 +449,7 @@ No StreamTweak update required — everything in 4.0.0 is client-side.
 • Frame Pacing modes renamed for clarity — the two manual modes are now "Software" and "Hardware" (previously "Matched" and "Multiple"), naming the pacer that actually runs instead of an assumed display/FPS relationship. Same behaviour: Software always paces in software; Hardware locks the cadence in the GPU with no software fallback
 
 🙏 THANKS:
-• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/2) for the Frame Pacing naming feedback — "Software/Hardware" makes it clear which pacer is running
+• Thanks to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/2) for the Frame Pacing naming feedback — "Software/Hardware" makes it clear which pacer is running
 
 -----------------------------------------------
 Version 3.4.1 - Frame Pacing Modes (11/06/2026)
@@ -459,7 +459,7 @@ Version 3.4.1 - Frame Pacing Modes (11/06/2026)
 • Frame Pacing is now a four-way choice (Settings → Video) instead of a single on/off switch — Off, Automatic, Matched, Multiple. Automatic keeps the previous behaviour (hardware pacing when your display's refresh rate is a whole multiple of the stream's FPS, software otherwise). Matched forces software pacing, best when your screen runs at the stream's frame rate (e.g. 60 Hz for 60 FPS). Multiple uses hardware pacing only, with no software fallback — for a screen running a multiple of the stream (e.g. 120 Hz = 2× or 240 Hz = 4× for 60 FPS). Choosing Multiple guarantees the software pacer never engages, for anyone who wants only the lowest-latency hardware cadence
 
 🙏 THANKS:
-• Thanks again to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/2) — the explicit Matched/Multiple modes come straight from your feedback after testing the 3.4.0 frame-pacing fix
+• Thanks again to @Soladus (https://github.com/FoggyBytes/ArtMoon/issues/2) — the explicit Matched/Multiple modes come straight from your feedback after testing the 3.4.0 frame-pacing fix
 
 -----------------------------------------------------
 Version 3.4.0 - The Smooth Motion Update (10/06/2026)
@@ -468,8 +468,8 @@ Version 3.4.0 - The Smooth Motion Update (10/06/2026)
 ✨ NEW FEATURES:
 • Smoother motion on high-refresh displays — the Frame Pacing option (Settings → Video) now automatically uses hardware frame pacing when your display's refresh rate is an exact multiple of the stream's frame rate (e.g. 60 FPS on a 120 Hz screen). Each frame is held on screen for the right number of refresh cycles directly in hardware, giving a perfectly even cadence and removing the panning judder that previously required external tools like NVIDIA Inspector or Special-K — with no extra setting to manage. Hardware pacing applies to the Direct3D 11 renderer (the Windows default); everything else falls back to software pacing exactly as before
 • Frame pacing visible in the performance overlay — the overlay now shows the active frame-pacing mode (Hardware / Software / Off) so you can see exactly what's happening under the hood
-• Overlay profiles — a new Overlay tab in Settings lets you choose how much the in-stream performance overlay shows: Off, Minimal (resolution, FPS, bitrate, latency and network drops at a glance), Default (a balanced set plus a compact host-metrics summary) or Full (every stat StreamLight collects, including the host's GPU / encoder / temperature / VRAM / CPU). A live preview shows exactly how the overlay will look for the chosen profile. The overlay control moved here from the Network tab, and bitrate is now shown in the overlay. The overlay hotkey now cycles through the profiles — Off → Minimal → Default → Full → Off — each press of Ctrl+Alt+O (keyboard) or Select+L1+R1+X (gamepad) jumps to the next one, and the Settings selector follows along
-• Automatic reconnect on a slow host start — when a stream fails because no video ever arrives (the host's virtual display or HDR/AV1 encoder is still warming up on a cold start, which often required a manual second attempt), StreamLight now quietly retries once instead of showing an error. A brief "Host is starting up — reconnecting…" message appears and the resume usually connects immediately. Can be turned off in Settings → Network (on by default)
+• Overlay profiles — a new Overlay tab in Settings lets you choose how much the in-stream performance overlay shows: Off, Minimal (resolution, FPS, bitrate, latency and network drops at a glance), Default (a balanced set plus a compact host-metrics summary) or Full (every stat ArtMoon collects, including the host's GPU / encoder / temperature / VRAM / CPU). A live preview shows exactly how the overlay will look for the chosen profile. The overlay control moved here from the Network tab, and bitrate is now shown in the overlay. The overlay hotkey now cycles through the profiles — Off → Minimal → Default → Full → Off — each press of Ctrl+Alt+O (keyboard) or Select+L1+R1+X (gamepad) jumps to the next one, and the Settings selector follows along
+• Automatic reconnect on a slow host start — when a stream fails because no video ever arrives (the host's virtual display or HDR/AV1 encoder is still warming up on a cold start, which often required a manual second attempt), ArtMoon now quietly retries once instead of showing an error. A brief "Host is starting up — reconnecting…" message appears and the resume usually connects immediately. Can be turned off in Settings → Network (on by default)
 
 🎨 UI:
 • A new Overlay tab in Settings (see above), with the performance-overlay control and a live mockup of each profile
@@ -479,10 +479,10 @@ Version 3.4.0 - The Smooth Motion Update (10/06/2026)
 🐛 FIXES:
 • Fixed a visual glitch in the bottom status bar: while a host Windows-update job was running, the "Update" progress chip could overlap the version number in the bottom-right corner, leaving the text garbled. The chip and the version are now laid out together so they can never collide
 • "X · Shutdown" always works now: pressing X (or clicking the shortcut) on the My Hosts screen opens the Power chooser to shut down this PC even when the highlighted host is offline — or when no hosts are configured at all. Host shutdown still requires an online, approved host
-• Fixed a freeze that could lock up the whole PC when closing StreamLight while its window was in fullscreen mode, forcing a hard power-off. StreamLight now leaves fullscreen before shutting down so the graphics driver tears the window down cleanly
+• Fixed a freeze that could lock up the whole PC when closing ArtMoon while its window was in fullscreen mode, forcing a hard power-off. ArtMoon now leaves fullscreen before shutting down so the graphics driver tears the window down cleanly
 
 🙏 THANKS:
-• Huge thanks to @Soladus for reporting the high-refresh judder (https://github.com/FoggyBytes/StreamLight/issues/2) and for thoroughly beta-testing the frame-pacing fix on both NVIDIA and AMD clients — your logs and measurements made this release possible
+• Huge thanks to @Soladus for reporting the high-refresh judder (https://github.com/FoggyBytes/ArtMoon/issues/2) and for thoroughly beta-testing the frame-pacing fix on both NVIDIA and AMD clients — your logs and measurements made this release possible
 
 -------------------------------------------------------
 Version 3.3.0 - The "Patch Tuesday Update" (06/06/2026)
@@ -499,7 +499,7 @@ Version 3.3.0 - The "Patch Tuesday Update" (06/06/2026)
 • Tailscale unified into one tile: a host reachable both on your LAN and over Tailscale is now a single tile (no more duplicate "(Tailscale)" tile). When Tailscale is detected on the host the tile shows a "TAILSCALE — AVAILABLE" badge and lists both the local IP and the Tailscale IP; an "AVAILABLE" line means the LAN path is also up, while just "TAILSCALE" means it's currently reachable only over Tailscale. A new "Tailscale" option opens the host's apps over the 100.x address (greyed out if Tailscale isn't installed on this client); opening the host normally or "All Apps" uses the local connection. Existing Tailscale tiles are merged automatically on first launch
 
 🙏 THANKS:
-• Thanks again to @SolemnDucc for the follow-up suggestions (https://github.com/FoggyBytes/StreamLight/issues/1)
+• Thanks again to @SolemnDucc for the follow-up suggestions (https://github.com/FoggyBytes/ArtMoon/issues/1)
 
 ⚠️ COMPATIBILITY:
 • Requires StreamTweak 7.3.0 or later on the host for the new update features. Update both apps together
@@ -513,22 +513,22 @@ Version 3.2.0 - The "Power Update" (05/06/2026)
 • Host shutdown requires approval: "Host" and "Both" are available only when the host has approved this device (AUTHORIZED badge); otherwise they are greyed out with a hint and only "Client" remains. The shutdown is sent signed, so an unapproved device can never power off your host
 
 🙏 THANKS:
-• Thanks to @SolemnDucc for suggesting this feature (https://github.com/FoggyBytes/StreamLight/issues/1)
+• Thanks to @SolemnDucc for suggesting this feature (https://github.com/FoggyBytes/ArtMoon/issues/1)
 
 ⚠️ COMPATIBILITY:
-• Requires StreamTweak 7.2.0 or later for the new power-off feature. From 7.2.0 the StreamTweak↔StreamLight authentication is mandatory (the host no longer has an option to turn it off) — update both apps together
+• Requires StreamTweak 7.2.0 or later for the new power-off feature. From 7.2.0 the StreamTweak↔ArtMoon authentication is mandatory (the host no longer has an option to turn it off) — update both apps together
 
 -------------------------------------------------------
 Version 3.1.0 - The "Secure Bridge Update" (04/06/2026)
 -------------------------------------------------------
 
 ✨ NEW FEATURES:
-• Authenticated StreamTweak bridge: StreamLight now signs every command it sends to StreamTweak (NIC control, host metrics, store map, session telemetry) with its existing Moonlight identity certificate — no password to type. The first time you open a paired host, StreamLight enrolls automatically and StreamTweak shows a one-time "Allow this client?" prompt displaying a 4-digit PIN to confirm against the one StreamLight shows. This closes the previously unauthenticated bridge, so a stranger on your network can no longer command your host or read its metrics
+• Authenticated StreamTweak bridge: ArtMoon now signs every command it sends to StreamTweak (NIC control, host metrics, store map, session telemetry) with its existing Moonlight identity certificate — no password to type. The first time you open a paired host, ArtMoon enrolls automatically and StreamTweak shows a one-time "Allow this client?" prompt displaying a 4-digit PIN to confirm against the one ArtMoon shows. This closes the previously unauthenticated bridge, so a stranger on your network can no longer command your host or read its metrics
 • Per-host access badge: each host card shows its StreamTweak access state at a glance — AUTHORIZED (green), PENDING (amber, waiting for approval on the host) or DENIED (red). The badge is hidden for hosts without StreamTweak. A new "Request StreamTweak access" option in the host's menu re-sends the approval request
 
 🎨 UI:
 • Dialog buttons: the affirmative action (Yes / OK / Add) is now on the LEFT and the dismissive one on the right; the green accent is reserved for the focused button, so the keyboard/gamepad selection is always unambiguous (previously the affirmative button looked highlighted even when focus was elsewhere)
-• Rebranding: remaining user-facing "Moonlight" references replaced with "StreamLight" (Quit prompt, network-test, decoder and pairing messages, streaming window title), keeping "Moonlight" only where it refers to the upstream project/engine and the unchanged settings-storage location
+• Rebranding: remaining user-facing "Moonlight" references replaced with "ArtMoon" (Quit prompt, network-test, decoder and pairing messages, streaming window title), keeping "Moonlight" only where it refers to the upstream project/engine and the unchanged settings-storage location
 
 🔧 IMPROVEMENTS (the 3.0.1 "Bridge Fix" work, now part of 3.1.0):
 • Store badges sometimes missing: APPSTORES replies split across multiple TCP packets were truncated because the client read only the first packet; the bridge now buffers each reply until the protocol's newline terminator, so large game libraries always arrive complete
@@ -540,7 +540,7 @@ Version 3.1.0 - The "Secure Bridge Update" (04/06/2026)
 
 ℹ️ Authorization never blocks streaming. If a host has not authorized this client, you can still stream from it normally — only the StreamTweak integration is unavailable: host metrics overlay, NIC speed & one-click Streaming Mode, store badges on covers, session quality reports & live charts, Tailscale dual-tile, and remote pause. The per-host badge shows PENDING/DENIED and a PIN popup guides approval; use "Request StreamTweak access" from the host's options to retry.
 
-⚠️ REQUIRES: StreamTweak 7.1.0 or later on the host PC for the integration features. StreamTweak 7.1.0 requires authenticated clients by default, so older StreamLight versions can no longer use the bridge with it — update both apps together. StreamLight 3.1.0 talking to an older StreamTweak will simply show no StreamTweak features until the host is updated.
+⚠️ REQUIRES: StreamTweak 7.1.0 or later on the host PC for the integration features. StreamTweak 7.1.0 requires authenticated clients by default, so older ArtMoon versions can no longer use the bridge with it — update both apps together. ArtMoon 3.1.0 talking to an older StreamTweak will simply show no StreamTweak features until the host is updated.
 
 ------------------------------------------------
 Version 3.0.0 - The "Big UI Update" (27/05/2026)
@@ -558,10 +558,10 @@ Version 3.0.0 - The "Big UI Update" (27/05/2026)
 • Min window size raised to 1280×720
 
 ✨ NEW FEATURES:
-• Tailscale dual-tile: after pairing via LAN IP, StreamLight asks the host (new TAILSCALE bridge command) whether Tailscale is installed; if so, a one-time popup offers a second host tile pinned to the host's 100.x.y.z address. The LAN and Tailscale tiles coexist permanently and the Tailscale tile is address-pinned, so LAN mDNS rediscovery cannot collapse it back onto the parent; the Moonlight UUID and certificate are shared with the parent so no second pairing is needed; the popup is dismissible permanently per-host
+• Tailscale dual-tile: after pairing via LAN IP, ArtMoon asks the host (new TAILSCALE bridge command) whether Tailscale is installed; if so, a one-time popup offers a second host tile pinned to the host's 100.x.y.z address. The LAN and Tailscale tiles coexist permanently and the Tailscale tile is address-pinned, so LAN mDNS rediscovery cannot collapse it back onto the parent; the Moonlight UUID and certificate are shared with the parent so no second pairing is needed; the popup is dismissible permanently per-host
 • Auto-start Tailscale on launch (Network tab): launches tailscale-ipn.exe in the background at every startup so remote hosts are reachable via their 100.x.y.z IP without keeping the Tailscale tray open; enabling shows a one-shot RESTART REQUIRED dialog, disabling leaves the running instance untouched, and it is skipped silently when Tailscale is already running. The official Windows installer from https://tailscale.com/download is required; the Microsoft Store package is not supported
-• Windows Xbox app integration: branded 1024×1024 tile artwork in the Xbox app's "My apps" section instead of the default grey square; an optional install task (default ON) pre-populates the tile so StreamLight appears on first open; a QFileSystemWatcher re-applies the artwork within ~250 ms whenever the Xbox app rewrites the tile, and a boot-time check refreshes it if needed; diagnostic log at %TEMP%\streamlight-xbox-tile.log
-• Single-instance guard: launching StreamLight while it is already running brings the existing window to the foreground and exits the second invocation; CLI subcommands (stream / quit / pair / list) remain re-entrant
+• Windows Xbox app integration: branded 1024×1024 tile artwork in the Xbox app's "My apps" section instead of the default grey square; an optional install task (default ON) pre-populates the tile so ArtMoon appears on first open; a QFileSystemWatcher re-applies the artwork within ~250 ms whenever the Xbox app rewrites the tile, and a boot-time check refreshes it if needed; diagnostic log at %TEMP%\artmoon-xbox-tile.log
+• Single-instance guard: launching ArtMoon while it is already running brings the existing window to the foreground and exits the second invocation; CLI subcommands (stream / quit / pair / list) remain re-entrant
 
 🔧 IMPROVEMENTS:
 • Capability gate before launch: fixes the long-standing first-launch fallback to H.264 / SDR when HDR or AV1 was enabled but the host's cached codec/HDR capability bits were stale (e.g. display powered off during the last serverinfo poll, or the host just booted). Session::initialize now does a synchronous serverinfo refresh right before codec/HDR negotiation, so the first launch always sees the current host state; bounded to at most 2 s on cold launch, skipped when H.264 SDR is forced, and falls back to the cached state if every address times out
@@ -569,7 +569,7 @@ Version 3.0.0 - The "Big UI Update" (27/05/2026)
 • Settings storage unchanged from 2.x (HKCU\Software\Moonlight Game Streaming Project\Moonlight) — upgrades preserve paired hosts, preferences and certificates with no migration step
 • 7 dead 2.3.1 UI files and 11 orphan SVG icons removed from the build
 
-⚠️ REQUIRES: StreamTweak 6.3.0 or later on the host PC for the Tailscale dual-tile workflow. Earlier versions (6.1.0+) remain fully compatible but won't expose the Tailscale endpoint — StreamLight will only show the LAN tile in that case.
+⚠️ REQUIRES: StreamTweak 6.3.0 or later on the host PC for the Tailscale dual-tile workflow. Earlier versions (6.1.0+) remain fully compatible but won't expose the Tailscale endpoint — ArtMoon will only show the LAN tile in that case.
 
 
 -----------------------------------------------------
@@ -586,8 +586,8 @@ Version 2.3.0 - The "Remote Pause Update" (17/04/2026)
 ------------------------------------------------------
 
 ✨ NEW FEATURES:
-• Remote session pause from host: StreamTweak's Home page now shows a Pause button when a streaming session is active; pressing it embeds a one-shot stop signal in the next STATS response; StreamLight detects the signal and terminates the session exactly as if the user had pressed Pause locally — no UI changes on the StreamLight side
-• Pause signal transport: the signal is piggybacked on the existing per-second STATS polling channel as an additional "stop":1 JSON field, requiring no new TCP connection or protocol change; the field is silently ignored by older StreamLight versions
+• Remote session pause from host: StreamTweak's Home page now shows a Pause button when a streaming session is active; pressing it embeds a one-shot stop signal in the next STATS response; ArtMoon detects the signal and terminates the session exactly as if the user had pressed Pause locally — no UI changes on the ArtMoon side
+• Pause signal transport: the signal is piggybacked on the existing per-second STATS polling channel as an additional "stop":1 JSON field, requiring no new TCP connection or protocol change; the field is silently ignored by older ArtMoon versions
 
 ⚠️ REQUIRES: StreamTweak 6.0.0 or later on the host PC for the remote stop to work.
 
@@ -619,7 +619,7 @@ Version 2.1.0 - The "Telemetry Update" (27/03/2026)
 ---------------------------------------------------
 
 ✨ NEW FEATURES:
-• Session telemetry reporting: StreamLight now streams real-time client-side metrics to StreamTweak during active sessions — FPS, frame drops, RTT, decode latency, and bitrate are sampled every second and transmitted in periodic batches; StreamTweak uses this data to generate a session quality report visible in the Logs tab
+• Session telemetry reporting: ArtMoon now streams real-time client-side metrics to StreamTweak during active sessions — FPS, frame drops, RTT, decode latency, and bitrate are sampled every second and transmitted in periodic batches; StreamTweak uses this data to generate a session quality report visible in the Logs tab
 
 ⚠️ REQUIRES: StreamTweak 5.2.0 or later on the host PC for session quality reports to appear.
 
@@ -635,12 +635,12 @@ Version 2.0.0 - The "Library Update" (21/03/2026)
 -------------------------------------------------
 
 ✨ NEW FEATURES:
-• New FoggyBytes icon: StreamLight now sports a new icon that visually unifies the FoggyBytes suite — the same icon is shared with StreamTweak for a consistent identity across both apps
+• New FoggyBytes icon: ArtMoon now sports a new icon that visually unifies the FoggyBytes suite — the same icon is shared with StreamTweak for a consistent identity across both apps
 • Store badges on game covers: each game synced from StreamTweak displays a small badge in the bottom-right corner of its cover art, showing the store it belongs to (Steam, Epic Games, GOG, Ubisoft Connect, Xbox, Battle.net) — fetched live from the host via the new APPSTORES TCP command
 • Battle.net badge: a dedicated Battle.net badge (white icon + label on semi-transparent dark background) joins the existing store badge set
 
 🎨 UI REDESIGN:
-• Unified visual identity: the full StreamLight UI has been revised to align with StreamTweak's design language — color palette, spacing, and component styling now match across both apps for a seamless paired-app experience
+• Unified visual identity: the full ArtMoon UI has been revised to align with StreamTweak's design language — color palette, spacing, and component styling now match across both apps for a seamless paired-app experience
 
 🔧 IMPROVEMENTS:
 • App list sort order: Desktop always appears first, Steam Big Picture second, then all other apps in alphabetical order regardless of the order returned by the host
@@ -685,7 +685,7 @@ Initial release based on Moonlight 6.1.0.
 • Visual theme aligned with StreamTweak's color palette for a consistent look across both apps
 
 🔧 CHANGES FROM UPSTREAM MOONLIGHT:
-• Window title changed to "StreamLight (a Moonlight fork)"
+• Window title changed to "ArtMoon (a Moonlight fork)"
 • Discord link removed — as a fork, the upstream Moonlight Discord is not the appropriate support channel
 • Auto-update checker removed — to prevent prompts to update to upstream Moonlight releases
 

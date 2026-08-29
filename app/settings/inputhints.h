@@ -8,7 +8,7 @@
  * Which input device the user is actually holding, so every on-screen prompt can name a
  * button they can press.
  *
- * Before this, every prompt drew a controller glyph unconditionally: starting StreamLight
+ * Before this, every prompt drew a controller glyph unconditionally: starting ArtMoon
  * with a keyboard and never touching a pad still showed "B Back" with an Xbox glyph. The
  * rule here is the one games use — the last device that produced real input wins, and the
  * whole interface follows it at once.
