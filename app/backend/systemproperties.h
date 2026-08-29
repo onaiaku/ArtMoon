@@ -40,16 +40,29 @@ public:
     Q_PROPERTY(QSize maximumResolution MEMBER maximumResolution NOTIFY maximumResolutionChanged)
     Q_PROPERTY(bool supportsHdr MEMBER supportsHdr NOTIFY supportsHdrChanged)
 
+    // Every distinct refresh rate the connected displays report at their desktop
+    // resolution, sorted ascending — e.g. [24, 30, 60, 120, 138]. Collected by
+    // refreshDisplays() from all SDL display modes, not just the best one, so the
+    // UI can offer a display's real rate list instead of a hardcoded 30/60/90/120.
+    // Empty until refreshDisplays() has run; consumers must fall back to presets.
+    Q_PROPERTY(QList<int> availableRefreshRates MEMBER availableRefreshRates NOTIFY availableRefreshRatesChanged)
+
     // Either startAsyncLoad()+waitForAsyncLoad() or refreshDisplays() must be invoked first
     Q_INVOKABLE QRect getNativeResolution(int displayIndex);
     Q_INVOKABLE QRect getSafeAreaResolution(int displayIndex);
     Q_INVOKABLE int getRefreshRate(int displayIndex);
 
+    // Rates of the display whose bounds contain the given global-desktop point
+    // (pass the window's centre). Falls back to the union across all displays when
+    // no display's bounds contain the point (e.g. Wayland, where windows often
+    // have no reliable global position).
+    Q_INVOKABLE QList<int> refreshRatesForPoint(int x, int y);
+
     Q_INVOKABLE void startAsyncLoad();
     Q_INVOKABLE void waitForAsyncLoad();
     Q_INVOKABLE void refreshDisplays();
 
-    // Restarts StreamLight by spawning a detached copy of the running executable
+    // Restarts ArtMoon by spawning a detached copy of the running executable
     // (with the same CLI arguments) and quitting the current process. Used by
     // settings that require a fresh boot to take effect (e.g. Tailscale auto-start).
     Q_INVOKABLE void restartApplication();
@@ -93,6 +106,7 @@ signals:
     void rendererAlwaysFullScreenChanged();
     void maximumResolutionChanged();
     void supportsHdrChanged();
+    void availableRefreshRatesChanged();
 
 private slots:
     void updateDecoderProperties(bool hasHardwareAcceleration, bool rendererAlwaysFullScreen, QSize maximumResolution, bool supportsHdr);
@@ -124,5 +138,14 @@ private:
     QList<QRect> monitorNativeResolutions;
     QList<QRect> monitorSafeAreaResolutions;
     QList<int> monitorRefreshRates;
+
+    // Per-display geometry (global desktop coords) and normalized rate list, for
+    // refreshRatesForPoint() — lets the UI ask what the display under the window
+    // supports instead of the union of every display.
+    QList<QRect> monitorDisplayBounds;
+    QList<QList<int>> monitorRatesByDisplay;
+
+    // Distinct, sorted refresh rates across all displays at desktop resolution
+    QList<int> availableRefreshRates;
 };
 

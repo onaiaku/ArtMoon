@@ -10,6 +10,7 @@
 #include <QLibraryInfo>
 #include <QProcess>
 #include <QStringList>
+#include <algorithm>
 
 #include "streaming/session.h"
 #include "streaming/streamutils.h"
@@ -180,6 +181,28 @@ int SystemProperties::getRefreshRate(int displayIndex)
     return monitorRefreshRates.value(displayIndex);
 }
 
+QList<int> SystemProperties::refreshRatesForPoint(int x, int y)
+{
+    // Find the display whose global bounds contain this point (typically the
+    // centre of the window asking). Fall back to the full union when no display
+    // claims the point — Wayland frequently reports no usable global position.
+    for (int i = 0; i < monitorDisplayBounds.size(); i++) {
+        if (monitorDisplayBounds[i].contains(x, y) && i < monitorRatesByDisplay.size()) {
+            QList<int> rates = monitorRatesByDisplay[i];
+            static const int classicPresets[] = { 30, 60, 90, 120 };
+            for (int preset : classicPresets) {
+                if (!rates.contains(preset)) {
+                    rates.append(preset);
+                }
+            }
+            std::sort(rates.begin(), rates.end());
+            return rates;
+        }
+    }
+
+    return availableRefreshRates;
+}
+
 void SystemProperties::startAsyncLoad()
 {
     if (systemPropertyQueryThread) {
@@ -246,7 +269,12 @@ void SystemProperties::refreshDisplays()
     }
 
     monitorNativeResolutions.clear();
+    monitorRefreshRates.clear();
+    monitorDisplayBounds.clear();
+    monitorRatesByDisplay.clear();
 
+    QList<int> allRates;
+    SDL_Rect desktopBounds;
     SDL_DisplayMode bestMode;
     for (int displayIndex = 0; displayIndex < SDL_GetNumVideoDisplays(); displayIndex++) {
         SDL_DisplayMode desktopMode;
@@ -261,6 +289,39 @@ void SystemProperties::refreshDisplays()
                 SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                             "Skipping resolution over 8K: %dx%d",
                             desktopMode.w, desktopMode.h);
+            }
+
+            // Record this display's global bounds so the UI can ask which display
+            // a window sits on (refreshRatesForPoint).
+            if (SDL_GetDisplayBounds(displayIndex, &desktopBounds) == 0) {
+                monitorDisplayBounds.append(QRect(desktopBounds.x, desktopBounds.y,
+                                                  desktopBounds.w, desktopBounds.h));
+            }
+            else {
+                monitorDisplayBounds.append(QRect());
+            }
+
+            // Collect every normalized rate this display reports at desktop res
+            QList<int> ratesForDisplay;
+            for (int i = 0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
+                SDL_DisplayMode mode;
+                if (SDL_GetDisplayMode(displayIndex, i, &mode) == 0) {
+                    if (mode.w == desktopMode.w && mode.h == desktopMode.h) {
+                        // Normalize slightly-off reported rates (59.94 -> 60) so the
+                        // same nominal rate doesn't appear twice in the list.
+                        int rate = mode.refresh_rate;
+                        if (rate >= 58 && rate <= 62) {
+                            rate = 60;
+                        }
+                        else if (rate >= 28 && rate <= 32) {
+                            rate = 30;
+                        }
+
+                        if (!ratesForDisplay.contains(rate)) {
+                            ratesForDisplay.append(rate);
+                        }
+                    }
+                }
             }
 
             // Start at desktop mode and work our way up
@@ -287,7 +348,30 @@ void SystemProperties::refreshDisplays()
             else {
                 monitorRefreshRates.append(bestMode.refresh_rate);
             }
+
+            monitorRatesByDisplay.append(ratesForDisplay);
+            for (int r : ratesForDisplay) {
+                if (!allRates.contains(r)) {
+                    allRates.append(r);
+                }
+            }
         }
+    }
+
+    // Publish sorted ascending, always including the classic presets so the list
+    // is never thinner than Moonlight's 30/60/90/120 (some platforms — e.g.
+    // Wayland via SDL — only expose the current mode, so detection alone can be
+    // very short). QML consumers fall back to presets only if this is empty.
+    static const int classicPresets[] = { 30, 60, 90, 120 };
+    for (int preset : classicPresets) {
+        if (!allRates.contains(preset)) {
+            allRates.append(preset);
+        }
+    }
+    std::sort(allRates.begin(), allRates.end());
+    if (allRates != availableRefreshRates) {
+        availableRefreshRates = allRates;
+        emit availableRefreshRatesChanged();
     }
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO);

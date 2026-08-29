@@ -5,8 +5,9 @@ import QtQuick.Layouts 1.15
 import QtQuick.Window 2.2
 
 import StreamingPreferences 1.0
+import SystemProperties 1.0
 
-// Per-host streaming profiles (StreamLight 4.0.0). Up to 3 named profiles per
+// Per-host streaming profiles (ArtMoon 4.0.0). Up to 3 named profiles per
 // host, each overriding a subset of the global StreamingPreferences (same model
 // as the per-game dialog). One profile is "active" — applied as a host-level
 // override at launch (below any per-game override), shown by the tile chip and
@@ -98,8 +99,19 @@ Popup {
     readonly property var _resLabels: [_globalText("resolution"), "720p", "1080p", "1440p", "4K"]
     readonly property var _resW:      [0, 1280, 1920, 2560, 3840]
     readonly property var _resH:      [0, 720, 1080, 1440, 2160]
-    readonly property var _fpsLabels: [_globalText("fps"), "30", "60", "90", "120"]
-    readonly property var _fpsVals:   [0, 30, 60, 90, 120]
+    // FPS options come from the display's detected rates (sorted, normalised by
+    // SystemProperties) instead of a hardcoded list — mirror of AppSettingsDialog.
+    // _extraFps pins a stored override value into the list when the display doesn't
+    // report it, so the override survives instead of silently reverting to Global.
+    property var _extraFps: []
+    readonly property var _fpsVals: {
+        var base = SystemProperties.availableRefreshRates
+        if (base.length === 0) base = [30, 60, 90, 120]
+        var vals = base.concat(_extraFps)
+        vals.sort(function(a, b) { return a - b })
+        return vals
+    }
+    readonly property var _fpsLabels: [_globalText("fps")].concat(_fpsVals.map(function(f) { return String(f) }))
     readonly property var _hdrLabels: [_globalText("hdr"), "On", "Off"]
     readonly property var _matchRrLabels: [_globalText("matchrefresh"), "On", "Off"]
     readonly property var _vsyncLabels:   [_globalText("vsync"), "On", "Off"]
@@ -208,7 +220,15 @@ Popup {
         } else {
             resSel.currentIndex = 0
         }
-        fpsSel.currentIndex   = (ov.fps !== undefined) ? _idxByVal(_fpsVals, ov.fps) : 0
+        if (ov.fps !== undefined) {
+            // Pin an override value the display doesn't report, so it stays
+            // selectable instead of silently reverting to Global (see _fpsVals).
+            if (_fpsVals.indexOf(ov.fps) < 0) _extraFps = [ov.fps]
+            fpsSel.currentIndex = _idxByVal(_fpsVals, ov.fps)
+        } else {
+            _extraFps = []
+            fpsSel.currentIndex = 0
+        }
         hdrSel.currentIndex   = (ov.hdr !== undefined) ? (ov.hdr ? 1 : 2) : 0
         codecSel.currentIndex = (ov.codec !== undefined) ? _idxByVal(_codecVals, ov.codec) : 0
         fpSel.currentIndex    = (ov.framepacing !== undefined) ? _idxByVal(_fpVals, ov.framepacing) : 0

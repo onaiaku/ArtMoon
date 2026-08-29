@@ -5,8 +5,9 @@ import QtQuick.Layouts 1.15
 import QtQuick.Window 2.2
 
 import StreamingPreferences 1.0
+import SystemProperties 1.0
 
-// Per-game settings overrides (StreamLight 4.0.0). Each control has a "Global"
+// Per-game settings overrides (ArtMoon 4.0.0). Each control has a "Global"
 // option meaning "inherit the global setting". SegmentedSelector rows use index 0
 // as Global; the Bitrate row uses a Global pill + slider inside the same pill
 // container so it matches the other rows. Saves live on every change. Fully
@@ -105,8 +106,22 @@ Popup {
     readonly property var _resLabels: [_inheritText("resolution"), "720p", "1080p", "1440p", "4K"]
     readonly property var _resW:      [0, 1280, 1920, 2560, 3840]
     readonly property var _resH:      [0, 720, 1080, 1440, 2160]
-    readonly property var _fpsLabels: [_inheritText("fps"), "30", "60", "90", "120"]
-    readonly property var _fpsVals:   [0, 30, 60, 90, 120]
+    // FPS options come from the display's detected rates (sorted, normalised by
+    // SystemProperties) instead of a hardcoded list, so e.g. 138 Hz monitors offer
+    // 138. Falls back to the classic presets if detection hasn't run or came back
+    // empty. _extraFps pins a stored override value into the list when the display
+    // doesn't report it — without it, _idxByVal would miss, the row would fall back
+    // to index 0, and the override would be silently discarded on save (see the
+    // ⚠️ note on loadFromModel below).
+    property var _extraFps: []
+    readonly property var _fpsVals: {
+        var base = SystemProperties.availableRefreshRates
+        if (base.length === 0) base = [30, 60, 90, 120]
+        var vals = base.concat(_extraFps)
+        vals.sort(function(a, b) { return a - b })
+        return vals
+    }
+    readonly property var _fpsLabels: [_inheritText("fps")].concat(_fpsVals.map(function(f) { return String(f) }))
     readonly property var _hdrLabels: [_inheritText("hdr"), "On", "Off"]
     // ⚠️ The wait-for-game and Hue rows used to borrow _hdrLabels, since all three are
     // On/Off. They cannot any more: the tables now carry a value, and HDR's is not the
@@ -188,7 +203,15 @@ Popup {
         } else {
             resSel.currentIndex = 0
         }
-        fpsSel.currentIndex   = (ov.fps !== undefined) ? _idxByVal(_fpsVals, ov.fps) : 0
+        if (ov.fps !== undefined) {
+            // Pin an override value the display doesn't report, so it stays
+            // selectable instead of silently reverting to inherit (see _fpsVals).
+            if (_fpsVals.indexOf(ov.fps) < 0) _extraFps = [ov.fps]
+            fpsSel.currentIndex = _idxByVal(_fpsVals, ov.fps)
+        } else {
+            _extraFps = []
+            fpsSel.currentIndex = 0
+        }
         hdrSel.currentIndex   = (ov.hdr !== undefined) ? (ov.hdr ? 1 : 2) : 0
         codecSel.currentIndex = (ov.codec !== undefined) ? _idxByVal(_codecVals, ov.codec) : 0
         fpSel.currentIndex    = (ov.framepacing !== undefined) ? _idxByVal(_fpVals, ov.framepacing) : 0

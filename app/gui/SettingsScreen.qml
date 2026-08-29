@@ -142,12 +142,14 @@ FocusScope {
     readonly property bool _lockVsync:       activeProfileOverride && activeProfileOverride.vsync !== undefined
 
     // Latest-release tags fetched once per Settings open from the GitHub API.
-    property string streamLightLatest: ""
+    property string artMoonLatest: ""
     property string streamTweakLatest: ""
 
-    function _fetchLatestTag(repo, callback) {
+    // Fetch the latest release tag from our repo. StreamTweak is still developed
+    // in the FoggyBytes org, so pass the full "owner/repo" slug per call.
+    function _fetchLatestTag(repoSlug, callback) {
         var xhr = new XMLHttpRequest()
-        xhr.open("GET", "https://api.github.com/repos/FoggyBytes/" + repo + "/releases/latest")
+        xhr.open("GET", "https://api.github.com/repos/" + repoSlug + "/releases/latest")
         xhr.setRequestHeader("Accept", "application/vnd.github+json")
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
@@ -220,8 +222,8 @@ FocusScope {
     Component.onCompleted: {
         SdlGamepadKeyNavigation.setUiNavMode(true)
         Qt.callLater(function() { focusFirstControl(tabBar.currentIndex) })
-        _fetchLatestTag("StreamLight",  function(t) { settingsScreen.streamLightLatest  = t })
-        _fetchLatestTag("StreamTweak",  function(t) { settingsScreen.streamTweakLatest  = t })
+        _fetchLatestTag("onaiaku/ArtMoon",  function(t) { settingsScreen.artMoonLatest  = t })
+        _fetchLatestTag("FoggyBytes/StreamTweak",  function(t) { settingsScreen.streamTweakLatest  = t })
         _refreshLocalLink()
     }
 
@@ -536,7 +538,7 @@ FocusScope {
         // equal slot and centres the label in it, so it sat flush against SHORTCUTS, the
         // second longest. A compact mark leaves that slot full of air and the row breathes.
         //
-        // It is StreamTweak's own logo, not StreamLight's: this tab is about the companion
+        // It is StreamTweak's own logo, not ArtMoon's: this tab is about the companion
         // product and labelling it with our own mark would be wrong. Source is the 672px PNG
         // from StreamTweak's installer resources, so at 22 logical px it has sixteen times the
         // pixels it needs even at 4K with 200% scaling — hence `smooth`, which is doing real
@@ -562,7 +564,7 @@ FocusScope {
                     // reading as one item in a row of ten.
                     height: settingsScreen._px(26)
                     width: settingsScreen._px(26)
-                    source: "qrc:/res/streamtweak_logo.png"
+                    source: "qrc:/res/artmoon-brand.png"
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     mipmap: true
@@ -918,8 +920,32 @@ FocusScope {
                                     enabled: !settingsScreen._lockFps
                                     opacity: enabled ? 1.0 : 0.4
 
-                                    property var _fps: [30, 60, 90, 120]
-                                    property var _presetLabels: ["30", "60", "90", "120"]
+                                    // Rates for the display the window is currently on,
+                                    // always padded with the classic presets. Falls back to
+                                    // the all-displays union when the window position isn't
+                                    // mappable (common under Wayland).
+                                    function _ratesForThisWindow() {
+                                        // Screen attached property = the screen this item
+                                        // is currently displayed on
+                                        return SystemProperties.refreshRatesForPoint(
+                                            Screen.virtualX + Screen.width / 2,
+                                            Screen.virtualY + Screen.height / 2)
+                                    }
+
+                                    property var _detected: _ratesForThisWindow()
+                                    property var _fps: _detected.length > 0 ? _detected : [30, 60, 90, 120]
+
+                                    function _rebuildPresets() {
+                                        _detected = _ratesForThisWindow()
+                                        _fps = _detected.length > 0 ? _detected : [30, 60, 90, 120]
+                                        // Always keep the stored value selectable, even if the
+                                        // display stopped reporting it (e.g. monitor swap).
+                                        if (_fps.indexOf(StreamingPreferences.fps) < 0) {
+                                            _fps = [StreamingPreferences.fps].concat(_fps).sort(function(a, b) { return a - b })
+                                        }
+                                        labels = _fps.map(function(f) { return String(f) })
+                                        _resync()
+                                    }
 
                                     function _resync() {
                                         for (var i = 0; i < _fps.length; i++) {
@@ -931,17 +957,11 @@ FocusScope {
                                         currentIndex = -1
                                     }
 
-                                    Component.onCompleted: {
-                                        for (var i = 0; i < _fps.length; i++) {
-                                            if (_fps[i] === StreamingPreferences.fps) {
-                                                labels = _presetLabels
-                                                currentIndex = i
-                                                return
-                                            }
-                                        }
-                                        labels = [String(StreamingPreferences.fps)].concat(_presetLabels)
-                                        _fps   = [StreamingPreferences.fps].concat(_fps)
-                                        currentIndex = 0
+                                    Component.onCompleted: _rebuildPresets()
+
+                                    Connections {
+                                        target: SystemProperties
+                                        function onAvailableRefreshRatesChanged() { fpsSelector._rebuildPresets() }
                                     }
 
                                     Connections {
@@ -2321,7 +2341,7 @@ FocusScope {
                                     color: settingsScreen._text
                                 }
                                 Label {
-                                    text: qsTr("If the host doesn't send video right away (e.g. a virtual display or HDR/AV1 encoder still warming up), StreamLight quietly retries once instead of showing an error.")
+                                    text: qsTr("If the host doesn't send video right away (e.g. a virtual display or HDR/AV1 encoder still warming up), ArtMoon quietly retries once instead of showing an error.")
                                     font.family: "DM Sans"
                                     font.pixelSize: settingsScreen._px(13)
                                     color: settingsScreen._textDim
@@ -2345,8 +2365,8 @@ FocusScope {
                         }
                         Rectangle { width: parent.width - settingsScreen._px(32); height: 1; color: settingsScreen._border; x: settingsScreen._px(16) }
 
-                        // Auto-start Tailscale at StreamLight launch. When ON, Tailscale
-                        // is started in the background on every StreamLight boot (only
+                        // Auto-start Tailscale at ArtMoon launch. When ON, Tailscale
+                        // is started in the background on every ArtMoon boot (only
                         // if it is not already running), so remote hosts reachable via
                         // their Tailscale IP can be discovered and streamed. The OFF
                         // toggle does NOT kill the running Tailscale instance — it only
@@ -2563,7 +2583,7 @@ FocusScope {
             // ──────────────────────────────────────────────────────────────────
             //                              SESSION TAB
             //   Two sections: HOST (host-side behaviour) and INTERFACE
-            //   (StreamLight client UI/UX preferences).
+            //   (ArtMoon client UI/UX preferences).
             // ──────────────────────────────────────────────────────────────────
             Column {
                 id: sessionTab
@@ -3480,7 +3500,7 @@ FocusScope {
 
                     var out = []
                     if (clientOn && hostOn) {
-                        out.push({ kind: "head", text: "--- Client Metrics (StreamLight) ---" })
+                        out.push({ kind: "head", text: "--- Client Metrics (ArtMoon) ---" })
                     }
                     out = out.concat(client)
                     if (clientOn && hostOn) {
@@ -4581,7 +4601,7 @@ FocusScope {
                             // One sentence, like every other description in this file. The
                             // first version ran to three and pointed at "the bottom of this
                             // tab", which the Features section now names for itself.
-                            text: qsTr("A companion app for the host. Install it, switch on the hosts that have it, and StreamLight gains the features below — streaming itself is unaffected either way.")
+                            text: qsTr("A companion app for the host. Install it, switch on the hosts that have it, and ArtMoon gains the features below — streaming itself is unaffected either way.")
                             font.family: "DM Sans"
                             font.pixelSize: settingsScreen._px(13)
                             color: settingsScreen._textDim
@@ -4970,7 +4990,7 @@ FocusScope {
                 visible: tabBar.currentIndex === 9
                 spacing: settingsScreen._px(16)
 
-                // StreamLight card — title + version + author on the left,
+                // ArtMoon card — title + version + author on the left,
                 // action buttons aligned to the right edge.
                 Rectangle {
                     width: parent.width
@@ -4987,7 +5007,7 @@ FocusScope {
                         spacing: settingsScreen._px(12)
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "StreamLight"
+                            text: "ArtMoon"
                             font.family: "DM Sans"
                             font.pixelSize: settingsScreen._px(22)
                             font.bold: true
@@ -4995,8 +5015,8 @@ FocusScope {
                         }
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: settingsScreen.streamLightLatest.length > 0
-                                  ? settingsScreen.streamLightLatest
+                            text: settingsScreen.artMoonLatest.length > 0
+                                  ? settingsScreen.artMoonLatest
                                   : qsTr("checking…")
                             font.family: "DM Sans"
                             font.pixelSize: settingsScreen._px(14)
@@ -5004,7 +5024,7 @@ FocusScope {
                         }
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("by FoggyBytes")
+                            text: qsTr("by onaiaku & Rias")
                             font.family: "DM Sans"
                             font.pixelSize: settingsScreen._px(13)
                             color: settingsScreen._textDim
@@ -5019,7 +5039,7 @@ FocusScope {
                         AboutLinkButton {
                             id: aboutSlGithubBtn
                             label: qsTr("GitHub releases")
-                            url:   "https://github.com/FoggyBytes/StreamLight/releases"
+                            url:   "https://github.com/onaiaku/ArtMoon/releases"
                             KeyNavigation.right: aboutSlGplBtn
                         }
                         AboutLinkButton {
@@ -5357,13 +5377,13 @@ FocusScope {
     }
 
     // Shown after the user enables "Auto-start Tailscale". A restart is required
-    // because Tailscale is launched once at StreamLight startup; toggling the
+    // because Tailscale is launched once at ArtMoon startup; toggling the
     // preference at runtime does not retroactively spawn it. Yes → restart now;
     // No → preference is still saved, takes effect at the next manual launch.
     NavigableMessageDialog {
         id: tailscaleRestartDialog
         headerText: qsTr("RESTART REQUIRED")
-        text: qsTr("StreamLight needs to restart to start Tailscale in the background. Restart now?")
+        text: qsTr("ArtMoon needs to restart to start Tailscale in the background. Restart now?")
         standardButtons: Dialog.Yes | Dialog.No
         onAccepted: SystemProperties.restartApplication()
     }
@@ -5376,19 +5396,19 @@ FocusScope {
     NavigableMessageDialog {
         id: uiModeRestartDialog
         headerText: qsTr("RESTART REQUIRED")
-        text: qsTr("GUI mode changes when StreamLight starts. Restart now?")
+        text: qsTr("GUI mode changes when ArtMoon starts. Restart now?")
         standardButtons: Dialog.Yes | Dialog.No
         onAccepted: SystemProperties.restartApplication()
     }
 
     // Shown after the user disables "Auto-start Tailscale". The currently
     // running Tailscale instance is intentionally NOT killed — if the user
-    // started it manually or in a previous StreamLight session, killing it
-    // would be surprising. The toggle only affects future StreamLight launches.
+    // started it manually or in a previous ArtMoon session, killing it
+    // would be surprising. The toggle only affects future ArtMoon launches.
     NavigableMessageDialog {
         id: tailscaleStopNoticeDialog
         headerText: qsTr("TAILSCALE")
-        text: qsTr("Tailscale will keep running until you close it manually or reboot. StreamLight will no longer start it automatically on future launches.")
+        text: qsTr("Tailscale will keep running until you close it manually or reboot. ArtMoon will no longer start it automatically on future launches.")
         standardButtons: Dialog.Ok
     }
 
