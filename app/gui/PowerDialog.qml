@@ -94,7 +94,7 @@ Popup {
         case "pending":     return "🟠  " + qsTr("Updates pending")
         case "none":        return "✓  " + qsTr("Up to date")
         case "checking":    return "⏳  " + qsTr("Checking…")
-        case "unavailable": return "—  " + qsTr("needs StreamTweak access")
+        case "unavailable": return "—  " + qsTr("needs ArtLight access")
         }
         return ""
     }
@@ -140,7 +140,7 @@ Popup {
         // in client-only mode (no host context — the hint would be misleading).
         Label {
             visible: !pop.hostAllowed && !pop.clientOnly
-            text: qsTr("Host shutdown needs StreamTweak access. Approve this device on the host (Settings → Bridge security) to enable Host and Both.")
+            text: qsTr("Host shutdown needs ArtLight access. Approve this device on the host (Settings → Bridge security) to enable Host and Both.")
             font.family: "DM Sans"
             font.pixelSize: pop._px(13)
             color: "#a0a0a0"

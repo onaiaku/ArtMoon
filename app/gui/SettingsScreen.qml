@@ -137,8 +137,8 @@ FocusScope {
     // stays true and nothing greys.
     readonly property bool _stOff: !hostStreamTweakEnabled
     readonly property string _stOffWhy: hostName.length > 0
-        ? qsTr("StreamTweak is switched off for %1 — turn it on in the StreamTweak tab.").arg(hostName)
-        : qsTr("StreamTweak is switched off for this host — turn it on in the StreamTweak tab.")
+        ? qsTr("ArtLight is switched off for %1 — turn it on in the ArtLight tab.").arg(hostName)
+        : qsTr("ArtLight is switched off for this host — turn it on in the ArtLight tab.")
     readonly property bool _lockVsync:       activeProfileOverride && activeProfileOverride.vsync !== undefined
 
     // Latest-release tags fetched once per Settings open from the GitHub API.
@@ -2487,7 +2487,7 @@ FocusScope {
                                 // there is nothing on the other end to ask, and the client simply
                                 // connects as it always did.
                                 Label {
-                                    text: qsTr("Requires StreamTweak 8.1.0 or later on the host, with client control allowed. Hosts without it are unaffected.")
+                                    text: qsTr("Requires ArtLight 8.1.0 or later on the host, with client control allowed. Hosts without it are unaffected.")
                                     font.family: "DM Sans"
                                     font.pixelSize: settingsScreen._px(13)
                                     color: settingsScreen._textDim
@@ -2721,7 +2721,7 @@ FocusScope {
                                     // switch could be turned on and quietly do nothing on a
                                     // host without StreamTweak — the only one of the three
                                     // StreamTweak-dependent settings that never named it.
-                                    text: qsTr("Keep the launch screen up until the host reports the game is on screen, instead of showing the stream as soon as it starts. Needs StreamTweak on the host. Games that open their own launcher never get there — turn it off for those in their per-game settings.")
+                                    text: qsTr("Keep the launch screen up until the host reports the game is on screen, instead of showing the stream as soon as it starts. Needs ArtLight on the host. Games that open their own launcher never get there — turn it off for those in their per-game settings.")
                                     font.family: "DM Sans"
                                     font.pixelSize: settingsScreen._px(13)
                                     color: settingsScreen._textDim
@@ -3442,7 +3442,7 @@ FocusScope {
                       lines: ["Average rendering time (including monitor V-sync latency): 1.10 ms"] },
                     { bit: StreamingPreferences.OI_HOST_METRICS,
                       name: qsTr("Host metrics"),
-                      desc: qsTr("GPU, encoder, temperature, VRAM, CPU and outbound network — needs StreamTweak on the host"),
+                      desc: qsTr("GPU, encoder, temperature, VRAM, CPU and outbound network — needs ArtLight on the host"),
                       host: true, sub: false,
                       lines: ["GPU: 47% | Enc: 12% | Temp: 62C | VRAM: 4096 / 8192 MB",
                               "CPU: 18% | Net TX: 41 Mbps"] }
@@ -3504,7 +3504,7 @@ FocusScope {
                     }
                     out = out.concat(client)
                     if (clientOn && hostOn) {
-                        out.push({ kind: "head", text: "--- Host Metrics (StreamTweak) ---" })
+                        out.push({ kind: "head", text: "--- Host Metrics (ArtLight) ---" })
                     }
                     return out.concat(host)
                 }
@@ -4573,7 +4573,7 @@ FocusScope {
                             spacing: settingsScreen._px(12)
                             Label {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "StreamTweak"
+                                text: "ArtLight"
                                 font.family: "DM Sans"
                                 font.pixelSize: settingsScreen._px(22)
                                 font.bold: true
@@ -4581,19 +4581,10 @@ FocusScope {
                             }
                             Label {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: settingsScreen.streamTweakLatest.length > 0
-                                      ? settingsScreen.streamTweakLatest
-                                      : qsTr("checking…")
+                                text: qsTr("0.1.0 by onaiaku & Rias")
                                 font.family: "DM Sans"
                                 font.pixelSize: settingsScreen._px(14)
                                 color: settingsScreen._greenLk
-                            }
-                            Label {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: qsTr("by FoggyBytes")
-                                font.family: "DM Sans"
-                                font.pixelSize: settingsScreen._px(13)
-                                color: settingsScreen._textDim
                             }
                         }
                         Label {
@@ -4617,7 +4608,7 @@ FocusScope {
                         AboutLinkButton {
                             id: stGithubBtn
                             label: qsTr("GitHub releases")
-                            url:   "https://github.com/FoggyBytes/StreamTweak/releases"
+                            url:   "https://github.com/onaiaku/ArtLight/releases"
                         }
                     }
                 }
@@ -4905,7 +4896,7 @@ FocusScope {
                                   { name: qsTr("How your last session went, on its card") },
                                   { name: qsTr("Which store each game comes from") },
                                   { group: qsTr("History") },
-                                  { name: qsTr("Sessions graded and charted in StreamTweak") } ]
+                                  { name: qsTr("Sessions graded and charted in ArtLight") } ]
                             ]
 
                             delegate: Column {

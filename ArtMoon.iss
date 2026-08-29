@@ -1,8 +1,8 @@
-; ArtMoon 5.4.0 — Moonlight fork with StreamTweak integration.
+; ArtMoon — Moonlight fork with StreamTweak integration.
 ; SourceDir is the self-contained runtime built by build-arch.bat +
 ; manual windeployqt (see CLAUDE.md §3).
 #define AppName "ArtMoon"
-#define AppVersion "5.4.0"
+#define AppVersion "0.1.0"
 #define AppPublisher "onaiaku"
 #define AppURL "https://github.com/onaiaku/ArtMoon"
 #define AppExeName "ArtMoon.exe"

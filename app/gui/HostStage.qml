@@ -358,9 +358,9 @@ Item {
         :                          Theme.offline
 
     readonly property string _authLabel:
-          authState === "authorized" ? qsTr("StreamTweak authorized")
-        : authState === "pending"    ? qsTr("StreamTweak pending")
-        : authState === "denied"     ? qsTr("StreamTweak denied")
+          authState === "authorized" ? qsTr("ArtLight authorized")
+        : authState === "pending"    ? qsTr("ArtLight pending")
+        : authState === "denied"     ? qsTr("ArtLight denied")
         :                              ""
 
     readonly property color _authColor:
@@ -846,7 +846,7 @@ Item {
                         f.push({ label: qsTr("On launch"), value: "→ " + stage.linkSwitchText,
                                  colour: Theme.warning })
                     else if (stage.cantSwitchLink)
-                        f.push({ label: qsTr("Link match"), value: qsTr("enable it in StreamTweak"),
+                        f.push({ label: qsTr("Link match"), value: qsTr("enable it in ArtLight"),
                                  colour: stage._onBg3 })
 
                     return f

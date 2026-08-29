@@ -2068,7 +2068,7 @@ FocusScope {
             Label {
                 width: stPinDialog.availableWidth
                 wrapMode: Text.Wrap
-                text: qsTr("StreamTweak on %1 (%2) is asking to allow this device. Check that the PIN below matches the one shown on the host, then click Allow there.\n\nStreaming works without this — authorizing only enables host metrics, NIC speed, store badges and session reports.").arg(homeScreen.stPinHostName).arg(homeScreen.stPinHostAddr)
+                text: qsTr("ArtLight on %1 (%2) is asking to allow this device. Check that the PIN below matches the one shown on the host, then click Allow there.\n\nStreaming works without this — authorizing only enables host metrics, NIC speed, store badges and session reports.").arg(homeScreen.stPinHostName).arg(homeScreen.stPinHostAddr)
                 font.family: Theme.family
                 font.pixelSize: 14
                 color: Theme.text

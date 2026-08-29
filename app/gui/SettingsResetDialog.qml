@@ -73,7 +73,7 @@ Popup {
             // everything else works and the bridge just stays silent, because a
             // freshly discovered host record starts with the integration off
             // (nvcomputer.cpp) — the same default any new host gets.
-            text: qsTr("ArtMoon no longer shares its settings with Moonlight, so this version starts from scratch. Pair your hosts again; then, if you use StreamTweak, approve this device on the host and switch the integration back on for each host in Settings.")
+            text: qsTr("ArtMoon no longer shares its settings with Moonlight, so this version starts from scratch. Pair your hosts again; then, if you use ArtLight, approve this device on the host and switch the integration back on for each host in Settings.")
             font.family: Theme.family; font.pixelSize: dlg._px(15)
             color: Theme.text2
             wrapMode: Text.WordWrap

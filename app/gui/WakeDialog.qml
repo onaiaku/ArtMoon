@@ -86,7 +86,7 @@ Popup {
                 model: dialog.waitForStreamTweak
                        ? [qsTr("Magic packet sent"),
                           qsTr("Host on the network"),
-                          qsTr("StreamTweak ready")]
+                          qsTr("ArtLight ready")]
                        : [qsTr("Magic packet sent"),
                           qsTr("Host on the network")]
 
