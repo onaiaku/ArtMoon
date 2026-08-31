@@ -191,6 +191,16 @@ public:
      */
     void sendSessionDataSync(const QString& hostAddress, const QString& jsonPayload);
 
+    /**
+     * Fire-and-forget send from a thread with no Qt event loop (e.g. the SDL
+     * stream loop). Spawns a short-lived detached worker with TIGHT timeouts
+     * (200ms connect / 500ms write) so a dead or unreachable host can never
+     * stall the calling thread for more than a fraction of a second — the
+     * worst case is one dropped sample, not a stream stutter. Safe to call
+     * repeatedly; each call uses its own socket on its own thread.
+     */
+    static void sendSessionDataFireAndForget(const QString& hostAddress, const QString& jsonPayload);
+
     static constexpr quint16 BridgePort = 47998;
 
     // Per-request watchdog: how long to wait for a newline-terminated reply

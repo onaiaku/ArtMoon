@@ -12,6 +12,7 @@
 #include <SDL_log.h>
 
 #include <memory>
+#include <thread>
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -330,4 +331,31 @@ void StreamTweakBridge::sendSessionDataSync(const QString& hostAddress, const QS
 
     socket.waitForBytesWritten(2000);
     socket.disconnectFromHost();
+}
+
+void StreamTweakBridge::sendSessionDataFireAndForget(const QString& hostAddress, const QString& jsonPayload)
+{
+    // Runs on a detached worker: the calling thread (SDL stream loop) is freed
+    // immediately. Timeouts are deliberately tight — on a healthy LAN the whole
+    // send takes ~1ms; if the host is dead the worker dies quietly after the
+    // timeouts and the stream keeps running stutter-free with a dropped sample.
+    std::thread([hostAddress, jsonPayload]() {
+        QTcpSocket socket;
+
+        // QTcpSocket on a raw thread: fine as long as we never touch it after
+        // the thread ends, which this scope guarantees.
+        socket.connectToHost(hostAddress, BridgePort);
+        if (!socket.waitForConnected(200))
+            return;
+
+        QTextStream stream(&socket);
+        QString auth = buildAuthLine(QStringLiteral("SESSIONDATA"));
+        if (!auth.isEmpty())
+            stream << auth << "\n";
+        stream << "SESSIONDATA\n" << jsonPayload << "\n";
+        stream.flush();
+
+        socket.waitForBytesWritten(500);
+        socket.disconnectFromHost();
+    }).detach();
 }

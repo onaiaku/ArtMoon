@@ -42,7 +42,8 @@ void SessionTelemetrySampler::tick()
     // this thread, so the async socket in sendSessionData() would never
     // complete its connected/readyRead cycle — every mid-stream batch would
     // be silently dropped (stats populate at stream start, then freeze).
-    // sendSessionDataSync() blocks until the data is written instead.
+    // forceSync routes the batch through the fire-and-forget sender instead,
+    // which never blocks the stream loop.
     runSample(/*forceSync=*/true);
 }
 
@@ -146,10 +147,11 @@ void SessionTelemetrySampler::sendBatch(bool forceSync)
     QString json = buildBatchJson();
     if (forceSync) {
         // No Qt event loop is pumping (SDL stream loop owns the thread), so the
-        // async socket can never complete. Block until written instead — a LAN
-        // send is ~1ms; worst case if the host vanished mid-stream is the 2s
-        // connect timeout once per tick.
-        m_Bridge.sendSessionDataSync(m_HostAddress, json);
+        // async socket can never complete. Fire-and-forget on a detached worker
+        // with tight timeouts: the stream loop never blocks, so a dead host
+        // costs one dropped sample instead of a 2-4s stutter (and the chain of
+        // stutters that crashed ArtMoon when StreamTweak was closed mid-stream).
+        StreamTweakBridge::sendSessionDataFireAndForget(m_HostAddress, json);
     }
     else {
         m_Bridge.sendSessionData(m_HostAddress, json);
