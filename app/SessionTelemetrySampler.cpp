@@ -37,10 +37,23 @@ void SessionTelemetrySampler::tick()
     // Public tick, callable from the SDL stream loop (main thread, Qt loop
     // suspended). onSampleTimer is the same body; this wrapper lets the SDL
     // loop drive sampling without touching the QTimer.
-    onSampleTimer();
+    //
+    // forceSync: the Qt event loop is suspended while Session::exec() owns
+    // this thread, so the async socket in sendSessionData() would never
+    // complete its connected/readyRead cycle — every mid-stream batch would
+    // be silently dropped (stats populate at stream start, then freeze).
+    // sendSessionDataSync() blocks until the data is written instead.
+    runSample(/*forceSync=*/true);
 }
 
 void SessionTelemetrySampler::onSampleTimer()
+{
+    // QTimer slot: the Qt event loop is alive here, so the async socket path
+    // works normally.
+    runSample(/*forceSync=*/false);
+}
+
+void SessionTelemetrySampler::runSample(bool forceSync)
 {
     Session* session = Session::get();
     if (!session) {
@@ -91,7 +104,10 @@ void SessionTelemetrySampler::onSampleTimer()
     m_Samples.append(s);
 
     // Send immediately — one sample per connection, once per second.
-    sendBatch();
+    // Sync send when the Qt event loop can't pump (SDL-loop path); the async
+    // socket's connected/readyRead slots would never fire and the batch would
+    // be silently dropped.
+    sendBatch(forceSync);
 }
 
 void SessionTelemetrySampler::flushAndStop()
@@ -115,7 +131,7 @@ void SessionTelemetrySampler::flushAndStop()
     m_Samples.clear();
 }
 
-void SessionTelemetrySampler::sendBatch()
+void SessionTelemetrySampler::sendBatch(bool forceSync)
 {
     if (m_Samples.isEmpty()) return;
 
@@ -128,7 +144,16 @@ void SessionTelemetrySampler::sendBatch()
     }
 
     QString json = buildBatchJson();
-    m_Bridge.sendSessionData(m_HostAddress, json);
+    if (forceSync) {
+        // No Qt event loop is pumping (SDL stream loop owns the thread), so the
+        // async socket can never complete. Block until written instead — a LAN
+        // send is ~1ms; worst case if the host vanished mid-stream is the 2s
+        // connect timeout once per tick.
+        m_Bridge.sendSessionDataSync(m_HostAddress, json);
+    }
+    else {
+        m_Bridge.sendSessionData(m_HostAddress, json);
+    }
 
     m_Samples.clear();
     m_BatchFpsMin     =  9999.0f;

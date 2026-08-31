@@ -41,6 +41,11 @@ public:
      * operation, and by Session::exec()'s SDL loop directly on each 1-second
      * SDL_WaitEventTimeout timeout while streaming — the Qt event loop is
      * suspended during a stream, so the timer alone cannot fire there.
+     *
+     * When the SDL loop calls this, the async socket in sendSessionData()
+     * cannot complete (no Qt event loop pumping), so the send is forced
+     * synchronous via sendSessionDataSync() — same reason flushAndStop()
+     * uses the sync sender.
      */
     void tick();
 
@@ -48,6 +53,8 @@ private slots:
     void onSampleTimer();
 
 private:
+    void runSample(bool forceSync);
+
     struct TelemetrySample {
         float fpsAvg;
         float fpsMin;
@@ -63,7 +70,7 @@ private:
     };
 
     QString buildBatchJson() const;
-    void    sendBatch();
+    void sendBatch(bool forceSync = false);
 
     StreamTweakBridge m_Bridge;
     QTimer            m_SampleTimer;   // fires every 1 s — samples and sends immediately
