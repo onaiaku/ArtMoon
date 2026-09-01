@@ -102,6 +102,10 @@ jobs:
       - name: Build libva
         working-directory: deps/libva
         run: |
+          # libva 2.24.1 declares no AC_CONFIG_AUX_DIR; current libtoolize
+          # then mis-detects the aux dir and drops ltmain.sh outside the
+          # source root, which automake rejects. Pin it explicitly.
+          sed -i '/^AC_INIT/a AC_CONFIG_AUX_DIR([.])' configure.ac
           ./autogen.sh
           ./configure --enable-x11
           make -j$(nproc)
