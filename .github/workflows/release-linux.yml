@@ -1,0 +1,30 @@
+---
+name: Release - Linux AppImage
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+
+  attach:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built AppImage
+        uses: actions/download-artifact@v6
+        with:
+          name: ArtMoon-LinuxAppImage-${{ github.ref_name }}
+          path: appimage
+
+      - name: Attach AppImage to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: appimage/*.AppImage
