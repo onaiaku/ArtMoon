@@ -90,7 +90,7 @@ ArtLight Control (host PC)  →  Named Pipe  →  ArtLightControlService (LocalS
 
 ## 📦 Installation
 
-**Windows** — download `ArtMoon_1.0.0_Installer.exe` from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and run it.
+**Windows** — download the installer from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and run it.
 
 **Linux** — one line:
 
