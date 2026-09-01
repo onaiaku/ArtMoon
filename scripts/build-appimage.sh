@@ -65,7 +65,7 @@ popd
 # machine). Copying explicitly from the Qt we build with makes the bundle
 # deterministic. Their library dependencies (libQt6QuickShapes etc.) are picked
 # up by linuxdeploy's dependency walk.
-QT_QML_DIR=$($QMAKE -query QT_INSTALL_QML) || fail "qmake -query failed!"
+QT_QML_DIR=$(qmake6 -query QT_INSTALL_QML) || fail "qmake -query failed!"
 for MODULE in QtQuick/Shapes QtQuick/Effects QtQuick/Dialogs QtQuick/Window QtQuick/Layouts QtQuick/Templates QtQuick/Controls QtQuickControls2; do
     if [ -d "$QT_QML_DIR/$MODULE" ]; then
         echo "Bundling QML module: $MODULE"
