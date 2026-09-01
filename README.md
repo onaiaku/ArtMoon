@@ -1,20 +1,27 @@
-# 🌙 ArtMoon
-
 <div align="center">
-  <img width="240" alt="ArtMoon" src="app/res/artmoon-brand.png" />
-  <br/><br/>
-  <a href="https://github.com/onaiaku/ArtMoon"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux-blue.svg"></a>
-  <a href="https://github.com/onaiaku/ArtMoon"><img alt="Framework" src="https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg"></a>
-  <a href="https://github.com/moonlight-stream/moonlight-qt"><img alt="built on Moonlight" src="https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github"></a>
-  <a href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-green.svg"></a>
-  <br/>
+
+<img width="180" alt="ArtMoon" src="app/res/artmoon-brand.png" />
+
+# ArtMoon
+
+**Your games, on every screen in the house.**
+
+A gamepad-first streaming client built on [Moonlight](https://github.com/moonlight-stream/moonlight-qt), developed by **onaiaku & Rias**.
+
+<a href="https://github.com/onaiaku/ArtMoon"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux-blue.svg"></a>
+<a href="https://github.com/onaiaku/ArtMoon"><img alt="Framework" src="https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg"></a>
+<a href="https://github.com/moonlight-stream/moonlight-qt"><img alt="built on Moonlight" src="https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github"></a>
+<a href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-green.svg"></a>
+
 </div>
+
+---
 
 <div align="center">
   <img width="960" alt="ArtMoon home screen" src="docs/screenshots/home.png" />
 </div>
 
-**ArtMoon** is a gamepad-first streaming client built on [Moonlight](https://github.com/moonlight-stream/moonlight-qt), developed by **onaiaku & Rias**. It pairs with its host-side companion, [**ArtLight Control**](https://github.com/onaiaku/ArtLight), for a full sofa-to-host experience.
+**ArtMoon** pairs with its host-side companion, [**ArtLight**](https://github.com/onaiaku/ArtLight), for a full sofa-to-host experience.
 
 <div align="center">
   <img width="960" alt="ArtMoon library" src="docs/screenshots/library.png" />
