@@ -1,0 +1,63 @@
+---
+name: Build Windows installer
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'scripts/**'
+      - 'libs/**'
+      - 'ArtMoon.iss'
+      - 'moonlight-qt.pro'
+      - '.github/workflows/build-windows-installer.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.8.3 (msvc2022_64)
+        uses: jurplel/install-qt-action@v4
+        with:
+          cache: true
+          version: '6.8.3'
+          arch: 'win64_msvc2022_64'
+          set-env: false
+          add-tools-to-path: false
+
+      - name: Build + deploy (build-arch.bat + windeployqt + libs)
+        shell: pwsh
+        env:
+          ARTMOON_QT_BIN: '${{ runner.workspace }}\Qt\6.8.3\msvc2022_64\bin'
+        run: ./scripts/ci-deploy-windows.ps1
+
+      - name: Install Inno Setup 7.1.0
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe'
+          $installer = "$env:RUNNER_TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          Start-Process $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $iscc = Get-ChildItem 'C:\Program Files (x86)\Inno Setup 7\ISCC.exe' -ErrorAction SilentlyContinue
+          if (-not $iscc) { throw 'ISCC.exe not found after Inno Setup install' }
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem 'C:\Program Files*\Inno Setup 7\ISCC.exe' | Select-Object -First 1
+          & $iscc.FullName ArtMoon.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit $LASTEXITCODE" }
+          Get-ChildItem build\installer\*.exe | Format-Table Name, Length
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArtMoon-installer
+          path: build/installer/ArtMoon_*_Installer.exe
+          if-no-files-found: error
