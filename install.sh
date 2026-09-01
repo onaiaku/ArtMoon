@@ -63,7 +63,7 @@ ARCH="$(uname -m)"
 build_from_source() {
     info "Building ArtMoon from source (this takes a while)..."
 
-    local pkgs_apt="git build-essential cmake nasm python3 python3-pip meson \
+    local pkgs_apt="git build-essential cmake nasm python3 python3-pip meson libtool autoconf automake \
 qt6-base-dev qt6-declarative-dev libqt6svg6-dev \
 qml6-module-qtquick-controls qml6-module-qtquick-templates qml6-module-qtquick-layouts \
 qml6-module-qtqml-workerscript qml6-module-qtquick-window qml6-module-qtquick \
