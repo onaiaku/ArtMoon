@@ -4,6 +4,7 @@
 	<metadata_license>CC0-1.0</metadata_license>
 	<project_license>GPL-3.0+</project_license>
 	<name>ArtMoon</name>
+	<launchable type="desktop-id">io.github.onaiaku.ArtMoon.desktop</launchable>
 	<summary>Gamepad-first game stream client for Sunshine, Apollo and GeForce Experience</summary>
 
 	<description>
