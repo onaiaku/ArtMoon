@@ -5,7 +5,7 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
-Version 0.1.0 (01/09/2026)
+Version 1.0.0 (01/09/2026)
 --------------------------------------
 First public release of ArtMoon — a gamepad-first streaming client for
 your host gaming PC, built on the Moonlight streaming engine.
@@ -100,5 +100,9 @@ Sunshine / Apollo / Vibepollo / Vibeshine host without it.
 🙏 THANKS:
 
 • The Moonlight team (moonlight-stream) for the streaming engine this
-  client is built on — FFmpeg, D3D11VA, DXVA2, libplacebo and
-  moonlight-common-c do the heavy lifting, untouched
+  client is built on. FFmpeg, D3D11VA, DXVA2, libplacebo and
+  moonlight-common-c do the heavy lifting, and we leave them exactly
+  as they are — our work lives in the interface around them
+
+• FoggyBytes, whose StreamTweak ArtMoon is built from. ArtMoon exists
+  because they opened their work, and we're grateful for it

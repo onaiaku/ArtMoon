@@ -4582,7 +4582,7 @@ FocusScope {
                             }
                             Label {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: qsTr("0.1.0 by onaiaku & Rias")
+                                text: qsTr("1.0.0 by onaiaku & Rias")
                                 font.family: "DM Sans"
                                 font.pixelSize: settingsScreen._px(14)
                                 color: settingsScreen._greenLk
