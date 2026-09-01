@@ -10,9 +10,7 @@
   <img width="960" alt="ArtMoon home screen" src="docs/screenshots/home.png" />
 </div>
 
-**ArtMoon** is a gamepad-first streaming client built on [Moonlight](https://github.com/moonlight-stream/moonlight-qt), developed by **onaiaku & Rias**. It pairs with its host-side companion, [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak), for a full sofa-to-host experience.
-
-The streaming engine is untouched from upstream Moonlight — FFmpeg, D3D11VA, DXVA2, libplacebo, `moonlight-common-c`. What is new sits around it: the interface, native refresh-rate detection, and everything ArtMoon and StreamTweak can do together over a local TCP bridge.
+**ArtMoon** is a gamepad-first streaming client built on [Moonlight](https://github.com/moonlight-stream/moonlight-qt), developed by **onaiaku & Rias**. It pairs with its host-side companion, [**ArtLight Control**](https://github.com/onaiaku/ArtLight), for a full sofa-to-host experience.
 
 <div align="center">
   <img width="960" alt="ArtMoon library" src="docs/screenshots/library.png" />
@@ -20,7 +18,7 @@ The streaming engine is untouched from upstream Moonlight — FFmpeg, D3D11VA, D
 
 ## ✅ Compatibility
 
-**Windows 10 and 11**, with Linux builds in progress. Works as an ordinary Moonlight-compatible client against any **Sunshine / Apollo / Vibeshine / Vibepollo** host, and unlocks its paired feature set when [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) is running on the host.
+**Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **Sunshine / Apollo / Vibeshine / Vibepollo** host, and unlocks its paired feature set when the host companion is running.
 
 > 🔐 **The bridge is authenticated.** Every command ArtMoon sends is signed with its existing Moonlight identity certificate; the host approves each client once, via a 4-digit PIN shown on both screens. **Streaming never depends on it** — without approval you stream normally and simply lose the paired features. Each host card shows its state as a badge (AUTHORIZED / PENDING / DENIED).
 
@@ -60,9 +58,9 @@ The streaming engine is untouched from upstream Moonlight — FFmpeg, D3D11VA, D
 - **Per-game overrides** on top of the active profile
 - Every FPS list is built from what your display actually reports — no hardcoded presets where your hardware can speak for itself
 
-## 🔗 Paired Features (with StreamTweak)
+## 🔗 Paired Features (with ArtLight Control)
 
-These cross the bridge and need both apps. All switched on **per host**, in **Settings → StreamTweak**. Streaming itself is never affected either way.
+These cross the bridge and need both apps. All switched on **per host**, in **Settings → StreamTweak** (the companion tab). Streaming itself is never affected either way.
 
 - **Host link matching** — the client measures its wired link and asks the host to match it, fixing audio dropouts from speed-mismatched links
 - **Seamless launch** — the stream window stays hidden until the game is really on screen
@@ -76,13 +74,13 @@ These cross the bridge and need both apps. All switched on **per host**, in **Se
 
 ## 🏗️ Architecture
 
-A Qt 6 / QML fork of [Moonlight-Qt](https://github.com/moonlight-stream/moonlight-qt). The decoder pipeline — FFmpeg, D3D11VA, DXVA2, libplacebo — and the protocol, `moonlight-common-c`, are upstream's. The UI layer and the paired-feature bridge are ours.
+A Qt 6 / QML fork of [Moonlight-Qt](https://github.com/moonlight-stream/moonlight-qt). The UI layer and the paired-feature bridge are ours.
 
 ```
 ArtMoon (Qt, client PC)
     │  TCP port 47998
     ▼
-StreamTweak (WinUI 3, host PC)  →  Named Pipe  →  StreamTweakService (LocalSystem)
+ArtLight Control (host PC)  →  Named Pipe  →  ArtLightControlService (LocalSystem)
                                                            │
                                                            ▼
                                                 NIC speed via CIM/WMI
@@ -90,16 +88,24 @@ StreamTweak (WinUI 3, host PC)  →  Named Pipe  →  StreamTweakService (LocalS
                                                 Windows Update via WUA
 ```
 
-## 📝 Installation
+## 📦 Installation
 
-> 🚧 **ArtMoon is under active development.** Installer builds arrive with our first tagged release — until then, build from source (qmake6 + make on Linux; the Windows installer is built with Inno Setup from `ArtMoon.iss`).
+**Windows** — download `ArtMoon_1.0.0_Installer.exe` from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and run it.
+
+**Linux** — one line:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/onaiaku/ArtMoon/main/install.sh | bash
+```
+
+The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and doubles as the updater — run it again to update.
 
 Settings — paired hosts, video / audio / input preferences, client certificate — live under `HKCU\Software\FoggyBytes\StreamLight` (a path inherited from the project's StreamLight origins; renaming it is planned alongside a settings migration), and box art is cached in `%LOCALAPPDATA%\FoggyBytes\StreamLight`.
 
 ## 🤝 Acknowledgements
 
 - [**Moonlight**](https://github.com/moonlight-stream/moonlight-qt) — the open-source client this fork is built on; full credit to its contributors
-- [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) — the host-side companion, designed in lockstep with the original StreamLight
+- [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) by FoggyBytes — ArtLight Control, our host-side companion, is a fork of it
 - [**Sunshine**](https://github.com/LizardByte/Sunshine) — the streaming host that started it all
 - [**Apollo**](https://github.com/ClassicOldSong/Apollo) — community-driven Sunshine fork
 - [**Vibeshine**](https://github.com/Nonary/vibeshine) and [**Vibepollo**](https://github.com/Nonary/Vibepollo) — fully supported hosts
