@@ -47,10 +47,13 @@ jobs:
           libxfixes-dev libxtst-dev wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev liburing-dev \
           libvulkan-dev libtool autoconf automake
           sudo pip3 install --break-system-packages aqtinstall
-          aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir /opt/qt
+          # Arch name varies by Qt version (gcc_64 pre-6.7, linux_gcc_64 after)
+          QT_ARCH=$(aqt list-qt linux desktop --arch "$QT_VERSION" | grep -oE '[a-z_]*gcc_64' | tail -1)
+          echo "Using Qt arch: $QT_ARCH"
+          aqt install-qt linux desktop $QT_VERSION "$QT_ARCH" --outputdir /opt/qt
           # plugin-qt and the build script both look for 'qmake6'
-          sudo ln -sf /opt/qt/$QT_VERSION/gcc_64/bin/qmake /opt/qt/$QT_VERSION/gcc_64/bin/qmake6
-          echo "/opt/qt/$QT_VERSION/gcc_64/bin" >> "${GITHUB_PATH}"
+          sudo ln -sf /opt/qt/$QT_VERSION/$QT_ARCH/bin/qmake /opt/qt/$QT_VERSION/$QT_ARCH/bin/qmake6
+          echo "/opt/qt/$QT_VERSION/$QT_ARCH/bin" >> "${GITHUB_PATH}"
           sudo pip3 install --break-system-packages meson
           mkdir -p dep_root/{bin,include,lib}
           echo "DEP_ROOT=$PWD/dep_root" >> "${GITHUB_ENV}"
