@@ -77,7 +77,10 @@ for MODULE in QtQuick/Shapes QtQuick/Effects QtQuick/Dialogs QtQuick/Window QtQu
 done
 
 export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
-export QMAKE=$QMAKE
+# Point linuxdeploy-plugin-qt at our aqtinstall Qt (it does not inherit PATH
+# reliably); an empty QMAKE overrides its own fallback search, so only export
+# when actually set.
+export QMAKE="$(command -v qmake6)"
 
 echo Creating AppImage
 pushd $INSTALLER_FOLDER
