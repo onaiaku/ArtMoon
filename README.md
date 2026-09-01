@@ -2,9 +2,12 @@
 
 <div align="center">
   <img width="240" alt="ArtMoon" src="app/res/artmoon-brand.png" />
+  <br/><br/>
+  <a href="https://github.com/onaiaku/ArtMoon"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux-blue.svg"></a>
+  <a href="https://github.com/onaiaku/ArtMoon"><img alt="Framework" src="https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg"></a>
+  <a href="https://github.com/moonlight-stream/moonlight-qt"><img alt="built on Moonlight" src="https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github"></a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-green.svg"></a>
 </div>
-
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux-blue.svg)](https://github.com/onaiaku/ArtMoon) [![Framework](https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg)](https://www.qt.io/) [![Built on Moonlight](https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github)](https://github.com/moonlight-stream/moonlight-qt) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 <div align="center">
   <img width="960" alt="ArtMoon home screen" src="docs/screenshots/home.png" />
@@ -18,7 +21,7 @@
 
 ## ✅ Compatibility
 
-**Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **Sunshine / Apollo / Vibeshine / Vibepollo** host, and unlocks its paired feature set when the host companion is running.
+**Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **ArtLight**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
 
 > 🔐 **The bridge is authenticated.** Every command ArtMoon sends is signed with its existing Moonlight identity certificate; the host approves each client once, via a 4-digit PIN shown on both screens. **Streaming never depends on it** — without approval you stream normally and simply lose the paired features. Each host card shows its state as a badge (AUTHORIZED / PENDING / DENIED).
 
@@ -100,15 +103,10 @@ curl -fsSL https://raw.githubusercontent.com/onaiaku/ArtMoon/main/install.sh | b
 
 The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and doubles as the updater — run it again to update.
 
-Settings — paired hosts, video / audio / input preferences, client certificate — live under `HKCU\Software\FoggyBytes\StreamLight` (a path inherited from the project's StreamLight origins; renaming it is planned alongside a settings migration), and box art is cached in `%LOCALAPPDATA%\FoggyBytes\StreamLight`.
-
 ## 🤝 Acknowledgements
 
 - [**Moonlight**](https://github.com/moonlight-stream/moonlight-qt) — the open-source client this fork is built on; full credit to its contributors
 - [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) by FoggyBytes — ArtLight Control, our host-side companion, is a fork of it
-- [**Sunshine**](https://github.com/LizardByte/Sunshine) — the streaming host that started it all
-- [**Apollo**](https://github.com/ClassicOldSong/Apollo) — community-driven Sunshine fork
-- [**Vibeshine**](https://github.com/Nonary/vibeshine) and [**Vibepollo**](https://github.com/Nonary/Vibepollo) — fully supported hosts
 
 ## License
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
