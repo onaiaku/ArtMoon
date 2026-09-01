@@ -22,9 +22,18 @@
 
 ## ✅ Compatibility
 
-**Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **ArtLight**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
+**Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **[ArtLight](https://github.com/onaiaku/ArtLight)**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
 
 > ⚠️ **Not affiliated with or endorsed by the Moonlight project.** ArtMoon is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
+
+## 🌙 Pair it with ArtLight
+
+[**ArtLight**](https://github.com/onaiaku/ArtLight) is our host — a self-hosted game streaming stack for Windows, one installer with everything in it:
+
+- **ArtLight Server** — streaming host, with a pre-signed virtual display driver and a clean web UI
+- **ArtLight Control** — companion app with a live dashboard: RTT, bitrate, frame drops, host stats ticking every second, plus per-session quality reports
+
+ArtMoon works with any Moonlight-compatible host, but **it works best with ArtLight** — that's where the paired features come alive.
 
 ## 🔥 Features
 
