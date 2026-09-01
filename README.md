@@ -24,8 +24,6 @@
 
 **Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **ArtLight**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
 
-> 🔐 **Pairing and the bridge.** Pairing is required to stream: ArtMoon shows a 4-digit PIN — enter it in the host's web UI to approve the client. The paired features add a second approval on top: ArtMoon signs every bridge command with its client certificate, and the host must approve that too. Each host card shows the bridge state as a badge (AUTHORIZED / PENDING / DENIED); unapproved hosts still pair and stream normally, you just don't get the paired features.
-
 > ⚠️ **Not affiliated with or endorsed by the Moonlight project.** ArtMoon is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
 
 ## 🔥 Features
