@@ -121,7 +121,8 @@ The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and 
 ## 🤝 Acknowledgements
 
 - [**Moonlight**](https://github.com/moonlight-stream/moonlight-qt) — the open-source client this fork is built on; full credit to its contributors
-- [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) by FoggyBytes — ArtLight Control, our host-side companion, is a fork of it
+- [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) — the host-side companion, designed in lockstep with the original StreamLight
+- [**Vibeshine**](https://github.com/Nonary/vibeshine) and [**Vibepollo**](https://github.com/Nonary/Vibepollo) — fully supported hosts
 
 ## License
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
