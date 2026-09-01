@@ -40,20 +40,22 @@ jobs:
       - name: Install Inno Setup 7.1.0
         shell: pwsh
         run: |
-          $url = 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe'
-          $installer = "$env:RUNNER_TEMP\innosetup.exe"
-          Invoke-WebRequest -Uri $url -OutFile $installer
-          Start-Process $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
-          $iscc = Get-ChildItem 'C:\Program Files (x86)\Inno Setup 7\ISCC.exe' -ErrorAction SilentlyContinue
-          if (-not $iscc) { throw 'ISCC.exe not found after Inno Setup install' }
+          $url = "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe"
+          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\innosetup7.exe"
+          Start-Process -FilePath "$env:TEMP\innosetup7.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
 
       - name: Compile installer
         shell: pwsh
         run: |
-          $iscc = Get-ChildItem 'C:\Program Files*\Inno Setup 7\ISCC.exe' | Select-Object -First 1
+          $ErrorActionPreference = 'Stop'
+          $iscc = Get-ChildItem "C:\Program Files (x86)\Inno Setup 7\ISCC.exe", "C:\Program Files\Inno Setup 7\ISCC.exe", "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $iscc) { throw "Inno Setup compiler (ISCC.exe) was not found" }
+          Write-Host "Using ISCC: $($iscc.FullName)"
           & $iscc.FullName ArtMoon.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit $LASTEXITCODE" }
-          Get-ChildItem build\installer\*.exe | Format-Table Name, Length
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed with exit code $LASTEXITCODE" }
+          $setupExe = Get-ChildItem "build/installer/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $setupExe) { throw "installer was not produced in build/installer" }
+          Write-Host "ArtMoon installer ready: $($setupExe.FullName)"
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
