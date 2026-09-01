@@ -1,5 +1,5 @@
 ==========================================
-ArtMoon - ChangeLog - Developed by onaiaku
+ArtMoon - ChangeLog - Developed by onaiaku & Rias
 ==========================================
 
 https://github.com/onaiaku/ArtMoon
