@@ -169,7 +169,7 @@ jobs:
             --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
             --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
             --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
-            --enable-libdrm --enable-vulkan --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan \
+            --enable-libdrm \
             --enable-libdav1d --enable-decoder=libdav1d
           make -j$(nproc)
           sudo make install
