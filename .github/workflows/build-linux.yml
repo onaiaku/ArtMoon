@@ -22,8 +22,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
+    env:
+      QT_VERSION: 6.8.3
 
     steps:
       - name: Checkout Repository
@@ -34,16 +36,22 @@ jobs:
 
       - name: Setup environment
         run: |
-          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
-          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-jammy.list https://packages.lunarg.com/vulkan/1.4.313/lunarg-vulkan-1.4.313-jammy.list
           sudo apt update
-          sudo apt install -y qt6-base-dev qt6-declarative-dev libqt6svg6-dev qml6-module-qtquick-controls qml6-module-qtquick-templates qml6-module-qtquick-layouts \
-          qml6-module-qtqml-workerscript qml6-module-qtquick-window qml6-module-qtquick python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
+          # Qt is provided by aqtinstall below, NOT by the distro: the app's QML
+          # uses Shape.CurveRenderer (Qt 6.4+) and MultiEffect (Qt 6.5+), and the
+          # 6.2.4 distro Qt on jammy silently produced an AppImage that bounced
+          # on launch on every machine (missing QtQuick/Shapes + too-old Qt).
+          sudo apt install -y qml6-module-qtqml-workerscript python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
           libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
           libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-          libxfixes-dev libxtst-dev wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev liburing-dev vulkan-sdk cmake \
-          libtool autoconf automake
-          sudo pip3 install meson
+          libxfixes-dev libxtst-dev wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev liburing-dev \
+          libvulkan-dev vulkan-headers libtool autoconf automake
+          sudo pip3 install --break-system-packages aqtinstall
+          aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir /opt/qt
+          # plugin-qt and the build script both look for 'qmake6'
+          sudo ln -sf /opt/qt/$QT_VERSION/gcc_64/bin/qmake /opt/qt/$QT_VERSION/gcc_64/bin/qmake6
+          echo "/opt/qt/$QT_VERSION/gcc_64/bin" >> "${GITHUB_PATH}"
+          sudo pip3 install --break-system-packages meson
           mkdir -p dep_root/{bin,include,lib}
           echo "DEP_ROOT=$PWD/dep_root" >> "${GITHUB_ENV}"
           echo "$PWD/dep_root/bin" >> "${GITHUB_PATH}"

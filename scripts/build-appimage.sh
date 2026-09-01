@@ -59,8 +59,25 @@ pushd $BUILD_FOLDER
 make install || fail "Make install failed!"
 popd
 
+# Pre-seed the QML modules the app imports but linuxdeploy-plugin-qt's bundle
+# step has historically missed when the host's Qt install lacks them (the 1.0.0
+# AppImage shipped without QtQuick/Shapes and bounced on launch on every
+# machine). Copying explicitly from the Qt we build with makes the bundle
+# deterministic. Their library dependencies (libQt6QuickShapes etc.) are picked
+# up by linuxdeploy's dependency walk.
+QT_QML_DIR=$($QMAKE -query QT_INSTALL_QML) || fail "qmake -query failed!"
+for MODULE in QtQuick/Shapes QtQuick/Effects QtQuick/Dialogs QtQuick/Window QtQuick/Layouts QtQuick/Templates QtQuick/Controls QtQuickControls2; do
+    if [ -d "$QT_QML_DIR/$MODULE" ]; then
+        echo "Bundling QML module: $MODULE"
+        mkdir -p $DEPLOY_FOLDER/usr/qml/$(dirname $MODULE)
+        cp -r "$QT_QML_DIR/$MODULE" $DEPLOY_FOLDER/usr/qml/$MODULE/ || fail "Failed to bundle QML module $MODULE"
+    else
+        echo "QML module not present in Qt install (skipping): $MODULE"
+    fi
+done
+
 export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
-export QMAKE=qmake6
+export QMAKE=$QMAKE
 
 echo Creating AppImage
 pushd $INSTALLER_FOLDER
