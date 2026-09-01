@@ -1283,7 +1283,7 @@ FocusScope {
             }
 
             Label {
-                text: qsTr("a Moonlight fork")
+                text: qsTr("Gamestream")
                 font.family: Theme.family
                 font.pixelSize: 13
                 color: Theme.text3

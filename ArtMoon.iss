@@ -1,4 +1,4 @@
-; ArtMoon — Moonlight fork with StreamTweak integration.
+; ArtMoon — gamepad-first streaming client, pairs with ArtLight on the host.
 ; SourceDir is the self-contained runtime built by build-arch.bat +
 ; manual windeployqt (see CLAUDE.md §3).
 #define AppName "ArtMoon"
@@ -163,12 +163,12 @@ var
   LogoImage: TBitmapImage;
   DevelopedByLabel: TNewStaticText;
   GitHubLinkLabel: TNewStaticText;
-  StreamTweakPage: TWizardPage;
-  StreamTweakIntroLabel: TNewStaticText;
-  StreamTweakBulletsLabel: TNewStaticText;
-  StreamTweakOutroLabel: TNewStaticText;
-  StreamTweakLearnMoreLabel: TNewStaticText;
-  StreamTweakLinkLabel: TNewStaticText;
+  ArtLightPage: TWizardPage;
+  ArtLightIntroLabel: TNewStaticText;
+  ArtLightBulletsLabel: TNewStaticText;
+  ArtLightOutroLabel: TNewStaticText;
+  ArtLightLearnMoreLabel: TNewStaticText;
+  ArtLightLinkLabel: TNewStaticText;
 
 procedure GitHubLinkClick(Sender: TObject);
 var
@@ -177,11 +177,11 @@ begin
   ShellExec('open', '{#AppURL}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
-procedure StreamTweakLinkClick(Sender: TObject);
+procedure ArtLightLinkClick(Sender: TObject);
 var
   ErrorCode: Integer;
 begin
-  ShellExec('open', 'https://github.com/FoggyBytes/StreamTweak', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+  ShellExec('open', 'https://github.com/onaiaku/ArtLight', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
 procedure InitializeWizard;
@@ -233,70 +233,65 @@ begin
   GitHubLinkLabel.Font.Style := [fsUnderline];
   GitHubLinkLabel.OnClick := @GitHubLinkClick;
 
-  // Dedicated wizard page for StreamTweak — full inner-page width gives the
+  // Dedicated wizard page for ArtLight — full inner-page width gives the
   // bullet list room to breathe (the Welcome page's right panel is too narrow).
-  StreamTweakPage := CreateCustomPage(wpWelcome,
-    'StreamTweak — recommended companion app', #13#10 +
-    'Install StreamTweak on the host PC to unlock ArtMoon''s advanced features.');
+  ArtLightPage := CreateCustomPage(wpWelcome,
+    'ArtLight — recommended companion app', #13#10 +
+    'Install ArtLight on the host PC to unlock ArtMoon''s advanced features.');
 
-  StreamTweakIntroLabel := TNewStaticText.Create(StreamTweakPage);
-  StreamTweakIntroLabel.Parent := StreamTweakPage.Surface;
-  StreamTweakIntroLabel.Left := 0;
-  StreamTweakIntroLabel.Top := 0;
-  StreamTweakIntroLabel.Width := StreamTweakPage.SurfaceWidth;
-  StreamTweakIntroLabel.WordWrap := True;
-  StreamTweakIntroLabel.AutoSize := True;
-  StreamTweakIntroLabel.Caption :=
-    'ArtMoon works as a standalone Moonlight client. When paired with StreamTweak — ' +
-    'a free open-source companion app for the host PC, also developed by FoggyBytes — ' +
+  ArtLightIntroLabel := TNewStaticText.Create(ArtLightPage);
+  ArtLightIntroLabel.Parent := ArtLightPage.Surface;
+  ArtLightIntroLabel.Left := 0;
+  ArtLightIntroLabel.Top := 0;
+  ArtLightIntroLabel.Width := ArtLightPage.SurfaceWidth;
+  ArtLightIntroLabel.WordWrap := True;
+  ArtLightIntroLabel.AutoSize := True;
+  ArtLightIntroLabel.Caption :=
+    'ArtMoon works as a standalone streaming client. When paired with ArtLight — ' +
+    'a free open-source host for your gaming PC, developed by onaiaku — ' +
     'it gains the following advanced features:';
 
-  StreamTweakBulletsLabel := TNewStaticText.Create(StreamTweakPage);
-  StreamTweakBulletsLabel.Parent := StreamTweakPage.Surface;
-  StreamTweakBulletsLabel.Left := ScaleX(16);
-  StreamTweakBulletsLabel.Top := StreamTweakIntroLabel.Top + StreamTweakIntroLabel.Height + ScaleY(14);
-  StreamTweakBulletsLabel.AutoSize := True;
-  StreamTweakBulletsLabel.Caption :=
+  ArtLightBulletsLabel := TNewStaticText.Create(ArtLightPage);
+  ArtLightBulletsLabel.Parent := ArtLightPage.Surface;
+  ArtLightBulletsLabel.Left := ScaleX(16);
+  ArtLightBulletsLabel.Top := ArtLightIntroLabel.Top + ArtLightIntroLabel.Height + ScaleY(14);
+  ArtLightBulletsLabel.AutoSize := True;
+  ArtLightBulletsLabel.Caption :=
     // NB: this label has no WordWrap, so every bullet must stay on one line —
     // keep them at or under ~76 characters or they get clipped on the right.
-    '•  Link-speed matching — the host follows this device, no bufferbloat' + #13#10 +
-    '•  Seamless launch — optionally wait for the game to appear' + #13#10 +
-    '•  Wake the host and sign in with its PIN, from the sofa, on the pad' + #13#10 +
-    '•  Live host metrics overlay (GPU, encoder, VRAM, temperature, CPU, network)' + #13#10 +
-    '•  NVIDIA Sentinel — protects your driver profile from NVIDIA App resets' + #13#10 +
-    '•  Auto HDR toggle + spatial audio (Dolby Atmos / Windows Sonic)' + #13#10 +
-    '•  Game library sync with store badges (Steam, Epic, GOG, Xbox, …)' + #13#10 +
+    '•  Game library sync with cover art and store badges' + #13#10 +
+    '•  Live host metrics (GPU, encoder, VRAM, temperature, CPU, network)' + #13#10 +
     '•  Session quality grading, and the host''s last session on your Home' + #13#10 +
-    '•  Live bitrate shown against your configured target on the host dashboard' + #13#10 +
+    '•  Wake the host and sign in with its PIN, from the sofa, on the pad' + #13#10 +
     '•  Remote host power-off and Windows Update' + #13#10 +
-    '•  Tailscale presence for remote streaming over the internet';
+    '•  Live bitrate shown against your configured target';
 
-  StreamTweakOutroLabel := TNewStaticText.Create(StreamTweakPage);
-  StreamTweakOutroLabel.Parent := StreamTweakPage.Surface;
-  StreamTweakOutroLabel.Left := 0;
-  StreamTweakOutroLabel.Top := StreamTweakBulletsLabel.Top + StreamTweakBulletsLabel.Height + ScaleY(18);
-  StreamTweakOutroLabel.Width := StreamTweakPage.SurfaceWidth;
-  StreamTweakOutroLabel.WordWrap := True;
-  StreamTweakOutroLabel.AutoSize := True;
-  StreamTweakOutroLabel.Caption :=
-    'StreamTweak is optional — you can install it on the host PC at any time, ' +
+  ArtLightOutroLabel := TNewStaticText.Create(ArtLightPage);
+  ArtLightOutroLabel.Parent := ArtLightPage.Surface;
+  ArtLightOutroLabel.Left := 0;
+  ArtLightOutroLabel.Top := ArtLightBulletsLabel.Top + ArtLightBulletsLabel.Height + ScaleY(18);
+  ArtLightOutroLabel.Width := ArtLightPage.SurfaceWidth;
+  ArtLightOutroLabel.WordWrap := True;
+  ArtLightOutroLabel.AutoSize := True;
+  ArtLightOutroLabel.Caption :=
+    'ArtLight is optional — you can install it on the host PC at any time, ' +
     'no need to interrupt this setup. Click Next to continue installing ArtMoon.';
 
-  StreamTweakLearnMoreLabel := TNewStaticText.Create(StreamTweakPage);
-  StreamTweakLearnMoreLabel.Parent := StreamTweakPage.Surface;
-  StreamTweakLearnMoreLabel.Left := 0;
-  StreamTweakLearnMoreLabel.Top := StreamTweakOutroLabel.Top + StreamTweakOutroLabel.Height + ScaleY(16);
-  StreamTweakLearnMoreLabel.Caption := 'Learn more:';
-  StreamTweakLearnMoreLabel.AutoSize := True;
+  ArtLightLearnMoreLabel := TNewStaticText.Create(ArtLightPage);
+  ArtLightLearnMoreLabel.Parent := ArtLightPage.Surface;
+  ArtLightLearnMoreLabel.Left := 0;
+  ArtLightLearnMoreLabel.Top := ArtLightOutroLabel.Top + ArtLightOutroLabel.Height + ScaleY(16);
+  ArtLightLearnMoreLabel.Caption := 'Learn more:';
+  ArtLightLearnMoreLabel.AutoSize := True;
 
-  StreamTweakLinkLabel := TNewStaticText.Create(StreamTweakPage);
-  StreamTweakLinkLabel.Parent := StreamTweakPage.Surface;
-  StreamTweakLinkLabel.Left := StreamTweakLearnMoreLabel.Left + StreamTweakLearnMoreLabel.Width + ScaleX(4);
-  StreamTweakLinkLabel.Top := StreamTweakLearnMoreLabel.Top;
-  StreamTweakLinkLabel.Caption := 'https://github.com/FoggyBytes/StreamTweak';
-  StreamTweakLinkLabel.Cursor := crHand;
-  StreamTweakLinkLabel.Font.Color := clHighlight;
-  StreamTweakLinkLabel.Font.Style := [fsUnderline];
-  StreamTweakLinkLabel.OnClick := @StreamTweakLinkClick;
-  StreamTweakLinkLabel.AutoSize := True;
+  ArtLightLinkLabel := TNewStaticText.Create(ArtLightPage);
+  ArtLightLinkLabel.Parent := ArtLightPage.Surface;
+  ArtLightLinkLabel.Left := ArtLightLearnMoreLabel.Left + ArtLightLearnMoreLabel.Width + ScaleX(4);
+  ArtLightLinkLabel.Top := ArtLightLearnMoreLabel.Top;
+  ArtLightLinkLabel.Caption := 'https://github.com/onaiaku/ArtLight';
+  ArtLightLinkLabel.Cursor := crHand;
+  ArtLightLinkLabel.Font.Color := clHighlight;
+  ArtLightLinkLabel.Font.Style := [fsUnderline];
+  ArtLightLinkLabel.OnClick := @ArtLightLinkClick;
+  ArtLightLinkLabel.AutoSize := True;
 end;
