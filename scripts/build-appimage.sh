@@ -89,11 +89,14 @@ done
 # modules: linuxdeploy-plugin-qt does not reliably bundle it, and without it
 # Wayland-desktop users get XWayland fallback (black window on NVIDIA).
 QT_PLUGIN_DIR=$(qmake6 -query QT_INSTALL_PLUGINS) || fail "qmake -query failed!"
-for PLUG in platforms/libqwayland*.so; do
-    [ -e "$QT_PLUGIN_DIR/$PLUG" ] || continue
-    echo "Bundling Qt platform plugin: $PLUG"
+# NB: glob against $QT_PLUGIN_DIR itself (the old form `for PLUG in
+# platforms/libqwayland*.so` expanded the glob against the script's CWD, never
+# matched, stayed a literal string, and bundled nothing — CI rounds 2026-09-02).
+for PLUG in "$QT_PLUGIN_DIR"/platforms/libqwayland*.so; do
+    [ -e "$PLUG" ] || continue
+    echo "Bundling Qt platform plugin: $(basename "$PLUG")"
     mkdir -p $DEPLOY_FOLDER/usr/plugins/platforms
-    cp "$QT_PLUGIN_DIR/$PLUG" $DEPLOY_FOLDER/usr/plugins/platforms/ || fail "Failed to bundle $PLUG"
+    cp "$PLUG" $DEPLOY_FOLDER/usr/plugins/platforms/ || fail "Failed to bundle $PLUG"
 done
 WAYLAND_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/platforms/libqwayland* 2>/dev/null | wc -l)
 [ "$WAYLAND_PLUGS" -gt 0 ] || fail "No Qt Wayland platform plugins found to bundle - check aqt Qt build"
