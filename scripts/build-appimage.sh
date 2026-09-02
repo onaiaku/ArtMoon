@@ -101,6 +101,19 @@ done
 WAYLAND_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/platforms/libqwayland* 2>/dev/null | wc -l)
 [ "$WAYLAND_PLUGS" -gt 0 ] || fail "No Qt Wayland platform plugins found to bundle - check aqt Qt build"
 
+# Bundle the Wayland shell-integration plugins too. Without these the
+# wayland platform plugin loads but finds no shell integration ("No shell
+# integration named xdg-shell found"), fails to initialize, and Qt silently
+# falls back to XWayland -> black window (round 15, 2026-09-03).
+for SHELLPLUG in "$QT_PLUGIN_DIR"/wayland-shell-integration/*.so; do
+    [ -e "$SHELLPLUG" ] || continue
+    echo "Bundling Qt Wayland shell integration: $(basename "$SHELLPLUG")"
+    mkdir -p $DEPLOY_FOLDER/usr/plugins/wayland-shell-integration
+    cp -L "$SHELLPLUG" $DEPLOY_FOLDER/usr/plugins/wayland-shell-integration/ || fail "Failed to bundle $SHELLPLUG"
+done
+SHELL_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/wayland-shell-integration/*.so 2>/dev/null | wc -l)
+[ "$SHELL_PLUGS" -gt 0 ] || fail "No Qt Wayland shell-integration plugins found to bundle - check aqt Qt build"
+
 # Bundle Qt's own libQt6WaylandClient too. The platform plugins link against
 # it, but linuxdeploy does not see the dependency (it resolves at dlopen time),
 # so without this the runtime loader grabs the HOST's libQt6WaylandClient -
