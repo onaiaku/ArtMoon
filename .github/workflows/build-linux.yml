@@ -71,7 +71,7 @@ jobs:
           # need the compositor.
           cmake --build "$QW_SRC/build" -j2
           cmake --install "$QW_SRC/build"
-          test -f "$(ls -d /opt/qt/$QT_VERSION/*/ | head -1)plugins/platforms/libqwayland-*.so" || { echo "libqwayland missing after qtwayland build"; exit 1; }
+          ls "$(ls -d /opt/qt/$QT_VERSION/*/ | head -1)plugins/platforms/" | grep -q '^libqwayland-.*\.so$' || { echo "libqwayland missing after qtwayland build"; ls -la "$(ls -d /opt/qt/$QT_VERSION/*/ | head -1)plugins/platforms/"; exit 1; }
           # plugin-qt and the build script both look for 'qmake6'.
           # NB: aqt's arch NAME (linux_gcc_64) differs from the actual install
           # DIRECTORY (gcc_64) - discover the dir instead of guessing.
