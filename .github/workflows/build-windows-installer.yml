@@ -61,5 +61,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ArtMoon-installer
-          path: build/installer/ArtMoon_*_Installer.exe
+          path: build/installer/ArtMoon_Installer.exe
           if-no-files-found: error

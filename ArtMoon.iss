@@ -2,7 +2,7 @@
 ; SourceDir is the self-contained runtime built by build-arch.bat +
 ; manual windeployqt (see CLAUDE.md §3).
 #define AppName "ArtMoon"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppPublisher "onaiaku"
 #define AppURL "https://github.com/onaiaku/ArtMoon"
 #define AppExeName "ArtMoon.exe"
@@ -30,7 +30,7 @@ CloseApplications=yes
 Compression=lzma2
 SolidCompression=yes
 OutputDir=build\installer
-OutputBaseFilename=ArtMoon_{#AppVersion}_Installer
+OutputBaseFilename=ArtMoon_Installer
 WizardStyle=modern
 DisableWelcomePage=no
 MinVersion=10.0
