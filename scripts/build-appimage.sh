@@ -109,11 +109,20 @@ WAYLAND_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/platforms/libqwayland* 2>/dev/null
 # "Could not load the Qt platform plugin wayland even though it was found"
 # -> XWayland fallback -> black window. Ship the matching Qt 6.8.3 copy.
 QT_LIB_DIR=$(qmake6 -query QT_INSTALL_LIBS) || fail "qmake -query failed!"
-for WLIB in "$QT_LIB_DIR"/libQt6WaylandClient.so*; do
+# Copy the real versioned file with -L; the unversioned symlinks in the aqt
+# Qt tree dangle/are not present, and cp of a symlink failed round 11.
+for WLIB in "$QT_LIB_DIR"/libQt6WaylandClient.so.*.*.*; do
     [ -e "$WLIB" ] || continue
     echo "Bundling Qt Wayland client library: $(basename "$WLIB")"
-    cp "$WLIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $WLIB"
+    cp -L "$WLIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $WLIB"
 done
+# The plugin's DT_NEEDED entry is libQt6WaylandClient.so.6, so make sure the
+# runtime name resolves inside the bundle.
+if [ ! -e "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" ]; then
+    REAL=$(ls $DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.*.*.* 2>/dev/null | head -1)
+    [ -n "$REAL" ] || fail "No versioned libQt6WaylandClient bundled"
+    ln -s "$(basename "$REAL")" "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" || fail "symlink failed"
+fi
 [ -e "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" ] || fail "libQt6WaylandClient.so.6 missing after bundling"
 export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
 # Point linuxdeploy-plugin-qt at our aqtinstall Qt (it does not inherit PATH
