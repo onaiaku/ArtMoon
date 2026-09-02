@@ -100,6 +100,21 @@ for PLUG in "$QT_PLUGIN_DIR"/platforms/libqwayland*.so; do
 done
 WAYLAND_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/platforms/libqwayland* 2>/dev/null | wc -l)
 [ "$WAYLAND_PLUGS" -gt 0 ] || fail "No Qt Wayland platform plugins found to bundle - check aqt Qt build"
+
+# Bundle Qt's own libQt6WaylandClient too. The platform plugins link against
+# it, but linuxdeploy does not see the dependency (it resolves at dlopen time),
+# so without this the runtime loader grabs the HOST's libQt6WaylandClient -
+# which may be built against a different Qt (e.g. system Qt 6.11) and demands
+# Qt_6.11 symbols our bundled Qt 6.8.3 Core does not export. Result:
+# "Could not load the Qt platform plugin wayland even though it was found"
+# -> XWayland fallback -> black window. Ship the matching Qt 6.8.3 copy.
+QT_LIB_DIR=$(qmake6 -query QT_INSTALL_LIBS) || fail "qmake -query failed!"
+for WLIB in "$QT_LIB_DIR"/libQt6WaylandClient.so*; do
+    [ -e "$WLIB" ] || continue
+    echo "Bundling Qt Wayland client library: $(basename "$WLIB")"
+    cp "$WLIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $WLIB"
+done
+[ -e "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" ] || fail "libQt6WaylandClient.so.6 missing after bundling"
 export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
 # Point linuxdeploy-plugin-qt at our aqtinstall Qt (it does not inherit PATH
 # reliably); an empty QMAKE overrides its own fallback search, so only export
