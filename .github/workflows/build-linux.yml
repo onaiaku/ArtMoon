@@ -64,8 +64,12 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$QT_DIR" \
             -DCMAKE_INSTALL_PREFIX="$QT_DIR" \
-            -DBUILD_TESTING=OFF
-          cmake --build "$QW_SRC/build" -j
+            -DBUILD_TESTING=OFF \
+            -DFEATURE_qtwayland_compositor=OFF
+          # -j2: full -j OOM-kills the hosted runner (two prior attempts died
+          # mid-compile with cc1plus killed). Client plugin only, we don't
+          # need the compositor.
+          cmake --build "$QW_SRC/build" -j2
           cmake --install "$QW_SRC/build"
           test -f "$(ls -d /opt/qt/$QT_VERSION/*/ | head -1)plugins/platforms/libqwayland-*.so" || { echo "libqwayland missing after qtwayland build"; exit 1; }
           # plugin-qt and the build script both look for 'qmake6'.
