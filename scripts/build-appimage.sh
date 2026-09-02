@@ -109,6 +109,10 @@ WAYLAND_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/platforms/libqwayland* 2>/dev/null
 # "Could not load the Qt platform plugin wayland even though it was found"
 # -> XWayland fallback -> black window. Ship the matching Qt 6.8.3 copy.
 QT_LIB_DIR=$(qmake6 -query QT_INSTALL_LIBS) || fail "qmake -query failed!"
+# usr/lib does not exist yet at this point (linuxdeploy creates it later), so
+# create it or the cp below dies with "cannot create regular file ... Not a
+# directory" (round 12).
+mkdir -p $DEPLOY_FOLDER/usr/lib
 # Copy the real versioned file with -L; the unversioned symlinks in the aqt
 # Qt tree dangle/are not present, and cp of a symlink failed round 11.
 for WLIB in "$QT_LIB_DIR"/libQt6WaylandClient.so.*.*.*; do
