@@ -5,6 +5,19 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+Version 1.1.0 (02/09/2026)
+--------------------------------------
+
+Fixed:
+
+• Linux AppImage: the bundled libplacebo was built without a SPIR-V
+  compiler (shaderc), so Vulkan device creation failed on every GPU and
+  the client could fall back to VDPAU only — no AV1 hardware decoding,
+  and a black window on systems where the fallback also failed. CI now
+  builds libplacebo with shaderc enabled, restoring Vulkan and AV1 HDR
+  decoding inside the AppImage.
+
+--------------------------------------
 Version 1.0.0 (01/09/2026)
 --------------------------------------
 First public release of ArtMoon — a gamepad-first streaming client for

@@ -46,7 +46,7 @@ jobs:
           libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
           libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
           libxfixes-dev libxtst-dev wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev liburing-dev \
-          libvulkan-dev libtool autoconf automake
+          libvulkan-dev libshaderc-dev libtool autoconf automake
           sudo pip3 install --break-system-packages aqtinstall
           # Arch name varies by Qt version (gcc_64 pre-6.7, linux_gcc_64 after)
           QT_ARCH=$(aqt list-qt linux desktop --arch "$QT_VERSION" | grep -oE '[a-z_]*gcc_64' | tail -1)
@@ -139,7 +139,7 @@ jobs:
         working-directory: deps/libplacebo
         run: |
           git apply ../../app/deploy/linux/appimage/*.patch
-          meson setup build -Dvulkan=enabled -Dopengl=disabled -Ddemos=false
+          meson setup build -Dvulkan=enabled -Dshaderc=enabled -Dopengl=disabled -Ddemos=false
           ninja -C build
           sudo ninja install -C build
 
