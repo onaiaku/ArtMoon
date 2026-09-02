@@ -52,6 +52,22 @@ jobs:
           QT_ARCH=$(aqt list-qt linux desktop --arch "$QT_VERSION" | grep -oE '[a-z_]*gcc_64' | tail -1)
           echo "Using Qt arch: $QT_ARCH"
           aqt install-qt linux desktop $QT_VERSION "$QT_ARCH" --outputdir /opt/qt
+          # aqt's desktop archive does NOT ship the Qt Wayland platform plugin
+          # (libqwayland). Build it from the qtwayland source matching $QT_VERSION
+          # so Wayland sessions run native instead of falling back to XWayland.
+          sudo apt install -y libwayland-egl1-mesa 2>/dev/null || true
+          aqt install-src linux desktop "$QT_VERSION" --archives qtwayland --outputdir /opt/qt-src
+          QW_SRC=$(find /opt/qt-src -maxdepth 3 -type d -name "qtwayland*" | head -1)
+          test -n "$QW_SRC" && test -f "$QW_SRC/CMakeLists.txt" || { echo "qtwayland source not found under /opt/qt-src"; exit 1; }
+          QT_DIR=$(ls -d /opt/qt/$QT_VERSION/*/ | head -1)
+          cmake -S "$QW_SRC" -B "$QW_SRC/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$QT_DIR" \
+            -DCMAKE_INSTALL_PREFIX="$QT_DIR" \
+            -DBUILD_TESTING=OFF
+          cmake --build "$QW_SRC/build" -j
+          cmake --install "$QW_SRC/build"
+          test -f "$(ls -d /opt/qt/$QT_VERSION/*/ | head -1)plugins/platforms/libqwayland-*.so" || { echo "libqwayland missing after qtwayland build"; exit 1; }
           # plugin-qt and the build script both look for 'qmake6'.
           # NB: aqt's arch NAME (linux_gcc_64) differs from the actual install
           # DIRECTORY (gcc_64) - discover the dir instead of guessing.
