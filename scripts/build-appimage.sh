@@ -32,6 +32,15 @@ mkdir $BUILD_FOLDER
 mkdir $DEPLOY_FOLDER
 mkdir $INSTALLER_FOLDER
 
+# Wayland support is ENABLED for the AppImage (unlike upstream Moonlight).
+# Upstream disables it to avoid bundling an older libwayland-client.so that
+# breaks host EGL symbol resolution. We keep Wayland but force linuxdeploy to
+# EXCLUDE libwayland-client/cursor/egl from the bundle, so the Qt Wayland
+# platform plugin links against the host libwayland at runtime - the same
+# libraries KWin/GNOME already provide. Native Wayland, no XWayland fallback,
+# no NVIDIA black window.
+WAYLAND_EXCLUDES="--exclude-library libwayland-client.so.0 --exclude-library libwayland-cursor.so.0 --exclude-library libwayland-egl.so.1"
+
 # Enable LTO for official builds
 export CFLAGS=-flto=auto
 export CXXFLAGS=-flto=auto
@@ -39,14 +48,14 @@ export LDFLAGS=-flto=auto
 
 echo Configuring the project
 pushd $BUILD_FOLDER
-# Building with Wayland support will cause linuxdeploy to include libwayland-client.so in the AppImage.
-# Since we always use the host implementation of EGL, this can cause libEGL_mesa.so to fail to load due
-# to missing symbols from the host's version of libwayland-client.so that aren't present in the older
-# version of libwayland-client.so from our AppImage build environment. When this happens, EGL fails to
-# work even in X11. To avoid this, we will disable Wayland support for the AppImage.
+# NOTE: Wayland support is now ENABLED (this differs from upstream Moonlight,
+# which disables it here). The historical concern was libwayland-client.so
+# version skew breaking host EGL symbol resolution; we handle that by
+# excluding the bundled libwayland libraries entirely (see WAYLAND_EXCLUDES),
+# so the app always uses the host libwayland. See the block above.
 #
 # We disable DRM support because linuxdeploy doesn't bundle the appropriate libraries for Qt EGLFS.
-qmake6 $SOURCE_ROOT/moonlight-qt.pro CONFIG+=disable-wayland CONFIG+=disable-libdrm PREFIX=$DEPLOY_FOLDER/usr DEFINES+=APP_IMAGE || fail "Qmake failed!"
+qmake6 $SOURCE_ROOT/moonlight-qt.pro CONFIG+=disable-libdrm PREFIX=$DEPLOY_FOLDER/usr DEFINES+=APP_IMAGE || fail "Qmake failed!"
 popd
 
 echo Compiling Moonlight in $BUILD_CONFIG configuration
@@ -76,6 +85,18 @@ for MODULE in QtQuick/Shapes QtQuick/Effects QtQuick/Dialogs QtQuick/Window QtQu
     fi
 done
 
+# Pre-seed the Qt Wayland platform plugin the same way we pre-seed QML
+# modules: linuxdeploy-plugin-qt does not reliably bundle it, and without it
+# Wayland-desktop users get XWayland fallback (black window on NVIDIA).
+QT_PLUGIN_DIR=$(qmake6 -query QT_INSTALL_PLUGINS) || fail "qmake -query failed!"
+for PLUG in platforms/libqwayland*.so; do
+    [ -e "$QT_PLUGIN_DIR/$PLUG" ] || continue
+    echo "Bundling Qt platform plugin: $PLUG"
+    mkdir -p $DEPLOY_FOLDER/usr/plugins/platforms
+    cp "$QT_PLUGIN_DIR/$PLUG" $DEPLOY_FOLDER/usr/plugins/platforms/ || fail "Failed to bundle $PLUG"
+done
+WAYLAND_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/platforms/libqwayland* 2>/dev/null | wc -l)
+[ "$WAYLAND_PLUGS" -gt 0 ] || fail "No Qt Wayland platform plugins found to bundle - check aqt Qt build"
 export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
 # Point linuxdeploy-plugin-qt at our aqtinstall Qt (it does not inherit PATH
 # reliably); an empty QMAKE overrides its own fallback search, so only export
@@ -86,6 +107,7 @@ echo Creating AppImage
 pushd $INSTALLER_FOLDER
 VERSION=$VERSION $LINUXDEPLOY --appdir $DEPLOY_FOLDER \
   --library=/usr/local/lib/libSDL3.so.0 \
+  $WAYLAND_EXCLUDES \
   --plugin qt --output appimage || fail "linuxdeploy failed!"
 popd
 
