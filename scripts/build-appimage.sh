@@ -128,6 +128,16 @@ if [ ! -e "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" ]; then
     ln -s "$(basename "$REAL")" "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" || fail "symlink failed"
 fi
 [ -e "$DEPLOY_FOLDER/usr/lib/libQt6WaylandClient.so.6" ] || fail "libQt6WaylandClient.so.6 missing after bundling"
+
+# linuxdeploy resolves dependencies with ldd semantics. Our pre-seeded
+# libQt6WaylandClient has no DT_RPATH, so when linuxdeploy walks it in the
+# "existing files" pass it searches system paths for libQt6Gui.so.6 etc. and
+# dies with "Could not find dependency: libQt6Gui.so.6" (round 13) - even
+# though identical copies are already in the appdir. Put the Qt lib dir on
+# LD_LIBRARY_PATH so ldd resolves Qt deps; libraries already present in the
+# appdir are reused, not bundled twice.
+export LD_LIBRARY_PATH="$QT_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
 export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
 # Point linuxdeploy-plugin-qt at our aqtinstall Qt (it does not inherit PATH
 # reliably); an empty QMAKE overrides its own fallback search, so only export
