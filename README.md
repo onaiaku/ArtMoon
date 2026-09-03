@@ -6,7 +6,7 @@
 
 **Your games, on every screen in the house.**
 
-A gamepad-first streaming client built on [ArtLight](https://github.com/onaiaku/ArtLight)
+A gamepad-first streaming client built to work best with [ArtLight](https://github.com/onaiaku/ArtLight)
 
 <a href="https://github.com/onaiaku/ArtMoon"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux-blue.svg"></a>
 <a href="https://github.com/onaiaku/ArtMoon"><img alt="Framework" src="https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg"></a>
