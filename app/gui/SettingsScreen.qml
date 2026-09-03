@@ -9,6 +9,7 @@ import StreamingPreferences 1.0
 import ComputerManager 1.0
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
+import AppUpdate 1.0
 import ShortcutManager 1.0
 
 // SettingsScreen — Xbox-style flat settings panel.
@@ -144,7 +145,6 @@ FocusScope {
     // Latest-release tags fetched once per Settings open from the GitHub API.
     property string artMoonLatest: ""
     property string streamTweakLatest: ""
-    property string artLightLatest: ""
 
     // Fetch the latest release tag from our repo. StreamTweak is still developed
     // in the FoggyBytes org, so pass the full "owner/repo" slug per call.
@@ -225,7 +225,6 @@ FocusScope {
         Qt.callLater(function() { focusFirstControl(tabBar.currentIndex) })
         _fetchLatestTag("onaiaku/ArtMoon",  function(t) { settingsScreen.artMoonLatest  = t })
         _fetchLatestTag("FoggyBytes/StreamTweak",  function(t) { settingsScreen.streamTweakLatest  = t })
-        _fetchLatestTag("onaiaku/ArtLight", function(t) { settingsScreen.artLightLatest = t })
         _refreshLocalLink()
     }
 
@@ -4555,6 +4554,80 @@ FocusScope {
                 // No section label above the first card: the tab is called StreamTweak and the
                 // card says StreamTweak in 22px directly beneath it. Every other tab's first
                 // label names something the tab title does not.
+                // ArtMoon self-update card. Lives in THIS tab because this is
+                // where the stale-version problem was spotted; the About tab
+                // stays licence/links only.
+                Rectangle {
+                    width: parent.width
+                    color: settingsScreen._bg2
+                    radius: settingsScreen._px(8)
+                    border.color: settingsScreen._border
+                    border.width: 1
+                    implicitHeight: settingsScreen._px(76)
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: settingsScreen._px(18)
+                        spacing: settingsScreen._px(12)
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "ArtMoon"
+                            font.family: "DM Sans"
+                            font.pixelSize: settingsScreen._px(22)
+                            font.bold: true
+                            color: settingsScreen._text
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            // Installed from the app itself; Latest fetched live
+                            // from the GitHub API on every open. Never lies.
+                            text: {
+                                var inst = SystemProperties.versionString
+                                if (settingsScreen.artMoonLatest.length === 0)
+                                    return qsTr("installed %1").arg(inst)
+                                var cmp = AppUpdate.compareVersions(inst, settingsScreen.artMoonLatest)
+                                if (cmp < 0)
+                                    return qsTr("installed %1 · latest %2").arg(inst).arg(settingsScreen.artMoonLatest)
+                                if (cmp > 0)
+                                    return qsTr("installed %1 (newer than latest)").arg(inst)
+                                return qsTr("installed %1 · up to date").arg(inst)
+                            }
+                            font.family: "DM Sans"
+                            font.pixelSize: settingsScreen._px(14)
+                            color: settingsScreen._textDim
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("by onaiaku & Rias")
+                            font.family: "DM Sans"
+                            font.pixelSize: settingsScreen._px(13)
+                            color: settingsScreen._textDim
+                        }
+                    }
+
+                    Row {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.rightMargin: settingsScreen._px(16)
+                        spacing: settingsScreen._px(10)
+                        // Update Now appears only when a newer release exists.
+                        MiniButton {
+                            id: stUpdateBtn
+                            visible: settingsScreen.artMoonLatest.length > 0
+                                     && AppUpdate.compareVersions(SystemProperties.versionString,
+                                                                  settingsScreen.artMoonLatest) < 0
+                            label: qsTr("Update Now")
+                            onTriggered: AppUpdate.updateNow()
+                        }
+                        AboutLinkButton {
+                            id: stChangelogBtn
+                            label: qsTr("Changelogs")
+                            url:   "https://github.com/onaiaku/ArtMoon/releases"
+                        }
+                    }
+                }
+
                 Rectangle {
                     width: parent.width
                     color: settingsScreen._bg2
@@ -4584,13 +4657,11 @@ FocusScope {
                             }
                             Label {
                                 anchors.verticalCenter: parent.verticalCenter
-                                // Live from the GitHub API - the version used to be
-                                // hardcoded here and went stale at every release.
-                                text: settingsScreen.artLightLatest.length > 0
-                                      ? qsTr("latest %1").arg(settingsScreen.artLightLatest)
-                                      : qsTr("by onaiaku & Rias")
+                                text: qsTr("by onaiaku & Rias")
                                 font.family: "DM Sans"
                                 font.pixelSize: settingsScreen._px(14)
+                                // Information, not a control - the link-accent
+                                // colour made this hard to read as plain text.
                                 color: settingsScreen._textDim
                             }
                         }
@@ -5013,25 +5084,12 @@ FocusScope {
                         }
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
-                            // Installed version comes from the app itself; Latest
-                            // is fetched live from the GitHub API on every open.
-                            text: {
-                                var inst = SystemProperties.versionString
-                                if (settingsScreen.artMoonLatest.length === 0)
-                                    return qsTr("installed %1").arg(inst)
-                                var cmp = AppUpdate.compareVersions(inst, settingsScreen.artMoonLatest)
-                                if (cmp < 0)
-                                    return qsTr("installed %1 · latest %2").arg(inst).arg(settingsScreen.artMoonLatest)
-                                if (cmp > 0)
-                                    return qsTr("installed %1 (newer than latest)").arg(inst)
-                                return qsTr("installed %1 · up to date").arg(inst)
-                            }
+                            text: settingsScreen.artMoonLatest.length > 0
+                                  ? settingsScreen.artMoonLatest
+                                  : qsTr("checking…")
                             font.family: "DM Sans"
                             font.pixelSize: settingsScreen._px(14)
-                            // ⚠️ _textDim, not _greenLk: the link-green tinted the
-                            // version text like a clickable link and was hard to read.
-                            // This line is information, not a control.
-                            color: settingsScreen._textDim
+                            color: settingsScreen._greenLk
                         }
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
@@ -5047,21 +5105,6 @@ FocusScope {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.rightMargin: settingsScreen._px(16)
                         spacing: settingsScreen._px(10)
-                        // Update Now appears only when a newer release exists.
-                        MiniButton {
-                            id: aboutUpdateBtn
-                            visible: settingsScreen.artMoonLatest.length > 0
-                                     && AppUpdate.compareVersions(SystemProperties.versionString,
-                                                                  settingsScreen.artMoonLatest) < 0
-                            label: qsTr("Update Now")
-                            onTriggered: AppUpdate.updateNow()
-                        }
-                        AboutLinkButton {
-                            id: aboutSlChangelogBtn
-                            label: qsTr("Changelogs")
-                            url:   "https://github.com/onaiaku/ArtMoon/releases"
-                            KeyNavigation.right: aboutSlGplBtn
-                        }
                         AboutLinkButton {
                             id: aboutSlGithubBtn
                             label: qsTr("GitHub releases")
@@ -5073,13 +5116,6 @@ FocusScope {
                             label: qsTr("GPL v3")
                             url:   "https://www.gnu.org/licenses/gpl-3.0.html"
                             KeyNavigation.left:  aboutSlGithubBtn
-                            KeyNavigation.right: aboutSlDonateBtn
-                        }
-                        AboutLinkButton {
-                            id: aboutSlDonateBtn
-                            label: qsTr("Donate")
-                            url:   "https://paypal.me/foggypunk"
-                            KeyNavigation.left: aboutSlGplBtn
                         }
                     }
                 }
