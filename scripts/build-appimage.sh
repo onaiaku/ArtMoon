@@ -209,6 +209,17 @@ VERSION=$VERSION $LINUXDEPLOY --appdir $DEPLOY_FOLDER \
   --plugin qt --output appimage || fail "linuxdeploy failed!"
 popd
 
+# linuxdeploy-plugin-qt deploys Qt's own dependency tree (including glib) via
+# its internal copy step, where the main linuxdeploy's --exclude-library flags
+# do NOT reach it. Physically strip the excluded family from the bundle here;
+# the hard checks below will fail the build if any survive this removal.
+rm -f $DEPLOY_FOLDER/usr/lib/libglib-2.0.so* \
+      $DEPLOY_FOLDER/usr/lib/libgobject-2.0.so* \
+      $DEPLOY_FOLDER/usr/lib/libgio-2.0.so* \
+      $DEPLOY_FOLDER/usr/lib/libgmodule-2.0.so* \
+      $DEPLOY_FOLDER/usr/lib/libgthread-2.0.so* \
+   || true
+
 # Hard check: the bundle must NOT contain libvulkan.so* (see WAYLAND_EXCLUDES
 # comment above). A silent regression here breaks Vulkan Video/AV1 on every host.
 if ls $DEPLOY_FOLDER/usr/lib/libvulkan.so* >/dev/null 2>&1; then
