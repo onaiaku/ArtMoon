@@ -80,9 +80,11 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 
 ; No [Registry] section on purpose. There used to be an HKCU entry creating
 ; Software\FoggyBytes\StreamLight with uninsdeletekey, but nothing ever wrote to that
-; key. As of 5.4.0 the app's settings DO live under Software\FoggyBytes\StreamLight
+; key. From 5.4.0 the app's settings lived under Software\FoggyBytes\StreamLight
 ; (main.cpp; before 5.4.0 they were under Software\Moonlight Game Streaming Project\
-; Moonlight, shared with Moonlight itself) — and the section still must not come back:
+; Moonlight, shared with Moonlight itself); as of 1.2.0 they live under
+; Software\ArtMoon\ArtMoon, with the 1.2.0 launch migrating the old key across
+; (storemigration.cpp) — and the section still must not come back:
 ;
 ;   · uninsdeletekey on the real settings key would make a reinstall lose paired hosts
 ;     and preferences;

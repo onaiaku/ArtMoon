@@ -215,6 +215,7 @@ SOURCES += \
     streaming/streamutils.cpp \
     path.cpp \
     storereset.cpp \
+    storemigration.cpp \
     settings/mappingmanager.cpp \
     gui/sdlgamepadkeynavigation.cpp \
     streaming/video/overlaymanager.cpp \
@@ -274,6 +275,7 @@ HEADERS += \
     streaming/streamutils.h \
     path.h \
     storereset.h \
+    storemigration.h \
     settings/mappingmanager.h \
     gui/sdlgamepadkeynavigation.h \
     streaming/video/overlaymanager.h \
@@ -549,7 +551,7 @@ unix:!macx: {
 }
 win32 {
     RC_ICONS = artmoon.ico
-    QMAKE_TARGET_COMPANY = FoggyBytes
+    QMAKE_TARGET_COMPANY = ArtMoon
     QMAKE_TARGET_DESCRIPTION = ArtMoon - A Moonlight Fork
     QMAKE_TARGET_PRODUCT = ArtMoon
 

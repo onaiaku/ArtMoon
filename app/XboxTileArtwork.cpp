@@ -29,7 +29,7 @@ constexpr const char* kManifestFile = "CustomLibraryManagement.manifest";
 constexpr const char* kEmbeddedTile = ":/artmoonxbox.png";
 
 // Static identifiers for proactive pre-population. The UUID is arbitrary —
-// it just has to be unique to "ArtMoon by FoggyBytes" and stable across
+// it just has to be unique to "ArtMoon by onaiaku" and stable across
 // installs / updates so we always find/update the same entry. Format must
 // match the UUID-v4-style canonical pattern Xbox uses elsewhere.
 constexpr const char* kArtMoonUuid     = "8b3f5d1e-9c2a-4e6f-a847-7b9d2c1e8a5f";

@@ -47,6 +47,7 @@
 #include "singleinstance.h"
 #include "path.h"
 #include "storereset.h"
+#include "storemigration.h"
 #include "utils.h"
 #include "gui/computermodel.h"
 #include "gui/appmodel.h"
@@ -438,11 +439,11 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--register-xbox-tile") == 0) {
             QCoreApplication coreApp(argc, argv);
-            // "StreamLight" here is the SETTINGS-STORE IDENTITY, not branding —
-            // QCoreApplication::applicationName feeds the QSettings registry path
-            // (Software\FoggyBytes\StreamLight). Renaming it would silently reset
-            // every user's settings. User-facing name is ArtMoon; this stays.
-            QCoreApplication::setApplicationName("StreamLight");
+            // "ArtMoon" is the settings-store identity as of 1.2.0 (previously
+            // FoggyBytes/StreamLight; see the StoreMigration block below and the
+            // big comment at the main identity site). Must match the main path
+            // or the tile hook would read/write a different store than the app.
+            QCoreApplication::setApplicationName("ArtMoon");
             XboxTileArtwork::registerEntry();
             return 0;
         }
@@ -485,14 +486,15 @@ int main(int argc, char *argv[])
     // cost was accepted knowingly (see changelog 5.4.0); StoreReset below is
     // what tells the user it happened.
     // ═════════════════════════════════════════════════════════════════════════
-    QCoreApplication::setOrganizationName("FoggyBytes");
-    QCoreApplication::setOrganizationDomain("foggybytes.dev");
-    // "StreamLight" is the SETTINGS-STORE IDENTITY, not branding: it names the
-    // QSettings registry path (Software\FoggyBytes\StreamLight). Renaming it to
-    // ArtMoon would silently reset every user's settings on first launch. The
-    // user-facing product name is ArtMoon everywhere else; this one stays until
-    // a proper settings migration is written.
-    QCoreApplication::setApplicationName("StreamLight");
+    QCoreApplication::setOrganizationName("ArtMoon");
+    QCoreApplication::setOrganizationDomain("onaiaku.github.io");
+    // "ArtMoon" is both the product name and the settings-store identity as of
+    // 1.2.0. The store used to be named FoggyBytes/StreamLight (the fork's
+    // original working title); StoreMigration carries every existing user's
+    // settings across on first launch, so nothing is lost. Any future rename
+    // must go through that same migration machinery or it will silently reset
+    // every user's settings.
+    QCoreApplication::setApplicationName("ArtMoon");
 
     if (QFile(QDir::currentPath() + "/portable.dat").exists()) {
         QSettings::setDefaultFormat(QSettings::IniFormat);
@@ -506,6 +508,11 @@ int main(int argc, char *argv[])
         // Initialize paths for standard installation
         Path::initialize(false);
     }
+
+    // Carry the FoggyBytes/StreamLight store across to the ArtMoon store (1.2.0
+    // rename) BEFORE StoreReset::probe(), so the probe sees a stamped store and
+    // a renamed-but-preserved settings store never looks like a reset.
+    StoreMigration::run();
 
     // Decide, once, whether this launch is the first one on our own store after an
     // upgrade from a build that shared Moonlight's. ⚠️ Has to be here and not earlier:

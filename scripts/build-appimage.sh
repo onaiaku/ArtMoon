@@ -44,7 +44,15 @@ mkdir $INSTALLER_FOLDER
 # AppImage it shadows the host's modern loader, so libplacebo can never see the
 # GPU's Vulkan Video/AV1 decode support and falls back to VAAPI/VDPAU (or dies).
 # The host loader is always the right one - same policy as libwayland above.
-WAYLAND_EXCLUDES="--exclude-library libwayland-client.so.0 --exclude-library libwayland-cursor.so.0 --exclude-library libwayland-egl.so.1 --exclude-library libvulkan.so.1"
+#
+# The glib family (libglib/libgobject/libgio/libgmodule/libgthread) MUST NOT be
+# bundled either: libva's driver plugins (notably nvidia_drv_video.so) link
+# glib, and a bundled copy shadows the host's - on 1.1.1 the bundled gobject
+# predated the host's and was missing g_string_copy, so the NVIDIA VA-API driver
+# failed to dlopen and SDL reported "no functioning hardware accelerated video
+# decoder" on every NVIDIA host. Glib is universal on desktop distros; the host
+# copy is always the right one.
+WAYLAND_EXCLUDES="--exclude-library libwayland-client.so.0 --exclude-library libwayland-cursor.so.0 --exclude-library libwayland-egl.so.1 --exclude-library libvulkan.so.1 --exclude-library libglib-2.0.so.0 --exclude-library libgobject-2.0.so.0 --exclude-library libgio-2.0.so.0 --exclude-library libgmodule-2.0.so.0 --exclude-library libgthread-2.0.so.0"
 
 # Enable LTO for official builds
 export CFLAGS=-flto=auto
@@ -201,10 +209,20 @@ VERSION=$VERSION $LINUXDEPLOY --appdir $DEPLOY_FOLDER \
   --plugin qt --output appimage || fail "linuxdeploy failed!"
 popd
 
-# Hard check: the bundle must NOT contain libvulkan.so.1 (see WAYLAND_EXCLUDES
+# Hard check: the bundle must NOT contain libvulkan.so* (see WAYLAND_EXCLUDES
 # comment above). A silent regression here breaks Vulkan Video/AV1 on every host.
 if ls $DEPLOY_FOLDER/usr/lib/libvulkan.so* >/dev/null 2>&1; then
     fail "Bundled libvulkan.so detected in AppImage dir - it must be excluded so the host loader (with Vulkan Video support) is used!"
 fi
+
+# Hard check: the glib family must NOT be bundled either (see WAYLAND_EXCLUDES
+# comment). A bundled glib shadows the host's and breaks libva driver plugins
+# (nvidia_drv_video.so) -> "no functioning hardware accelerated video decoder"
+# on NVIDIA hosts. Same silent-regression class as the libvulkan check above.
+for GLIBLIB in libglib-2.0.so libgobject-2.0.so libgio-2.0.so libgmodule-2.0.so libgthread-2.0.so; do
+    if ls $DEPLOY_FOLDER/usr/lib/$GLIBLIB* >/dev/null 2>&1; then
+        fail "Bundled $GLIBLIB detected in AppImage dir - it must be excluded so the host glib is used (bundled glib breaks libva driver dlopen on NVIDIA hosts)!"
+    fi
+done
 
 echo Build successful

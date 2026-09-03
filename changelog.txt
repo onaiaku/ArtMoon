@@ -5,6 +5,33 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+Version 1.2.0 (03/09/2026)
+--------------------------------------
+
+Fixed:
+
+• Linux AppImage: the bundle no longer carries its own copy of the glib
+  family (libglib, libgobject, libgio, libgmodule, libgthread). The 1.1.1
+  bundle's glib was older than the host's and missing the g_string_copy
+  symbol, so libva driver plugins — notably nvidia_drv_video.so, which
+  links glib — failed to dlopen inside the AppImage, and SDL reported
+  "Failed to initialize VAAPI: -1" (the "no functioning hardware
+  accelerated video decoder" dialog) on every NVIDIA host. The host's
+  glib is now always used, restoring hardware decoding on NVIDIA. A CI
+  hard-check now fails the build if any glib library is ever bundled
+  again, same as the existing libvulkan check.
+
+Changed:
+
+• The settings store is now named ArtMoon (previously FoggyBytes/
+  StreamLight — the fork's original working title, which still named the
+  config directory ~/.config/FoggyBytes/StreamLight.conf and the Windows
+  registry key Software\FoggyBytes\StreamLight). On first launch, 1.2.0
+  migrates every existing setting to the new store automatically —
+  nothing is lost, no re-pairing, no reset notice. The old store is left
+  untouched so a downgrade to 1.1.x still works.
+
+--------------------------------------
 Version 1.1.0 (02/09/2026)
 --------------------------------------
 
