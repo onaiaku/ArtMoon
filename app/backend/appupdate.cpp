@@ -1,6 +1,9 @@
 #include "appupdate.h"
 
 #include <QCoreApplication>
+#include <QDesktopServices>
+#include <QStandardPaths>
+#include <QUrl>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
