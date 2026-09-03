@@ -114,6 +114,20 @@ done
 SHELL_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/wayland-shell-integration/*.so 2>/dev/null | wc -l)
 [ "$SHELL_PLUGS" -gt 0 ] || fail "No Qt Wayland shell-integration plugins found to bundle - check aqt Qt build"
 
+# Bundle the Wayland client buffer / graphics-integration plugins. Without
+# these Qt loads the wayland platform plugin + shell integrations but has no
+# way to hand GPU buffers to the compositor: "Failed to load client buffer
+# integration: wayland-egl / Available client buffer integrations: QList()"
+# -> SIGABRT (round 16 diagnosis, 2026-09-03).
+for GICLIENT in "$QT_PLUGIN_DIR"/wayland-graphics-integration-client/*.so; do
+    [ -e "$GICLIENT" ] || continue
+    echo "Bundling Qt Wayland graphics-integration-client: $(basename "$GICLIENT")"
+    mkdir -p $DEPLOY_FOLDER/usr/plugins/wayland-graphics-integration-client
+    cp -L "$GICLIENT" $DEPLOY_FOLDER/usr/plugins/wayland-graphics-integration-client/ || fail "Failed to bundle $GICLIENT"
+done
+GI_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/wayland-graphics-integration-client/*.so 2>/dev/null | wc -l)
+[ "$GI_PLUGS" -gt 0 ] || fail "No Qt Wayland graphics-integration-client plugins found to bundle - check aqt Qt build"
+
 # Bundle Qt's own libQt6WaylandClient too. The platform plugins link against
 # it, but linuxdeploy does not see the dependency (it resolves at dlopen time),
 # so without this the runtime loader grabs the HOST's libQt6WaylandClient -
