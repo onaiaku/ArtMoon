@@ -151,8 +151,13 @@ for HWLIB in "$QT_LIB_DIR"/libQt6WaylandEglClientHwIntegration.so.*.*.*; do
     mkdir -p $DEPLOY_FOLDER/usr/lib
     cp -L "$HWLIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $HWLIB"
 done
-ls $DEPLOY_FOLDER/usr/lib/libQt6WaylandEglClientHwIntegration.so.* >/dev/null 2>&1 \
-    || fail "libQt6WaylandEglClientHwIntegration not bundled - check aqt Qt build"
+# The loader needs the SONAME symlink (.so.6), not just the versioned file —
+# dlopen("libQt6WaylandEglClientHwIntegration.so.6") fails without it and Qt
+# aborts with "Failed to load client buffer integration: wayland-egl".
+HWBASE=$(basename $(ls $DEPLOY_FOLDER/usr/lib/libQt6WaylandEglClientHwIntegration.so.*.*.* | head -1))
+ln -sf "$HWBASE" "$DEPLOY_FOLDER/usr/lib/libQt6WaylandEglClientHwIntegration.so.6"
+ls "$DEPLOY_FOLDER/usr/lib/libQt6WaylandEglClientHwIntegration.so.6" >/dev/null 2>&1 \
+    || fail "libQt6WaylandEglClientHwIntegration.so.6 symlink missing - loader will dlopen-fail"
 # usr/lib does not exist yet at this point (linuxdeploy creates it later), so
 # create it or the cp below dies with "cannot create regular file ... Not a
 # directory" (round 12).
