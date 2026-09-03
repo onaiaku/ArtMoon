@@ -35,8 +35,6 @@ A gamepad-first streaming client built to work best with [ArtLight](https://gith
 
 **Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **[ArtLight](https://github.com/onaiaku/ArtLight)**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
 
-> ⚠️ **Not affiliated with or endorsed by the Moonlight project.** ArtMoon is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
-
 ## 🌙 Pair it with ArtLight
 
 [**ArtLight**](https://github.com/onaiaku/ArtLight) is our host — a self-hosted game streaming stack for Windows, one installer with everything in it:
@@ -94,6 +92,18 @@ These cross the bridge and need both apps. All switched on **per host**, in **Se
 - **Remote host power-off / Windows Update** — from the sofa
 - **Tailscale in one tile** — one host, both addresses, automatic selection
 
+## 📦 Installation
+
+**Windows** — download the installer from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and run it.
+
+**Linux** — one line:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/onaiaku/ArtMoon/main/install.sh | bash
+```
+
+The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and doubles as the updater — run it again to update.
+
 ## 🏗️ Architecture
 
 A Qt 6 / QML fork of [Moonlight-Qt](https://github.com/moonlight-stream/moonlight-qt). The UI layer and the paired-feature bridge are ours.
@@ -110,23 +120,13 @@ ArtLight Control (host PC)  →  Named Pipe  →  ArtLightControlService (LocalS
                                                 Windows Update via WUA
 ```
 
-## 📦 Installation
-
-**Windows** — download the installer from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and run it.
-
-**Linux** — one line:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/onaiaku/ArtMoon/main/install.sh | bash
-```
-
-The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and doubles as the updater — run it again to update.
-
 ## 🤝 Acknowledgements
 
 - [**Moonlight**](https://github.com/moonlight-stream/moonlight-qt) — the open-source client this fork is built on; full credit to its contributors
 - [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) — the host-side companion, designed in lockstep with the original StreamLight
 - [**Vibeshine**](https://github.com/Nonary/vibeshine) and [**Vibepollo**](https://github.com/Nonary/Vibepollo) — fully supported hosts
+
+> ⚠️ **Not affiliated with or endorsed by the Moonlight project.** ArtMoon is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
 
 ## License
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
