@@ -175,6 +175,11 @@ jobs:
           sudo ninja install -C build
           popd
 
+      - name: Install Vulkan headers (noble's libvulkan-dev is too old for FFmpeg 9 Vulkan hwaccels)
+        run: |
+          git clone --depth 1 --branch v1.4.361 https://github.com/KhronosGroup/Vulkan-Headers /tmp/vulkan-headers
+          cd /tmp/vulkan-headers && cmake . -B build -DCMAKE_INSTALL_PREFIX=/usr/local && sudo cmake --install build
+
       - name: Checkout FFmpeg
         uses: actions/checkout@v5
         with:
