@@ -126,7 +126,7 @@ ArtLight Control (host PC)  →  Named Pipe  →  ArtLightControlService (LocalS
 - [**StreamTweak**](https://github.com/FoggyBytes/StreamTweak) — the host-side companion, designed in lockstep with the original StreamLight
 - [**Vibeshine**](https://github.com/Nonary/vibeshine) and [**Vibepollo**](https://github.com/Nonary/Vibepollo) — fully supported hosts
 
-> ⚠️ **Not affiliated with or endorsed by the Moonlight project.** ArtMoon is an independent fork. For upstream Moonlight support, use the [official client](https://github.com/moonlight-stream/moonlight-qt).
+> ⚠️ **Not affiliated with or endorsed by the Moonlight project.** For upstream Moonlight support, use the [official client repo](https://github.com/moonlight-stream/moonlight-qt).
 
 ## License
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
