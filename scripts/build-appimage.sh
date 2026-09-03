@@ -143,6 +143,7 @@ QT_LIB_DIR=$(qmake6 -query QT_INSTALL_LIBS) || fail "qmake -query failed!"
 for HWLIB in "$QT_LIB_DIR"/libQt6WaylandEglClientHwIntegration.so.*.*.*; do
     [ -e "$HWLIB" ] || continue
     echo "Bundling Qt Wayland EGL client HW integration: $(basename "$HWLIB")"
+    mkdir -p $DEPLOY_FOLDER/usr/lib
     cp -L "$HWLIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $HWLIB"
 done
 ls $DEPLOY_FOLDER/usr/lib/libQt6WaylandEglClientHwIntegration.so.* >/dev/null 2>&1 \
