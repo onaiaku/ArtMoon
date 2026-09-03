@@ -21,7 +21,11 @@ A gamepad-first streaming client built to work best with [ArtLight](https://gith
   <img width="960" alt="ArtMoon home screen" src="docs/screenshots/home.png" />
 </div>
 
-**ArtMoon** pairs with its host-side companion, [**ArtLight**](https://github.com/onaiaku/ArtLight), for a full sofa-to-host experience.
+<div align="center">
+
+<strong>ArtMoon</strong> pairs with its host-side companion, <a href="https://github.com/onaiaku/ArtLight"><strong>ArtLight</strong></a>, for a full sofa-to-host experience.
+
+</div>
 
 <div align="center">
   <img width="960" alt="ArtMoon library" src="docs/screenshots/library.png" />
