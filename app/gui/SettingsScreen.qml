@@ -4614,6 +4614,10 @@ FocusScope {
                         // Update Now appears only when a newer release exists.
                         MiniButton {
                             id: stUpdateBtn
+                            // Match AboutLinkButton's fixed 170px width so the pair
+                            // reads as two buttons of the same standard size, not
+                            // one hugging its label next to one that doesn't.
+                            implicitWidth: stChangelogBtn.implicitWidth
                             visible: settingsScreen.artMoonLatest.length > 0
                                      && AppUpdate.compareVersions(SystemProperties.versionString,
                                                                   settingsScreen.artMoonLatest) < 0
