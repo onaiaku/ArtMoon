@@ -136,6 +136,17 @@ GI_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/wayland-graphics-integration-client/*.s
 # "Could not load the Qt platform plugin wayland even though it was found"
 # -> XWayland fallback -> black window. Ship the matching Qt 6.8.3 copy.
 QT_LIB_DIR=$(qmake6 -query QT_INSTALL_LIBS) || fail "qmake -query failed!"
+# Bundle libQt6WaylandEglClientHwIntegration too — libqt-plugin-wayland-egl
+# links against it (ldd: "libQt6WaylandEglClientHwIntegration.so.6 => not
+# found"), and without it the wayland-egl client buffer integration fails to
+# dlopen -> "Failed to load client buffer integration" -> SIGABRT (round 17).
+for HWLIB in "$QT_LIB_DIR"/libQt6WaylandEglClientHwIntegration.so.*.*.*; do
+    [ -e "$HWLIB" ] || continue
+    echo "Bundling Qt Wayland EGL client HW integration: $(basename "$HWLIB")"
+    cp -L "$HWLIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $HWLIB"
+done
+ls $DEPLOY_FOLDER/usr/lib/libQt6WaylandEglClientHwIntegration.so.* >/dev/null 2>&1 \
+    || fail "libQt6WaylandEglClientHwIntegration not bundled - check aqt Qt build"
 # usr/lib does not exist yet at this point (linuxdeploy creates it later), so
 # create it or the cp below dies with "cannot create regular file ... Not a
 # directory" (round 12).
