@@ -220,6 +220,7 @@ SOURCES += \
     streaming/video/overlaymanager.cpp \
     streaming/video/streamsettingsoverlay.cpp \
     backend/systemproperties.cpp \
+    backend/appupdate.cpp \
     wm.cpp
 
 HEADERS += \
@@ -277,7 +278,8 @@ HEADERS += \
     gui/sdlgamepadkeynavigation.h \
     streaming/video/overlaymanager.h \
     streaming/video/streamsettingsoverlay.h \
-    backend/systemproperties.h
+    backend/systemproperties.h \
+    backend/appupdate.h
 
 # Platform-specific renderers and decoders
 ffmpeg {

@@ -144,6 +144,7 @@ FocusScope {
     // Latest-release tags fetched once per Settings open from the GitHub API.
     property string artMoonLatest: ""
     property string streamTweakLatest: ""
+    property string artLightLatest: ""
 
     // Fetch the latest release tag from our repo. StreamTweak is still developed
     // in the FoggyBytes org, so pass the full "owner/repo" slug per call.
@@ -224,6 +225,7 @@ FocusScope {
         Qt.callLater(function() { focusFirstControl(tabBar.currentIndex) })
         _fetchLatestTag("onaiaku/ArtMoon",  function(t) { settingsScreen.artMoonLatest  = t })
         _fetchLatestTag("FoggyBytes/StreamTweak",  function(t) { settingsScreen.streamTweakLatest  = t })
+        _fetchLatestTag("onaiaku/ArtLight", function(t) { settingsScreen.artLightLatest = t })
         _refreshLocalLink()
     }
 
@@ -4582,10 +4584,14 @@ FocusScope {
                             }
                             Label {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: qsTr("1.0.0 by onaiaku & Rias")
+                                // Live from the GitHub API - the version used to be
+                                // hardcoded here and went stale at every release.
+                                text: settingsScreen.artLightLatest.length > 0
+                                      ? qsTr("latest %1").arg(settingsScreen.artLightLatest)
+                                      : qsTr("by onaiaku & Rias")
                                 font.family: "DM Sans"
                                 font.pixelSize: settingsScreen._px(14)
-                                color: settingsScreen._greenLk
+                                color: settingsScreen._textDim
                             }
                         }
                         Label {
@@ -5007,12 +5013,25 @@ FocusScope {
                         }
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: settingsScreen.artMoonLatest.length > 0
-                                  ? settingsScreen.artMoonLatest
-                                  : qsTr("checking…")
+                            // Installed version comes from the app itself; Latest
+                            // is fetched live from the GitHub API on every open.
+                            text: {
+                                var inst = SystemProperties.versionString
+                                if (settingsScreen.artMoonLatest.length === 0)
+                                    return qsTr("installed %1").arg(inst)
+                                var cmp = AppUpdate.compareVersions(inst, settingsScreen.artMoonLatest)
+                                if (cmp < 0)
+                                    return qsTr("installed %1 · latest %2").arg(inst).arg(settingsScreen.artMoonLatest)
+                                if (cmp > 0)
+                                    return qsTr("installed %1 (newer than latest)").arg(inst)
+                                return qsTr("installed %1 · up to date").arg(inst)
+                            }
                             font.family: "DM Sans"
                             font.pixelSize: settingsScreen._px(14)
-                            color: settingsScreen._greenLk
+                            // ⚠️ _textDim, not _greenLk: the link-green tinted the
+                            // version text like a clickable link and was hard to read.
+                            // This line is information, not a control.
+                            color: settingsScreen._textDim
                         }
                         Label {
                             anchors.verticalCenter: parent.verticalCenter
@@ -5028,6 +5047,21 @@ FocusScope {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.rightMargin: settingsScreen._px(16)
                         spacing: settingsScreen._px(10)
+                        // Update Now appears only when a newer release exists.
+                        MiniButton {
+                            id: aboutUpdateBtn
+                            visible: settingsScreen.artMoonLatest.length > 0
+                                     && AppUpdate.compareVersions(SystemProperties.versionString,
+                                                                  settingsScreen.artMoonLatest) < 0
+                            label: qsTr("Update Now")
+                            onTriggered: AppUpdate.updateNow()
+                        }
+                        AboutLinkButton {
+                            id: aboutSlChangelogBtn
+                            label: qsTr("Changelogs")
+                            url:   "https://github.com/onaiaku/ArtMoon/releases"
+                            KeyNavigation.right: aboutSlGplBtn
+                        }
                         AboutLinkButton {
                             id: aboutSlGithubBtn
                             label: qsTr("GitHub releases")
