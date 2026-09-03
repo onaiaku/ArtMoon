@@ -72,6 +72,11 @@ ArtMoon works with any Moonlight-compatible host, but **it works best with ArtLi
 - **Custom resolutions** — any width and height, not just the presets
 - **Match refresh rate** — runs your display at the stream's frame rate for the session (Fullscreen), per-host overridable
 
+**🆕 Built-in updater**
+- ArtMoon checks GitHub releases and tells you when a new version is out — one press of **Update Now** and it updates itself: download, quit, install, relaunch. No manual downloads, no terminal on Windows
+- **Linux** reuses the one-line install script under the hood, so updating is the same command as installing
+- The version card shows what's installed, what's latest, and clickable changelogs for every release
+
 **⚙️ Settings and profiles**
 - Ten tabs, pill-style selectors, inline subtitles instead of tooltips
 - **Per-host profiles** — up to three named profiles per host, each overriding resolution, frame rate, bitrate, HDR, codec, display mode, V-Sync, frame pacing, audio and more
