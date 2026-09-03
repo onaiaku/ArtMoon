@@ -969,6 +969,17 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(":/artmoon.ico"));
 #endif
 
+#ifdef Q_OS_LINUX
+    // Under Wayland, KWin matches the window icon by the surface's app_id
+    // against installed .desktop files, not by QIcon. Qt Wayland derives the
+    // app_id from the application name, which is "StreamLight" for
+    // settings-store compatibility — a name that matches no .desktop file, so
+    // the titlebar falls back to the generic Wayland logo. Point it at our
+    // desktop-file ID (bundled by the AppImage and installed by install.sh)
+    // so the titlebar shows the ArtMoon icon on Wayland too.
+    QGuiApplication::setDesktopFileName("io.github.onaiaku.ArtMoon");
+#endif
+
     // Sync the Windows Xbox app "My Apps" tile artwork for this exe if the
     // user has added ArtMoon to their custom library. No-op when:
     //  - not on Windows
