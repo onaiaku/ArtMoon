@@ -173,7 +173,7 @@ void AppUpdate::updateNow()
 
         // 2) Launch it silently - Inno will stop the app, upgrade, and restart
         //    it (/RESTARTAPPLICATIONS). The user sees one UAC prompt.
-        QProcess::startDetached(target, {"VERYSILENT"});
+        QProcess::startDetached(target, {QStringLiteral("/VERYSILENT"), QStringLiteral("/SUPPRESSMSGBOXES"), QStringLiteral("/RESTARTAPPLICATIONS")});
         QCoreApplication::quit();
     });
 #else
