@@ -39,7 +39,12 @@ mkdir $INSTALLER_FOLDER
 # platform plugin links against the host libwayland at runtime - the same
 # libraries KWin/GNOME already provide. Native Wayland, no XWayland fallback,
 # no NVIDIA black window.
-WAYLAND_EXCLUDES="--exclude-library libwayland-client.so.0 --exclude-library libwayland-cursor.so.0 --exclude-library libwayland-egl.so.1"
+# libvulkan.so.1 MUST NOT be bundled: linuxdeploy picks up the loader from the
+# CI base image, which predates Vulkan Video (VK_KHR_video_decode_*). Inside the
+# AppImage it shadows the host's modern loader, so libplacebo can never see the
+# GPU's Vulkan Video/AV1 decode support and falls back to VAAPI/VDPAU (or dies).
+# The host loader is always the right one - same policy as libwayland above.
+WAYLAND_EXCLUDES="--exclude-library libwayland-client.so.0 --exclude-library libwayland-cursor.so.0 --exclude-library libwayland-egl.so.1 --exclude-library libvulkan.so.1"
 
 # Enable LTO for official builds
 export CFLAGS=-flto=auto
@@ -190,5 +195,11 @@ VERSION=$VERSION $LINUXDEPLOY --appdir $DEPLOY_FOLDER \
   $WAYLAND_EXCLUDES \
   --plugin qt --output appimage || fail "linuxdeploy failed!"
 popd
+
+# Hard check: the bundle must NOT contain libvulkan.so.1 (see WAYLAND_EXCLUDES
+# comment above). A silent regression here breaks Vulkan Video/AV1 on every host.
+if ls $DEPLOY_FOLDER/usr/lib/libvulkan.so* >/dev/null 2>&1; then
+    fail "Bundled libvulkan.so detected in AppImage dir - it must be excluded so the host loader (with Vulkan Video support) is used!"
+fi
 
 echo Build successful
