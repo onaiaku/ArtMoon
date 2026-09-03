@@ -969,17 +969,6 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(":/artmoon.ico"));
 #endif
 
-#ifdef Q_OS_LINUX
-    // Under Wayland, KWin matches the window icon by the surface's app_id
-    // against installed .desktop files, not by QIcon. Qt Wayland derives the
-    // app_id from the application name, which is "StreamLight" for
-    // settings-store compatibility — a name that matches no .desktop file, so
-    // the titlebar falls back to the generic Wayland logo. Point it at our
-    // desktop-file ID (bundled by the AppImage and installed by install.sh)
-    // so the titlebar shows the ArtMoon icon on Wayland too.
-    QGuiApplication::setDesktopFileName("io.github.onaiaku.ArtMoon");
-#endif
-
     // Sync the Windows Xbox app "My Apps" tile artwork for this exe if the
     // user has added ArtMoon to their custom library. No-op when:
     //  - not on Windows
@@ -995,10 +984,15 @@ int main(int argc, char *argv[])
     // for the whole session.
     XboxTileArtwork::instance()->startWatching();
 
-    // This is necessary to show our icon correctly on Wayland
-    app.setDesktopFileName("com.moonlight_stream.Moonlight");
-    qputenv("SDL_VIDEO_WAYLAND_WMCLASS", "com.moonlight_stream.Moonlight");
-    qputenv("SDL_VIDEO_X11_WMCLASS", "com.moonlight_stream.Moonlight");
+    // This is necessary to show our icon correctly on Wayland.
+    // NB: must be our desktop-file ID (io.github.onaiaku.ArtMoon), NOT
+    // upstream's com.moonlight_stream.Moonlight — KWin matches the Wayland
+    // app_id against installed .desktop files, and no distro/install ever
+    // ships one named com.moonlight_stream.Moonlight, so the titlebar falls
+    // back to the generic Wayland logo.
+    app.setDesktopFileName("io.github.onaiaku.ArtMoon");
+    qputenv("SDL_VIDEO_WAYLAND_WMCLASS", "io.github.onaiaku.ArtMoon");
+    qputenv("SDL_VIDEO_X11_WMCLASS", "artmoon");
 
     // Register our C++ types for QML
     qmlRegisterType<ComputerModel>("ComputerModel", 1, 0, "ComputerModel");
