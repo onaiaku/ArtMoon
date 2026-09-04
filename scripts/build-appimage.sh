@@ -201,18 +201,24 @@ export QML_SOURCES_PATHS=$SOURCE_ROOT/app/gui
 # when actually set.
 export QMAKE="$(command -v qmake6)"
 
-echo Creating AppImage
+echo "Deploying with linuxdeploy (deploy-only pass; AppImage is packed AFTER"
+echo "the strip + hard checks below, so nothing can sneak into the final image)"
 pushd $INSTALLER_FOLDER
 VERSION=$VERSION $LINUXDEPLOY --appdir $DEPLOY_FOLDER \
   --library=/usr/local/lib/libSDL3.so.0 \
   $WAYLAND_EXCLUDES \
-  --plugin qt --output appimage || fail "linuxdeploy failed!"
+  --plugin qt || fail "linuxdeploy failed!"
 popd
 
 # linuxdeploy-plugin-qt deploys Qt's own dependency tree (including glib) via
 # its internal copy step, where the main linuxdeploy's --exclude-library flags
-# do NOT reach it. Physically strip the excluded family from the bundle here;
-# the hard checks below will fail the build if any survive this removal.
+# do NOT reach it. Physically strip the excluded family from the bundle here.
+# CRITICAL (2026-09-04): the strip + hard checks MUST run while the AppImage
+# does not exist yet. The previous version packed the AppImage first and
+# stripped the appdir afterwards - the shipped artifact kept the glib family
+# (missing g_string_copy -> NVIDIA VA-API driver dlopen failure) while the
+# checks passed on the already-post-processed appdir. The AppImage is only
+# packed at the very bottom of this script, from the verified appdir.
 rm -f $DEPLOY_FOLDER/usr/lib/libglib-2.0.so* \
       $DEPLOY_FOLDER/usr/lib/libgobject-2.0.so* \
       $DEPLOY_FOLDER/usr/lib/libgio-2.0.so* \
@@ -236,4 +242,37 @@ for GLIBLIB in libglib-2.0.so libgobject-2.0.so libgio-2.0.so libgmodule-2.0.so 
     fi
 done
 
+# Pack the AppImage LAST, from the verified appdir. Second linuxdeploy pass
+# WITHOUT the qt plugin: every dependency is already deployed, so this pass
+# only validates and packs. Re-running the qt plugin here would re-import
+# glib (its internal copy step ignores --exclude-library) and re-poison the
+# bundle - so it must never be part of the packing pass.
+echo Creating AppImage from verified appdir
+pushd $INSTALLER_FOLDER
+VERSION=$VERSION $LINUXDEPLOY --appdir $DEPLOY_FOLDER \
+  --library=/usr/local/lib/libSDL3.so.0 \
+  $WAYLAND_EXCLUDES \
+  --output appimage || fail "linuxdeploy (pack) failed!"
+popd
+# Final gate: inspect the artifact itself, not just the appdir. If glib or
+# libvulkan somehow made it into the packed image, fail here - never ship.
+PACKED_APPIMAGE=$(ls -t $INSTALLER_FOLDER/*.AppImage | head -1)
+[ -n "$PACKED_APPIMAGE" ] || fail "No AppImage produced!"
+EXTRACT_CHECK=$(mktemp -d)
+# --appimage-extract always unpacks to ./squashfs-root relative to CWD,
+# so run it from inside the temp dir.
+( cd "$EXTRACT_CHECK" && "$PACKED_APPIMAGE" --appimage-extract >/dev/null 2>&1 ) \
+    || fail "Could not extract packed AppImage for final verification"
+ls "$EXTRACT_CHECK/squashfs-root/usr/lib/" >/dev/null 2>&1 \
+    || fail "Extraction produced no squashfs-root - cannot verify artifact"
+if ls $EXTRACT_CHECK/squashfs-root/usr/lib/libglib-2.0.so* >/dev/null 2>&1 \
+   || ls $EXTRACT_CHECK/squashfs-root/usr/lib/libgobject-2.0.so* >/dev/null 2>&1 \
+   || ls $EXTRACT_CHECK/squashfs-root/usr/lib/libgio-2.0.so* >/dev/null 2>&1; then
+    fail "Packed AppImage contains the glib family - SHIP-BLOCKER (breaks NVIDIA VA-API driver dlopen)"
+fi
+if ls $EXTRACT_CHECK/squashfs-root/usr/lib/libvulkan.so* >/dev/null 2>&1; then
+    fail "Packed AppImage contains libvulkan - SHIP-BLOCKER (shadows host Vulkan Video loader)"
+fi
+rm -rf $EXTRACT_CHECK
+echo "Final artifact verification passed: $(basename "$PACKED_APPIMAGE")"
 echo Build successful
