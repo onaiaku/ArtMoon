@@ -190,15 +190,23 @@ jobs:
       - name: Build FFmpeg
         working-directory: deps/FFmpeg
         run: |
-          ./configure --enable-pic --enable-lto --disable-static --enable-shared --disable-all --disable-autodetect \
-            --enable-avcodec --enable-avformat --enable-swscale \
-            --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
-            --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
-            --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
-            --enable-vulkan \
-            --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan \
-            --enable-libdrm \
-            --enable-libdav1d --enable-decoder=libdav1d
+          # FLAGS POLICY (root-caused 2026-09-04): the AV1 brick artifacts were
+          # traced to THIS build of FFmpeg, not the code. Proof: byte-diffing
+          # CI vs hand-baked libs showed libplacebo + libshaderc identical,
+          # ONLY libavcodec/libavutil/libswscale differed (same n9.0.1);
+          # grafting the hand libs into the CI AppImage = 20+ min clean stream.
+          # The proven-good hand bake (mini PC, see
+          # rias skill artmoon-streaming/references/ffmpeg-vulkan-build.md)
+          # uses NO LTO, --disable-debug, and lets configure pick defaults.
+          # The old flags (--enable-lto) miscompiled the Vulkan hwaccel path.
+          # Do NOT re-add --enable-lto here without a full graft A/B test.
+          # --disable-autodetect is kept for deterministic bundling (runner
+          # dev-package creep would otherwise change libavcodec's deps); the
+          # grafted hand libs had the exact same NEEDED set with it off.
+          ./configure --disable-doc --disable-programs --disable-debug --disable-static --enable-shared --disable-autodetect \
+            --enable-vulkan --enable-libdrm --enable-vaapi --enable-vdpau \
+            --enable-libdav1d \
+            --enable-decoder=av1,h264,hevc,vp9 --enable-hwaccels
           make -j$(nproc)
           sudo make install
 
