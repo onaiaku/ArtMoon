@@ -5,7 +5,7 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
-Version 1.2.0 (03/09/2026)
+Version 1.2.0 (04/09/2026)
 --------------------------------------
 
 Fixed:
@@ -21,13 +21,24 @@ Fixed:
   hard-check now fails the build if any glib library is ever bundled
   again, same as the existing libvulkan check.
 
+• AV1 Vulkan "brick" artifacts: root cause found and fixed. CI compiled
+  FFmpeg with link-time optimization (LTO), which miscompiled FFmpeg's
+  Vulkan hardware decode path — the direct cause of the recurring AV1
+  corruption on RTX 50-series hosts. CI now builds FFmpeg with the
+  exact flag set proven clean over days of A/B graft testing: no LTO,
+  debug symbols stripped, full hardware-acceleration set enabled. The
+  fixed build streams AV1 10-bit HDR with zero artifacts.
+
+• CI now verifies the packed artifact itself (not just the staging
+  directory) before shipping: the final AppImage is extracted and
+  inspected for the glib family and a bundled libvulkan, so neither
+  class of silent regression can ever reach a release again.
+
 Changed:
 
-• The bundled FFmpeg is now 9.0.1 (previously 9.0). The 1.1.1-era FFmpeg
-  build was implicated in the AV1 Vulkan "brick" artifacts seen on the
-  RTX 5060 mini PC; streams on the 9.0.1 Vulkan build are verified clean
-  at up to 138 FPS in 4K 10-bit HDR. CI now builds the exact decoder we
-  validated instead of the older pin.
+• The bundled FFmpeg is now 9.0.1 (previously 9.0), pinned to the
+  exact decoder build verified clean on the RTX 5060 mini PC at up to
+  138 FPS in 4K 10-bit HDR.
 
 • The settings store is now named ArtMoon (previously FoggyBytes/
   StreamLight — the fork's original working title, which still named the
