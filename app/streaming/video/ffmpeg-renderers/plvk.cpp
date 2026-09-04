@@ -568,6 +568,17 @@ bool PlVkRenderer::mapAvFrameToPlacebo(const AVFrame *frame, pl_frame* mappedFra
     // As a workaround, set full range manually in the mapped frame ourselves.
     mappedFrame->repr.levels = PL_COLOR_LEVELS_FULL;
 
+    // DIAGNOSTIC: PLVK_SYNC_FINISH=1 serializes the entire GPU before every mapped frame
+    // is rendered. This drains all queues (including video decode) and forces the decoder
+    // to fully complete each picture before libplacebo reads it. If visual corruption
+    // disappears with this enabled, the root cause is missing queue synchronization
+    // between the Vulkan video decode queue and the graphics queue (e.g. NVIDIA's
+    // "reuse_dst_dpb" decode mode overwriting pictures still being displayed).
+    // This is slow and intended for diagnosis only - do not enable in production.
+    if (qEnvironmentVariableIntValue("PLVK_SYNC_FINISH")) {
+        pl_gpu_finish(m_Vulkan->gpu);
+    }
+
     return true;
 }
 
