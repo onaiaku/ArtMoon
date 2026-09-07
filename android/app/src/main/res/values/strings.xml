@@ -375,6 +375,7 @@
     <string name="am_footer_key_s">S</string>
     <string name="am_footer_key_esc">Esc</string>
     <string name="am_action_open">Open</string>
+    <string name="am_action_pair">Pair</string>
     <string name="am_action_options">Options</string>
     <string name="am_stat_rtt">RTT</string>
     <string name="am_stat_gpu">GPU</string>

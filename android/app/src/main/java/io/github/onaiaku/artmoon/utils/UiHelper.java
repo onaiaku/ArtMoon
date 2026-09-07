@@ -26,8 +26,6 @@ import java.util.Locale;
 
 public class UiHelper {
 
-    private static final int TV_VERTICAL_PADDING_DP = 15;
-    private static final int TV_HORIZONTAL_PADDING_DP = 15;
 
     private static void setGameModeStatus(Context context, boolean streaming, boolean interruptible) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -134,13 +132,11 @@ public class UiHelper {
         }
 
         if (modeMgr.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION) {
-            // Increase view padding on TVs
-            float scale = activity.getResources().getDisplayMetrics().density;
-            int verticalPaddingPixels = (int) (TV_VERTICAL_PADDING_DP*scale + 0.5f);
-            int horizontalPaddingPixels = (int) (TV_HORIZONTAL_PADDING_DP*scale + 0.5f);
-
-            rootView.setPadding(horizontalPaddingPixels, verticalPaddingPixels,
-                    horizontalPaddingPixels, verticalPaddingPixels);
+            // 2026-09-07 Nik bug report: upstream's 15dp TV padding painted a
+            // gray frame (the window background) around every activity on the
+            // Shield. Modern panels don't need overscan insurance — go
+            // edge-to-edge on TV like we already do on phones.
+            rootView.setPadding(0, 0, 0, 0);
         }
         else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Draw under the status bar on Android Q devices

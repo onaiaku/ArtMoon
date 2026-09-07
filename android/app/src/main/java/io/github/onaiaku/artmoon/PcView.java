@@ -1087,6 +1087,14 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         }
         View open = cardView.findViewById(R.id.am_action_open);
         if (open != null) {
+            // 2026-09-07 Nik UX fix: the action button must read the truth.
+            // Unpaired -> "Pair", paired -> "Open". Label rides the same
+            // state the click handler already routes on.
+            if (open instanceof android.widget.TextView) {
+                ((android.widget.TextView) open).setText(
+                    computer.details.pairState == PairState.PAIRED
+                        ? R.string.am_action_open : R.string.am_action_pair);
+            }
             // Desktop FocusFrame parity: paint the ring on keyboard/pad focus.
             open.setOnFocusChangeListener((v, hasFocus) -> v.setActivated(hasFocus));
             open.setOnClickListener(new OnClickListener() {
