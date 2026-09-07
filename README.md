@@ -111,8 +111,6 @@ The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and 
 
 **Android** — download `ArtMoon-<version>-android.apk` from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and sideload it (Android will ask you to allow installs from that source — one toggle, then it installs like any app).
 
-The Android client is our fork of [Moonlight Android](https://github.com/moonlight-stream/moonlight-android), rebranded and living in this repo under [`android/`](android/). It ships signed with every `v*` release alongside the Windows installer and Linux AppImage.
-
 ## 🏗️ Architecture
 
 A Qt 6 / QML fork of [Moonlight-Qt](https://github.com/moonlight-stream/moonlight-qt). The UI layer and the paired-feature bridge are ours.
