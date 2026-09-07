@@ -8,7 +8,7 @@
 
 A gamepad-first streaming client built to work best with [ArtLight](https://github.com/onaiaku/ArtLight)
 
-<a href="https://github.com/onaiaku/ArtMoon"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux-blue.svg"></a>
+<a href="https://github.com/onaiaku/ArtMoon"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Linux%20%7C%20Android-blue.svg"></a>
 <a href="https://github.com/onaiaku/ArtMoon"><img alt="Framework" src="https://img.shields.io/badge/Framework-Qt%206-brightgreen.svg"></a>
 <a href="https://github.com/moonlight-stream/moonlight-qt"><img alt="built on Moonlight" src="https://img.shields.io/badge/built%20on-Moonlight-blue?&logo=github"></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-green.svg"></a>
@@ -33,7 +33,7 @@ A gamepad-first streaming client built to work best with [ArtLight](https://gith
 
 ## ✅ Compatibility
 
-**Windows 10 and 11**, and **Linux** (AppImage). Works as an ordinary Moonlight-compatible client against any **[ArtLight](https://github.com/onaiaku/ArtLight)**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
+**Windows 10 and 11**, **Linux** (AppImage), and **Android** (APK, Android 5.0+). Works as an ordinary Moonlight-compatible client against any **[ArtLight](https://github.com/onaiaku/ArtLight)**, Sunshine, Apollo, or Vibepollo host, and unlocks its paired feature set when the host companion is running.
 
 ## 🌙 Pair it with ArtLight
 
@@ -108,6 +108,10 @@ curl -fsSL https://raw.githubusercontent.com/onaiaku/ArtMoon/main/install.sh | b
 ```
 
 The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and doubles as the updater — run it again to update.
+
+**Android** — download `ArtMoon-<version>-android.apk` from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and sideload it (Android will ask you to allow installs from that source — one toggle, then it installs like any app).
+
+The Android client is our fork of [Moonlight Android](https://github.com/moonlight-stream/moonlight-android), rebranded and living in this repo under [`android/`](android/). It ships signed with every `v*` release alongside the Windows installer and Linux AppImage.
 
 ## 🏗️ Architecture
 

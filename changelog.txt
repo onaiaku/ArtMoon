@@ -8,6 +8,14 @@ https://github.com/onaiaku/ArtMoon
 Version 1.2.0 (04/09/2026)
 --------------------------------------
 
+New:
+
+• Android client joins the family: our rebranded fork of Moonlight
+  Android now ships signed alongside the Windows installer and Linux
+  AppImage (ArtMoon-1.2.0-android.apk). Built by CI on every v* tag,
+  signed with the same release keystore, minSdk 21 (Android 5.0+).
+  Consolidated into this repo as /android on 2026-09-07.
+
 Fixed:
 
 • Linux AppImage: the bundle no longer carries its own copy of the glib
