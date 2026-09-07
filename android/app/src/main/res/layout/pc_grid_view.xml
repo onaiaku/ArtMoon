@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ArtMoon host list: single column, full-width hero rows (desktop home port). -->
+<GridView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fragmentView"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@color/am_ground"
+    android:numColumns="1"
+    android:stretchMode="columnWidth"
+    android:verticalSpacing="4dp"
+    android:paddingTop="8dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:clipToPadding="false"
+    android:gravity="fill_horizontal"/>

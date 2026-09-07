@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary pill button (accent fill, 28dp corners). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/am_ripple">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/am_accent_hi" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+</ripple>

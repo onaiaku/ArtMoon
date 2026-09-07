@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ArtMoon library — the desktop's master-detail list, collapsed for touch:
+    each app is a full-width LIST ROW (cover thumbnail left, title beside it),
+    NOT a poster wall. Desktop pairs this with a detail pane on wide screens;
+    on a phone, tapping the row plays.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/am_card"
+    android:foreground="@drawable/am_focus_ring"
+    android:layout_marginStart="14dp"
+    android:layout_marginEnd="14dp"
+    android:layout_marginTop="5dp"
+    android:layout_marginBottom="5dp"
+    android:paddingStart="12dp"
+    android:paddingLeft="12dp"
+    android:paddingEnd="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <FrameLayout
+        android:layout_width="52dp"
+        android:layout_height="72dp"
+        android:background="@drawable/am_cover_frame">
+
+        <ImageView
+            android:id="@+id/grid_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:cropToPadding="true" />
+
+        <ImageView
+            android:id="@+id/grid_overlay"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:scaleType="fitCenter" />
+
+        <ProgressBar
+            android:id="@+id/grid_spinner"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:indeterminate="true" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/grid_text"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginLeft="14dp"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/am_text_primary"
+        android:maxLines="2"
+        android:ellipsize="end" />
+    <TextView
+        android:id="@+id/am_store_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:background="@drawable/am_badge"
+        android:paddingStart="8dp"
+        android:paddingLeft="8dp"
+        android:paddingEnd="8dp"
+        android:paddingRight="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:textColor="@color/am_text_secondary"
+        android:maxLines="1"
+        android:visibility="gone" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="›"
+        android:textSize="22sp"
+        android:textColor="@color/am_text_tertiary" />
+</LinearLayout>

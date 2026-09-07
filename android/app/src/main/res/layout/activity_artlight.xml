@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ArtLight tab (settings) — phone port of the desktop's ArtLight settings tab:
+    gold-moon hero, host/server status rows fed live from ArtLightBridge
+    (server version, library sync, update state), ArtMoon self-update card,
+    and links out (Changelogs, GitHub releases).
+    NOTE: no ArtLight Control link — Control is a host-side Windows app (named pipes),
+    not a web surface a phone can open. Real Control surface = PIN pairing, AUTHORIZED
+    badge, stream stats, all handled in PcView/HostAuthManager/HostMetricsPoller.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/am_ground"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <TextView
+            android:id="@+id/am_artlight_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_artlight_title"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_text_primary"
+            android:paddingTop="12dp"
+            android:paddingBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_artlight_byline"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_tertiary"
+            android:paddingBottom="12dp" />
+
+        <!-- Status card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/am_card"
+            android:padding="14dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/am_artlight_status"
+                android:textSize="11sp"
+                android:textAllCaps="true"
+                android:letterSpacing="0.1"
+                android:textColor="@color/am_text_tertiary"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:id="@+id/am_server_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_secondary"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:id="@+id/am_server_version_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_secondary"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:id="@+id/am_sync_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_secondary"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:id="@+id/am_auth_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_secondary" />
+        </LinearLayout>
+
+        <!-- ArtMoon self-update card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/am_card"
+            android:padding="14dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/am_self_version_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_secondary"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:id="@+id/am_changelogs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/am_artlight_changelogs"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_accent_hi"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp" />
+
+            <TextView
+                android:id="@+id/am_releases"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/am_artlight_releases"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_accent_hi"
+                android:paddingTop="4dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/am_artlight_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/am_artlight_note"
+            android:textSize="11sp"
+            android:lineSpacingMultiplier="1.4"
+            android:textColor="@color/am_text_tertiary"
+            android:paddingTop="8dp" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ArtMoon host HERO CARD v10 — structural match to the approved render
+    (colour-annotated boxes, 2026-09-05).
+
+    LAYOUT CONTRACT (from Nik's annotated boxes):
+      - The card's content region is split into TWO COLUMNS.
+      - LEFT column (top to bottom): badge row, big title, ready line,
+        spec chip row, HOST LINK block, and an ACTION ROW pinned to the
+        bottom edge of the card.
+      - RIGHT column (top to bottom): LAST SESSION label, three BIG
+        telemetry numbers with small labels underneath (RTT / GPU / NET).
+      - The card fills ALL vertical space between the picker row and the
+        footer — no dead gap below it (GenericGridAdapter sets the row's
+        measured height to the GridView's viewport height).
+
+    Real-data rule unchanged: telemetry numbers hide when there is no
+    live data; nothing is faked.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/am_hero_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+        android:layout_marginStart="14dp"
+    android:layout_marginEnd="14dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/am_hero_bg">
+
+        <ImageView
+            android:id="@+id/am_hero_bg_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:contentDescription="@null" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/am_hero_scrim" />
+
+        <!-- ============ LEFT COLUMN (identity) ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingLeft="16dp"
+            android:paddingEnd="200dp"
+            android:paddingRight="200dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
+
+            <!-- badge row, top-left -->
+            <LinearLayout
+                android:id="@+id/am_badge_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/am_hero_badge"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <View
+                        android:id="@+id/status_dot"
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/am_dot_pairing"
+                        android:layout_marginEnd="6dp" />
+
+                    <TextView
+                        android:id="@+id/status_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.1"
+                        android:textAllCaps="true"
+                        android:textColor="@color/am_text_primary"
+                        android:maxLines="1" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/am_auth_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/am_hero_badge"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:visibility="gone">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/am_dot_auth"
+                        android:layout_marginEnd="6dp" />
+
+                                        <TextView
+                        android:id="@+id/am_auth_label"
+    android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/am_hero_auth"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.1"
+                        android:textAllCaps="true"
+                        android:textColor="@color/am_text_primary"
+                        android:maxLines="1" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- spacer pushes the identity block toward vertical centre,
+                 matching the render's breathing room -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/grid_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="56sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text_primary"
+                android:shadowColor="#E6000000"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="12"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/am_ready_line"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_secondary"
+                android:shadowColor="#E6000000"
+                android:shadowDy="1"
+                android:shadowRadius="6"
+                android:maxLines="1" />
+
+            <LinearLayout
+                android:id="@+id/am_spec_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/am_spec_res"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/am_spec_fps"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/am_spec_bitrate"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/am_spec_codec"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/am_spec_audio"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <!-- HOST LINK block: label + big value; hidden until a real
+                 measured number exists (never faked) -->
+            <LinearLayout
+                android:id="@+id/am_hostlink_block"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_host_link"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:textColor="@color/am_text_tertiary" />
+
+                <TextView
+                    android:id="@+id/am_hostlink_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="26sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text_primary" />
+            </LinearLayout>
+
+            <!-- action row pinned to the card bottom, render-style -->
+            <LinearLayout
+                android:id="@+id/am_action_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/am_action_open"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_action_open"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_on_accent"
+                    android:background="@drawable/am_pill_accent_sel"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/am_action_options"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_action_options"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text_primary"
+                    android:background="@drawable/am_pill_soft_sel"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ============ RIGHT COLUMN (live stats) ============ -->
+        <!-- ============ RIGHT COLUMN (LAST SESSION + HOST LINK, desktop parity) ============
+     Desktop HostStage.qml: the right of the card is the LAST SESSION panel fed by
+     the host's LASTSESSION command (ago/duration/grade/rtt/host-lat/drops), hidden
+     when there is no last session; HOST LINK is the STATUS NIC-speed big number.
+     No live stats, no invented numbers. -->
+<LinearLayout
+    android:id="@+id/am_stats_col"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="top|end"
+    android:orientation="vertical"
+    android:paddingTop="14dp"
+    android:paddingEnd="16dp"
+    android:paddingRight="16dp">
+
+    <!-- LAST SESSION block: hidden entirely until the host reports one -->
+    <LinearLayout
+        android:id="@+id/am_last_session"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="end"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_last_session"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1"
+            android:textAllCaps="true"
+            android:textColor="@color/am_text_primary" />
+
+        <TextView
+            android:id="@+id/am_last_session_grade"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_online"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/am_last_session_when"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/am_text_primary"
+            android:layout_marginTop="2dp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end"
+                android:layout_marginEnd="16dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_stat_rtt"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:textColor="@color/am_text_primary" />
+                <TextView
+                    android:id="@+id/am_last_session_rtt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end"
+                android:layout_marginEnd="16dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_stat_hostlat"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:textColor="@color/am_text_primary" />
+                <TextView
+                    android:id="@+id/am_last_session_hostlat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_stat_drops"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:textColor="@color/am_text_primary" />
+                <TextView
+                    android:id="@+id/am_last_session_drops"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text_primary" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- HOST LINK: STATUS NIC speed, desktop formatMbpsShort -->
+    <LinearLayout
+        android:id="@+id/am_host_link_box"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical"
+        android:gravity="end"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_host_link"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1"
+            android:textAllCaps="true"
+            android:textColor="@color/am_text_primary" />
+
+        <TextView
+            android:id="@+id/am_host_link_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_text_primary" />
+    </LinearLayout>
+</LinearLayout>
+
+        <!-- glyph well + spinner + overlay, kept so the adapter's existing
+             binding keeps working -->
+        <FrameLayout
+            android:id="@+id/am_glyph_well"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="12dp"
+            android:alpha="0.55">
+
+            <ImageView
+                android:id="@+id/grid_image"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:scaleType="fitCenter" />
+
+            <ImageView
+                android:id="@+id/grid_overlay"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:scaleType="fitCenter" />
+
+            <ProgressBar
+                android:id="@+id/grid_spinner"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone" />
+        </FrameLayout>
+    </FrameLayout>
+</FrameLayout>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        ArtMoon theme. Ground and surfaces from the desktop client's palette;
+        Material dark ensures framework widgets (dialogs, preferences) inherit
+        the dark ground instead of flashing white.
+    -->
+    <style name="AppBaseTheme" parent="android:Theme.Material">
+        <item name="android:colorBackground">@color/am_ground</item>
+        <item name="android:windowBackground">@color/am_ground</item>
+        <item name="android:statusBarColor">@color/am_ground</item>
+        <item name="android:navigationBarColor">@color/am_ground</item>
+        <item name="android:colorAccent">@color/am_accent</item>
+        <item name="android:colorPrimary">@color/am_accent</item>
+        <item name="android:colorPrimaryDark">@color/am_ground</item>
+    </style>
+</resources>

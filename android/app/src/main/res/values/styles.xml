@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        ArtMoon application theme. The StreamTheme deliberately keeps the transparent
+        window background from upstream: extra overdraw behind the video surface is
+        wasted frames, and the desktop agrees — the stream view is all video.
+    -->
+    <style name="AppTheme" parent="AppBaseTheme">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:alertDialogTheme">@style/AmAlertDialogTheme</item>
+    </style>
+
+    <!--
+        AM dialog theme: every AlertDialog in the app (quit confirm, error
+        dialogs, context menus on Material) derives from this. Dark ArtMoon
+        surface instead of the stock light Android popup.
+    -->
+    <style name="AmAlertDialogTheme" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/am_dialog_bg</item>
+        <item name="android:colorBackground">@color/am_surface</item>
+        <item name="android:textColorPrimary">@color/am_text_primary</item>
+        <item name="android:textColorSecondary">@color/am_text_secondary</item>
+        <item name="android:colorAccent">@color/am_auth</item>
+    </style>
+
+    <style name="StreamBaseTheme" parent="AppBaseTheme">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="StreamTheme" parent="StreamBaseTheme">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!--
+        AM settings theme: dark ArtMoon surface for the legacy PreferenceFragment.
+        The legacy preference widgets derive every color from these theme attributes,
+        so restyling the activity is enough to re-skin the whole screen.
+    -->
+    <style name="AmSettingsTheme" parent="AppTheme">
+        <item name="android:windowBackground">@color/am_ground</item>
+        <item name="android:colorBackground">@color/am_ground</item>
+        <item name="android:statusBarColor">@color/am_ground</item>
+        <item name="android:navigationBarColor">@color/am_ground</item>
+        <item name="android:textColorPrimary">@color/am_text_primary</item>
+        <item name="android:textColorSecondary">@color/am_text_secondary</item>
+        <item name="android:textColorTertiary">@color/am_text_tertiary</item>
+        <item name="android:colorAccent">@color/am_auth</item>
+        <item name="android:colorControlActivated">@color/am_auth</item>
+        <item name="android:colorControlNormal">@color/am_text_tertiary</item>
+        <item name="android:colorControlHighlight">@color/am_ripple</item>
+        <!-- Category headers: uppercase, tracked-out, dim — matches hero badges. -->
+    </style>
+
+    <style name="AmSpecChip">
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">@color/am_text_primary</item>
+        <item name="android:background">@drawable/am_spec_chip</item>
+        <item name="android:paddingLeft">9dp</item>
+        <item name="android:paddingRight">9dp</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingBottom">3dp</item>
+        <item name="android:layout_marginEnd">6dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+</resources>

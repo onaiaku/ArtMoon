@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ArtMoon app picker, LANDSCAPE — master-detail (approved render,
+    artmoon-android-app-picker.html, from Nik's screenshot 2026-09-05):
+    master list left (icon, bold name, store subtext, selected row glow),
+    detail panel right (cover, big title, running state, action buttons).
+    Portrait keeps the single-column list (base app_grid_view.xml).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/am_ground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+
+        <GridView
+            android:id="@+id/fragmentView"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.15"
+            android:background="@color/am_ground"
+            android:numColumns="1"
+            android:stretchMode="columnWidth"
+            android:verticalSpacing="4dp"
+            android:paddingStart="14dp"
+            android:paddingLeft="14dp"
+            android:paddingEnd="7dp"
+            android:paddingRight="7dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clipToPadding="false"
+            android:gravity="fill_horizontal" />
+
+        <LinearLayout
+            android:id="@+id/am_pick_detail"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="7dp"
+            android:layout_marginLeft="7dp"
+            android:layout_marginEnd="14dp"
+            android:layout_marginRight="14dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="14dp"
+            android:background="@drawable/am_detail_panel_bg">
+
+            <ImageView
+                android:id="@+id/am_pick_cover"
+                android:layout_width="170dp"
+                android:layout_height="120dp"
+                android:background="@drawable/am_detail_cover_bg"
+                android:scaleType="fitCenter"
+                android:padding="6dp"
+                android:contentDescription="@string/am_pick_running" />
+
+            <TextView
+                android:id="@+id/am_pick_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_on_accent"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/am_pick_running"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textSize="11sp"
+                android:textColor="@color/am_online"
+                android:text="@string/am_pick_running"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/am_pick_actions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/am_pick_play"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_pick_play"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_on_accent"
+                    android:background="@drawable/am_pill_soft_sel"
+                    android:paddingStart="18dp"
+                    android:paddingLeft="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingRight="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp" />
+
+                <TextView
+                    android:id="@+id/am_pick_resume"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_pick_resume"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_on_accent"
+                    android:background="@drawable/am_pill_soft_sel"
+                    android:paddingStart="18dp"
+                    android:paddingLeft="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingRight="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/am_pick_stop"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_pick_stop"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_offline"
+                    android:background="@drawable/am_btn_danger_sel"
+                    android:paddingStart="18dp"
+                    android:paddingLeft="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingRight="18dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Footer keycaps: S Settings / Esc Hosts (render parity with hosts screen) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="10dp">
+
+
+        <TextView
+            android:id="@+id/am_pick_kb_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_key_s"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_on_accent"
+            android:background="@drawable/am_pill_soft_sel"
+            android:paddingStart="9dp"
+            android:paddingLeft="9dp"
+            android:paddingEnd="9dp"
+            android:paddingRight="9dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/am_pick_key_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginLeft="6dp"
+            android:layout_marginEnd="14dp"
+            android:layout_marginRight="14dp"
+            android:text="@string/am_pick_settings"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary" />
+
+
+        <TextView
+            android:id="@+id/am_pick_kb_hosts"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_key_esc"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_on_accent"
+            android:background="@drawable/am_pill_soft_sel"
+            android:paddingStart="9dp"
+            android:paddingLeft="9dp"
+            android:paddingEnd="9dp"
+            android:paddingRight="9dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/am_pick_key_hosts"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginLeft="6dp"
+            android:text="@string/am_pick_hosts"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary" />
+    </LinearLayout>
+
+</LinearLayout>

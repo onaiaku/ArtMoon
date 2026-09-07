@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ArtMoon app list screen, LANDSCAPE: header row on top (host name + back),
+    library rows below. Same structure as portrait, tuned spacing for TV.
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/am_ground"
+    tools:context=".AppView" >
+
+    <LinearLayout
+        android:id="@+id/am_app_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical"
+        android:gravity="start"
+        android:paddingStart="20dp"
+        android:paddingLeft="20dp"
+        android:paddingEnd="20dp"
+        android:paddingRight="20dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/appListText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:preferKeepClear="true"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.08"
+            android:textAllCaps="true"
+            android:textColor="@color/am_text_primary" />
+
+        <ImageButton
+            android:id="@+id/am_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/am_pill_soft"
+            android:scaleType="fitCenter"
+            android:padding="10dp"
+            android:src="@drawable/ic_arrow_back"
+            android:contentDescription="@string/am_back" />
+        </LinearLayout>
+            <!-- Spec chips (desktop/hero parity): res / FPS / bitrate / codec / audio -->
+        <LinearLayout
+            android:id="@+id/am_pick_specs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/am_pick_spec_res"
+                style="@style/AmSpecChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/am_pick_spec_fps"
+                style="@style/AmSpecChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/am_pick_spec_bitrate"
+                style="@style/AmSpecChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/am_pick_spec_codec"
+                style="@style/AmSpecChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/am_pick_spec_audio"
+                style="@style/AmSpecChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+</LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/appFragmentContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@+id/am_app_header"/>
+
+</RelativeLayout>

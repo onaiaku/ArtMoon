@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ArtMoon host screen. Desktop port: theArtMoon wordmark header on the ground
+    colour, toolbar actions as soft-accent circular buttons, grid on the dark ground.
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/am_ground"
+    tools:context=".PcView" >
+
+        <ImageView
+        android:id="@+id/am_logo"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:src="@drawable/am_brand"
+        android:scaleType="fitCenter"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
+        android:layout_marginStart="16dp"
+        android:layout_marginLeft="16dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/am_logo_dot" />
+
+<TextView
+        android:id="@+id/am_wordmark"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/am_logo"
+        android:layout_toRightOf="@id/am_logo"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="14dp"
+        android:text="@string/am_wordmark"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.12"
+        android:textAllCaps="true"
+        android:textColor="@color/am_text_primary" />
+
+    <TextView
+        android:id="@+id/am_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/am_wordmark"
+        android:layout_toEndOf="@id/am_logo"
+        android:layout_toRightOf="@id/am_logo"
+        android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="2dp"
+        android:text="@string/am_tagline"
+        android:textSize="12sp"
+        android:letterSpacing="0.08"
+        android:textAllCaps="true"
+        android:textColor="@color/am_text_secondary" />
+
+    <!-- Host picker row (portrait): PgUp / selected host / + Add a host / PgDn -->
+    <LinearLayout
+        android:id="@+id/am_picker_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/am_subtitle"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingLeft="12dp"
+        android:paddingEnd="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/am_pg_up"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="PgUp"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_picker_pill_sel"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp" />
+
+        <TextView
+            android:id="@+id/am_picker_host_pill"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_picker_pill_sel"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/manuallyAddPcText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_picker_add"
+            android:textSize="12sp"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_picker_pill_sel"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/am_pg_dn"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="PgDn"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_picker_pill_sel"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp" />
+    </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/pcFragmentContainer"
+        android:layout_width="fill_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:layout_below="@+id/am_picker_row"
+        android:layout_above="@+id/am_footer" >
+
+        <RelativeLayout
+            android:id="@+id/no_pc_found_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="@dimen/activity_horizontal_margin"
+            android:paddingRight="@dimen/activity_horizontal_margin"
+            android:layout_centerInParent="true">
+            <ProgressBar
+                android:id="@+id/pcs_loading"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:indeterminate="true"
+                android:indeterminateTint="@color/am_accent" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toRightOf="@+id/pcs_loading"
+                android:layout_toEndOf="@+id/pcs_loading"
+                android:layout_marginLeft="12dp"
+                android:layout_marginStart="12dp"
+                android:layout_centerVertical="true"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:textColor="@color/am_text_secondary"
+                android:text="@string/searching_pc"/>
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+    <!-- Footer keycaps (portrait): P Shutdown / S Settings / Esc Exit -->
+    <LinearLayout
+        android:id="@+id/am_footer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingTop="6dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/am_footer_kb_shutdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_key_p"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_on_accent"
+            android:background="@drawable/am_footer_key"
+            android:paddingStart="9dp"
+            android:paddingLeft="9dp"
+            android:paddingEnd="9dp"
+            android:paddingRight="9dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/am_footer_shutdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_shutdown"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_footer_key"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp" />
+
+        <TextView
+            android:id="@+id/am_footer_kb_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_key_s"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_on_accent"
+            android:background="@drawable/am_footer_key"
+            android:paddingStart="9dp"
+            android:paddingLeft="9dp"
+            android:paddingEnd="9dp"
+            android:paddingRight="9dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/am_footer_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_settings"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_footer_key"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp" />
+
+        <TextView
+            android:id="@+id/am_footer_kb_exit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_key_esc"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/am_on_accent"
+            android:background="@drawable/am_footer_key"
+            android:paddingStart="9dp"
+            android:paddingLeft="9dp"
+            android:paddingEnd="9dp"
+            android:paddingRight="9dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/am_footer_exit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/am_footer_exit"
+            android:textSize="11sp"
+            android:textColor="@color/am_text_secondary"
+            android:background="@drawable/am_footer_key"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp" />
+    </LinearLayout>
+
+</RelativeLayout>
