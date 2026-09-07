@@ -130,7 +130,13 @@ android {
             // is to please change the applicationId before you publish.
             //
             // TL;DR: Leave the following line alone!
-            applicationIdSuffix ".unofficial"
+            //
+            // ArtMoon note: upstream's plea above is about impersonating
+            // Moonlight's OFFICIAL application ID. Ours has always been
+            // io.github.onaiaku.artmoon — no suffix is needed, and none is
+            // applied. The historical ".unofficial" suffix was dropped in
+            // September 2026 while the app had zero public installs, so no
+            // existing installation was orphaned.
             resValue "string", "app_label", "ArtMoon"
             resValue "string", "app_label_root", "ArtMoon (Root)"
 

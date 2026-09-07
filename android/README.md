@@ -27,6 +27,11 @@ Local: `cd android && ./gradlew assembleNonRootRelease`
 
 ## License note
 
-The `.unofficial` applicationId suffix STAYS as long as this app contains
-Moonlight code — this is the license-holder's plea and applies regardless of
-which repository hosts the app.
+The `.unofficial` applicationId suffix was removed in September 2026, while the
+app had zero public installs (one test device), so no existing installation was
+orphaned by the ID change. Rationale: the suffix was upstream's mechanism for
+keeping unofficial builds distinct from Moonlight's OFFICIAL application ID.
+ArtMoon never uses Moonlight's application ID — its ID is
+`io.github.onaiaku.artmoon` — and carries no Moonlight branding (name, icons or
+logos), so the concern the suffix addressed does not apply. The code itself
+remains GPL-3.0 with full upstream credit.
