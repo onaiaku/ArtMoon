@@ -109,7 +109,7 @@ curl -fsSL https://raw.githubusercontent.com/onaiaku/ArtMoon/main/install.sh | b
 
 The script installs the AppImage to `/usr/local/bin`, adds a desktop entry, and doubles as the updater — run it again to update.
 
-**Android** — download `ArtMoon-<version>-android.apk` from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and sideload it (Android will ask you to allow installs from that source — one toggle, then it installs like any app).
+**Android** — (Phone/Tablet/TV) — download `ArtMoon-<version>-android.apk` from the [**Releases page**](https://github.com/onaiaku/ArtMoon/releases/latest) and sideload it (Android will ask you to allow installs from that source — one toggle, then it installs like any app).
 
 ## 🏗️ Architecture
 
