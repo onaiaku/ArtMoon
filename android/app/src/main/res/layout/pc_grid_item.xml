@@ -241,6 +241,7 @@
                     android:focusableInTouchMode="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+            android:minHeight="48dp"
                     android:text="@string/am_action_open"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -248,8 +249,8 @@
                     android:background="@drawable/am_pill_accent_sel"
                     android:paddingStart="18dp"
                     android:paddingEnd="18dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
                     android:layout_marginEnd="8dp" />
 
                 <TextView
@@ -258,6 +259,7 @@
                     android:focusableInTouchMode="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+            android:minHeight="48dp"
                     android:text="@string/am_action_options"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -265,8 +267,8 @@
                     android:background="@drawable/am_pill_soft_sel"
                     android:paddingStart="18dp"
                     android:paddingEnd="18dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp" />
             </LinearLayout>
         </LinearLayout>
 

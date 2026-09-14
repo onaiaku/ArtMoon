@@ -24,6 +24,7 @@
             android:id="@+id/am_settings_back"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:minHeight="48dp"
             android:background="@drawable/am_pill_soft"
             android:scaleType="fitCenter"
             android:padding="10dp"

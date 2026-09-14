@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    ArtMoon app picker, LANDSCAPE — master-detail (approved render,
+    ArtMoon app picker, LANDSCAPE small-icon mode — same master-detail (approved render,
     artmoon-android-app-picker.html, from Nik's screenshot 2026-09-05):
     master list left (icon, bold name, store subtext, selected row glow),
     detail panel right (cover, big title, running state, action buttons).
