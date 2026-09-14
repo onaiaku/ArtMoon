@@ -104,6 +104,10 @@ public class StreamSettings extends Activity {
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
 
+        // Foldables: re-evaluate the orientation policy on every screen
+        // change (cover -> inner releases the portrait lock).
+        OrientationHelper.applyOrientation(this);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Display.Mode mode = getWindowManager().getDefaultDisplay().getMode();
 

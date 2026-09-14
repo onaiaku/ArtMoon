@@ -111,6 +111,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
 
+        // Foldables: re-evaluate the orientation policy on every screen
+        // change (cover -> inner releases the portrait lock).
+        OrientationHelper.applyOrientation(this);
+
         // Only reinitialize views if completeOnCreate() was called
         // before this callback. If it was not, completeOnCreate() will
         // handle initializing views with the config change accounted for.

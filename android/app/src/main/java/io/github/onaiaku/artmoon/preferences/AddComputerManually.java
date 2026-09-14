@@ -2,6 +2,8 @@ package io.github.onaiaku.artmoon.preferences;
 
 import io.github.onaiaku.artmoon.OrientationHelper;
 
+import android.content.res.Configuration;
+
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -309,6 +311,15 @@ public class AddComputerManually extends Activity {
         // Bind to the ComputerManager service
         bindService(new Intent(AddComputerManually.this,
                     ComputerManagerService.class), serviceConnection, Service.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        // Foldables: re-evaluate the orientation policy on every screen
+        // change (cover -> inner releases the portrait lock).
+        OrientationHelper.applyOrientation(this);
     }
 
     // Returns true if the event should be eaten

@@ -216,6 +216,10 @@ public class AppView extends io.github.onaiaku.artmoon.ArtMoonActivity implement
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
 
+        // Foldables: re-evaluate the orientation policy on every screen
+        // change (cover -> inner releases the portrait lock).
+        OrientationHelper.applyOrientation(this);
+
         // If appGridAdapter is initialized, let it know about the configuration change.
         // If not, it will pick it up when it initializes.
         if (appGridAdapter != null) {
