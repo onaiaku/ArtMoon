@@ -74,6 +74,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
             android:id="@+id/am_pg_up"
             android:clickable="true"
             android:focusable="true"
@@ -90,6 +91,8 @@
 
         <TextView
             android:id="@+id/am_picker_host_pill"
+            android:gravity="center"
+            android:minHeight="48dp"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
@@ -106,6 +109,8 @@
 
         <TextView
             android:id="@+id/manuallyAddPcText"
+            android:gravity="center"
+            android:minHeight="48dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_picker_add"
@@ -125,6 +130,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
             android:id="@+id/am_pg_dn"
             android:clickable="true"
             android:focusable="true"
