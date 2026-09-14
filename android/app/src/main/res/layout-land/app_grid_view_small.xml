@@ -35,7 +35,6 @@
             android:paddingTop="8dp"
             android:paddingBottom="4dp"
             android:focusable="true"
-            android:focusableInTouchMode="true"
             android:clipToPadding="false"
             android:gravity="fill_horizontal" />
 
@@ -97,10 +96,11 @@
                 <TextView
                     android:id="@+id/am_pick_play"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
+                   
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
                     android:text="@string/am_pick_play"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -118,10 +118,11 @@
                 <TextView
                     android:id="@+id/am_pick_resume"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
+                   
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
                     android:text="@string/am_pick_resume"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -140,10 +141,11 @@
                 <TextView
                     android:id="@+id/am_pick_stop"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
+                   
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
                     android:text="@string/am_pick_stop"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -176,6 +178,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
             android:text="@string/am_footer_key_s"
             android:textSize="11sp"
             android:textStyle="bold"
@@ -209,6 +212,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
             android:text="@string/am_footer_key_esc"
             android:textSize="11sp"
             android:textStyle="bold"

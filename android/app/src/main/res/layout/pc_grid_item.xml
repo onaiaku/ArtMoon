@@ -238,10 +238,11 @@
                 <TextView
                     android:id="@+id/am_action_open"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
+                   
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
                     android:text="@string/am_action_open"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -256,10 +257,11 @@
                 <TextView
                     android:id="@+id/am_action_options"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
+                   
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
             android:minHeight="48dp"
+            android:gravity="center"
                     android:text="@string/am_action_options"
                     android:textSize="13sp"
                     android:textStyle="bold"
