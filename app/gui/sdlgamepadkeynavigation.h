@@ -63,6 +63,11 @@ signals:
 private:
     void sendKey(QEvent::Type type, Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
+    // Re-send the key(s) a d-pad direction maps to, for the hold-repeat. Shares
+    // the button switch's mapping (including the uiNavMode Tab pair) so a held
+    // direction repeats exactly what its initial press did.
+    void sendDpadNavKeys(int button);
+
     void updateTimerState();
 
     void updateControllerType();
@@ -81,6 +86,15 @@ private:
     bool m_FirstPoll;
     bool m_HasFocus;
     Uint32 m_LastAxisNavigationEventTime;
+    // D-pad hold-repeat. SDL reports a held d-pad button as exactly ONE
+    // BUTTONDOWN with no repeats, unlike the analog stick which we poll
+    // ourselves — so holding a direction advanced the UI exactly once, while a
+    // held stick scrolled continuously. We track which directions are
+    // physically down and re-send their key on the same cadence as the stick.
+    //
+    // Bitmask of SDL_CONTROLLER_BUTTON_DPAD_* values, 0 when nothing is held.
+    Uint32 m_DpadHeld;
+    Uint32 m_LastDpadNavigationEventTime;
     // Triggers are edge-detected, not fed through the stick repeat timer above:
     // pulling LT/RT is one discrete "previous/next host", not a direction you hold.
     bool m_LeftTriggerDown;

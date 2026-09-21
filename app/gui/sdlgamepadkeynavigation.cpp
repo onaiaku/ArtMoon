@@ -31,6 +31,12 @@ static void slDbg(const QString& line)
 
 #define AXIS_NAVIGATION_REPEAT_DELAY 150
 
+// Bit for a SDL_CONTROLLER_BUTTON_DPAD_* value in m_DpadHeld.
+static inline Uint32 dpadBit(Uint8 button)
+{
+    return 1u << button;
+}
+
 SdlGamepadKeyNavigation::SdlGamepadKeyNavigation(StreamingPreferences* prefs)
     : m_Prefs(prefs),
       m_Enabled(false),
@@ -38,6 +44,8 @@ SdlGamepadKeyNavigation::SdlGamepadKeyNavigation(StreamingPreferences* prefs)
       m_FirstPoll(false),
       m_HasFocus(false),
       m_LastAxisNavigationEventTime(0),
+      m_DpadHeld(0),
+      m_LastDpadNavigationEventTime(0),
       m_LeftTriggerDown(false),
       m_RightTriggerDown(false),
       m_ControllerType(QStringLiteral("none")),
@@ -256,6 +264,10 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
     if (m_FirstPoll) {
         SDL_FlushEvent(SDL_CONTROLLERBUTTONDOWN);
         SDL_FlushEvent(SDL_CONTROLLERBUTTONUP);
+        // A direction that was already held when we started polling never gets
+        // an UP event (we just flushed it), and a stale bit would scroll the UI
+        // forever. Same reason the events are flushed at all.
+        m_DpadHeld = 0;
         m_FirstPoll = false;
     }
 
@@ -307,6 +319,27 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
                     event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
                     break;
                 }
+            }
+
+            // Track held d-pad directions for the hold-repeat in the polling
+            // section below. Stamping the time on the way down is what makes the
+            // first repeat land one delay AFTER this initial press, instead of
+            // stacking a second step on top of it.
+            switch (event.cbutton.button) {
+            case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+            case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                if (type == QEvent::Type::KeyPress) {
+                    m_DpadHeld |= dpadBit(event.cbutton.button);
+                    m_LastDpadNavigationEventTime = SDL_GetTicks();
+                }
+                else {
+                    m_DpadHeld &= ~dpadBit(event.cbutton.button);
+                }
+                break;
+            default:
+                break;
             }
 
             switch (event.cbutton.button) {
@@ -400,6 +433,33 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
         }
     }
 
+    // Hold-repeat for the d-pad. Runs on the same 50 ms timer and the same
+    // 150 ms cadence as the stick below, so a held direction scrolls the app
+    // list at exactly the rate a held stick does — which is the behaviour the
+    // stick already had and the d-pad did not.
+    //
+    // Vertical wins when two directions are held at once (a d-pad rocker can
+    // report up+left while rolling): one step per tick, in one direction, which
+    // is what a list wants — a diagonal would move the selection twice per
+    // repeat and skip an entry.
+    if (m_DpadHeld != 0
+        && SDL_GetTicks() - m_LastDpadNavigationEventTime >= AXIS_NAVIGATION_REPEAT_DELAY) {
+        if (m_DpadHeld & dpadBit(SDL_CONTROLLER_BUTTON_DPAD_UP)) {
+            sendDpadNavKeys(SDL_CONTROLLER_BUTTON_DPAD_UP);
+        }
+        else if (m_DpadHeld & dpadBit(SDL_CONTROLLER_BUTTON_DPAD_DOWN)) {
+            sendDpadNavKeys(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+        }
+        else if (m_DpadHeld & dpadBit(SDL_CONTROLLER_BUTTON_DPAD_LEFT)) {
+            sendDpadNavKeys(SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+        }
+        else if (m_DpadHeld & dpadBit(SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) {
+            sendDpadNavKeys(SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+        }
+
+        m_LastDpadNavigationEventTime = SDL_GetTicks();
+    }
+
     // Handle analog sticks by polling
     for (auto gc : std::as_const(m_Gamepads)) {
         short leftX = SDL_GameControllerGetAxis(gc, SDL_CONTROLLER_AXIS_LEFTX);
@@ -471,6 +531,45 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
         else if (m_RightTriggerDown && rightTrigger < 8000) {
             m_RightTriggerDown = false;
         }
+    }
+}
+
+void SdlGamepadKeyNavigation::sendDpadNavKeys(int button)
+{
+    // Mirrors the d-pad arms of the button switch above, deliberately: a held
+    // direction must repeat whatever its initial press sent, including the
+    // uiNavMode Tab pair used for back/forward navigation in Settings.
+    switch (button) {
+    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+        if (m_UiNavMode) {
+            sendKey(QEvent::Type::KeyPress, Qt::Key_Tab, Qt::ShiftModifier);
+            sendKey(QEvent::Type::KeyRelease, Qt::Key_Tab, Qt::ShiftModifier);
+        }
+        else {
+            sendKey(QEvent::Type::KeyPress, Qt::Key_Up);
+            sendKey(QEvent::Type::KeyRelease, Qt::Key_Up);
+        }
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+        if (m_UiNavMode) {
+            sendKey(QEvent::Type::KeyPress, Qt::Key_Tab);
+            sendKey(QEvent::Type::KeyRelease, Qt::Key_Tab);
+        }
+        else {
+            sendKey(QEvent::Type::KeyPress, Qt::Key_Down);
+            sendKey(QEvent::Type::KeyRelease, Qt::Key_Down);
+        }
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+        sendKey(QEvent::Type::KeyPress, Qt::Key_Left);
+        sendKey(QEvent::Type::KeyRelease, Qt::Key_Left);
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+        sendKey(QEvent::Type::KeyPress, Qt::Key_Right);
+        sendKey(QEvent::Type::KeyRelease, Qt::Key_Right);
+        break;
+    default:
+        break;
     }
 }
 
