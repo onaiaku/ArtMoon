@@ -5,6 +5,37 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+Version 1.2.5 (21/09/2026)
+--------------------------------------
+
+New:
+
+• Linux: an on-screen keyboard for handhelds. The Qt Virtual Keyboard is
+  now bundled into the AppImage and renders inside ArtMoon's own window,
+  which is the only form that can be relied on fullscreen under gamescope
+  on a Steam Deck, where a second top-level window has no window manager
+  to place it. It is claimed only when nothing else in the environment
+  signals an input method (QT_IM_MODULE, GTK_IM_MODULE, XMODIFIERS and
+  INPUT_METHOD all unset), so an existing ibus or fcitx setup is never
+  taken away. The AppImage build now fails hard if the keyboard module or
+  its platform plugin is missing, rather than quietly shipping without it.
+
+Fixed:
+
+• Resolution: the Settings screen no longer loses a custom value, and the
+  native panel is offered as an option instead of overriding the
+  configured resolution on its own.
+
+• Gamepad: the D-pad now repeats while held, the same as the analog stick,
+  so walking through menus no longer needs one press per step.
+
+• CI: Android APK builds had failed on every push since 2026-09-14,
+  before compiling a single line. android-actions/setup-android@v3 asks
+  the SDK for the legacy 'tools' package, which Google has removed from
+  the repository; the workflow now uses v4, whose default package set is
+  platform-tools, and the APK builds, signs and uploads again.
+
+--------------------------------------
 Version 1.2.0 (04/09/2026)
 --------------------------------------
 
