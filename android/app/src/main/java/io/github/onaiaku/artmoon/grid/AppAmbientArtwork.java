@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 
@@ -18,17 +19,19 @@ import java.util.HashMap;
 
 /**
  * Ambient backdrop for the app picker (desktop CoverAmbient parity): fetches the
- * focused app's cover art from the host (/appasset — the same art the rows use),
- * downscales it, blurs it (RenderScript) and paints it behind the whole picker,
- * crossfading as the selection moves. Results are cached by app id so roaming
- * the list stays instant after the first pass. If RenderScript is unavailable
- * (API 31+ devices), it falls back to the sharp art — the veil still gives the
- * cover depth. Landscape picker only; the layouts carry the view, this is inert
- * where the view is absent.
+ * focused app's cover art from the host (/appasset - each app's own box art),
+ * shrinks it hard (128px wide) and lets the picker's ImageView upsample it with
+ * filtering - a cheap, dependency-free soft blur that reads right on a big screen.
+
+ * The veil drawn over it in the layout does the rest of the depth. Results are
+ * cached by app id, so roaming the list stays instant after the first pass. If a
+ * fetch fails, the backdrop stays hidden - never broken art. Landscape picker
+ * only: the layouts carry the view; this is inert where the view is absent。
  */
 public class AppAmbientArtwork {
+
     private static final int MAX_CACHE = 8;
-    private static final float BLUR_RADIUS = 22f;
+    private static final int AMBIENT_WIDTH = 128;
 
     private final Context context;
     private final ComputerDetails computer;
@@ -44,7 +47,6 @@ public class AppAmbientArtwork {
         this.uniqueId = uniqueId;
     }
 
-    /** Paint the app's cover, blurred, into the picker's ambient layer. */
     public void show(final NvApp app, final ImageView view) {
         if (view == null || app == null) return;
         final int appId = app.getAppId();
@@ -56,7 +58,6 @@ public class AppAmbientArtwork {
             return;
         }
 
-        // Only one load per app at a time;further requests wait for the current one.
         Boolean prev = inFlight.put(appId, Boolean.TRUE);
         if (prev != null) return;
 
@@ -70,10 +71,8 @@ public class AppAmbientArtwork {
                 }
                 cache.put(appId, bmp);
                 if (cache.size() > MAX_CACHE) cache.clear();
-                // A newer selection may have landed while we fetched: cache the art but
-                // do not paint a stale cover over the current selection.
-
                 if (currentAppId != appId) {
+
                     inFlight.remove(appId);
                     return;
                 }
@@ -91,33 +90,24 @@ public class AppAmbientArtwork {
     }
 
     private void apply(ImageView view, Bitmap bmp) {
-        if (view.getVisibility() != View.VISIBLE) {
-
-
-
-view.setVisibility(View.VISIBLE);
-        }
+        if (view.getVisibility() != View.VISIBLE) view.setVisibility(View.VISIBLE);
         view.setImageBitmap(bmp);
-        view.setAlpha(0f);
-        view.animate().alpha(1f).setDuration(220).setInterpolator(new DecelerateInterpolator()).start();
+        view.setAlpha(1f);
+        AlphaAnimation fade = new AlphaAnimation(0f, 1f);
+        fade.setDuration(220);
+        fade.setInterpolator(new DecelerateInterpolator());
+        view.startAnimation(fade);
     }
 
     private Bitmap load(NvApp app) {
-
-InputStream in = null;
+        InputStream in = null;
         try {
             NvHTTP http = new NvHTTP(ServerHelper.getCurrentAddressFromComputer(computer),
                     computer.httpsPort, uniqueId, computer.serverCert,
                     PlatformBinding.getCryptoProvider(context));
             in = http.getBoxArt(app);
             if (in == null) return null;
-
-            Bitmap bmp = decodeDownscaled(in);
-            if (bmp == null) return null;
-            Bitmap blurred = blur(bmp, bmp);
-            if (blurred != bmp) bmp.recycle();
-            return blurred;
-
+            return decodeSoft(in);
         } catch (Exception e) {
             return null;
         } finally {
@@ -127,37 +117,18 @@ InputStream in = null;
         }
     }
 
-    /** Decode with a coarse sample so the blur pass operates on a small canvas. */
-    private Bitmap decodeDownscaled(InputStream in) {
-        BitmapFactory.Options opts = new BitmapFactory.Options();
-        opts.inSampleSize = 2;
-        return BitmapFactory.decodeStream(in, null, opts);
-    }
+    private Bitmap decodeSoft(InputStream in) {
+        Bitmap bmp = BitmapFactory.decodeStream(in, null);
+        if (bmp == null) return null;
+        int w = bmp.getWidth();
+        int h = bmp.getHeight();
 
-    /** RenderScript blur; falls back to the sharp bitmap on any failure. */
-    private Bitmap blur(Bitmap in, Bitmap fallback) {
+        if (w <= AMBIENT_WIDTH) return bmp;
 
-
-
-try {
-            android.renderscript.RenderScript rs = android.renderscript.RenderScript.create(context);
-            android.renderscript.Allocation input = android.renderscript.Allocation.createFromBitmap(rs, in);
-            android.renderscript.Allocation output = android.renderscript.Allocation.createTyped(rs, input.getType());
-            android.renderscript.ScriptIntrinsicBlur sb = android.renderscript.ScriptIntrinsicBlur.create(rs, android.renderscript.Element.U8_4(rs));
-            sb.setRadius(BLUR_RADIUS);
-            sb.setInput(input);
-            sb.forEach(output);
-            Bitmap out = Bitmap.createBitmap(in.getWidth(, in.getHeight(, in.getConfig() != null ? in.getConfig() : Bitmap.Config.ARGB_8888);
-            output.copyTo(out);
-            sb.destroy();
-            input.destroy();
-            output.destroy();
-            rs.destroy();
-            return out;
-
-        } catch (Throwable t) {
-            return fallback;
-
-        }
+        int nw = AMBIENT_WIDTH;
+        int nh = Math.max(1, Math.round((float) h * AMBIENT_WIDTH / w));
+        Bitmap small = Bitmap.createScaledBitmap(bmp, nw, nh, true);
+        bmp.recycle();
+        return small;
     }
 }
