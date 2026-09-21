@@ -4,6 +4,7 @@
 #include "nvhttp.h"
 #include "nvpairingmanager.h"
 #include "../settings/appsettings.h"
+#include "../settings/appliststate.h"
 
 #include <Limelight.h>
 #include <QtEndian>
@@ -632,6 +633,7 @@ public:
         if (!orphanedUuid.isEmpty()) {
             HostProfileManager::get()->forgetHost(orphanedUuid);
             AppSettingsManager::get()->forgetHost(orphanedUuid);
+            AppListStateManager::get()->forgetHost(orphanedUuid);
         }
 
         // Finally, delete the computer itself. This must be done

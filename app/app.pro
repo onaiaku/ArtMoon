@@ -191,6 +191,7 @@ SOURCES += \
     settings/inputhints.cpp \
     settings/streamingpreferences.cpp \
     settings/appsettings.cpp \
+    settings/appliststate.cpp \
     settings/shortcutmanager.cpp \
     streaming/input/abstouch.cpp \
     streaming/input/gamepad.cpp \
@@ -255,6 +256,7 @@ HEADERS += \
     settings/inputhints.h \
     settings/streamingpreferences.h \
     settings/appsettings.h \
+    settings/appliststate.h \
     settings/shortcutmanager.h \
     streaming/input/input.h \
     streaming/session.h \

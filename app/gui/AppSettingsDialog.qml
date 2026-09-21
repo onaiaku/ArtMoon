@@ -225,6 +225,12 @@ Popup {
         _bitrateOverridden = (ov.bitrate !== undefined && ov.bitrate >= bitrateSlider.from)
         bitrateSlider.value = _bitrateOverridden ? ov.bitrate
                             : Math.max(bitrateSlider.from, StreamingPreferences.bitrateKbps)
+
+        // Not part of `ov`: a pin is library state, not a streaming override, and it is read
+        // from its own store (see AppListStateManager). Every other control here answers
+        // "how does this game stream", and this one answers "where does it sit in the list" —
+        // which is also why Reset to Global leaves it alone.
+        favSel.currentIndex = appModel.isAppFavorite(appIndex) ? 1 : 0
     }
 
     function saveToModel() {
@@ -410,6 +416,37 @@ Popup {
                     }
                 }
 
+                /*
+                 * Pin, first in the list and first in the tab order.
+                 *
+                 * The only row here that is not a streaming setting, and the only one with no
+                 * "Global" pill: a favourite is a fact about the library, not a quality the
+                 * global settings or a host profile could hold an opinion about, so there is
+                 * nothing above it to inherit. It says what it does in a second line, because
+                 * "Favorite" on its own does not tell you it moves the game up the list —
+                 * and a switch whose effect you cannot see is one you do not touch.
+                 *
+                 * ⚠️ Writes straight to the model instead of going through saveToModel(): that
+                 * function rebuilds the whole override map from the controls below, and a pin
+                 * is not one of its keys. Reset to Global goes through clearAppOverride and
+                 * likewise leaves this row where it is.
+                 */
+                SettingRow {
+                    label: qsTr("Favorite")
+                    detail: qsTr("Pins this game to the top of the list, above the rest of the library")
+                    SegmentedSelector {
+                        id: favSel
+                        labels: [qsTr("Off"), qsTr("On")]
+                        KeyNavigation.up: doneBtn
+                        KeyNavigation.down: resSel
+                        onActivated: {
+                            if (dlg.appModel && dlg.appIndex >= 0) {
+                                dlg.appModel.setAppFavorite(dlg.appIndex, favSel.currentIndex === 1)
+                            }
+                        }
+                    }
+                }
+
                 SettingRow {
                     label: qsTr("Resolution")
                     Row {
@@ -417,7 +454,7 @@ Popup {
                         SegmentedSelector {
                             id: resSel; labels: dlg._resLabels
                             hiddenIndices: dlg._dupIndices(dlg._resLabels, "resolution", currentIndex)
-                            KeyNavigation.up: doneBtn
+                            KeyNavigation.up: favSel
                             KeyNavigation.down: resCustomBtn
                             KeyNavigation.right: resCustomBtn
                             // Selecting inherit or a preset clears any custom override.

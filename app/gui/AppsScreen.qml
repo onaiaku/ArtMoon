@@ -1088,6 +1088,39 @@ FocusScope {
 
         model: appModel
 
+        /*
+         * ── The shelves (5.5.0) ──────────────────────────────────────────────
+         *
+         * The list arrives already ordered by AppModel: recently played at the top, then what
+         * the user pinned by hand, then the library itself. Those captions are section
+         * headers and not rows of the model, because a header is not a game — there is
+         * nothing to do to it, and it must never be somewhere the pad can stop. ListView
+         * keeps section delegates outside the model's index range, so Up/Down walk straight
+         * past them: no extra handling in the key code, which is why it is done this way.
+         */
+        section.property: "section"
+        // The default criteria (ViewSection.FullString) is the one wanted — any change of
+        // section string is a new shelf — and is left unset rather than spelled out, because
+        // a misspelled enum in a delegate is a whole screen that fails to load.
+        section.delegate: Label {
+            // The tail of the list has no caption, and ⚠️ its height has to collapse with it:
+            // an empty header still occupies its row, which would open a gap in the middle of
+            // the library exactly where the shelves end.
+            width: appGrid.width
+            height: text.length > 0 ? appsRoot._px(34) : 0
+            text: section === "recent"    ? qsTr("RECENTLY PLAYED")
+                : section === "favorites" ? qsTr("FAVORITES")
+                : ""
+
+            // The page's rail caption, in miniature: same size, same tracking.
+            color: Theme.text3
+            font.family: Theme.family
+            font.pixelSize: appsRoot._px(13)
+            font.letterSpacing: appsRoot._u * 1.6
+            verticalAlignment: Text.AlignBottom
+            bottomPadding: appGrid._px(8)
+        }
+
         delegate: NavigableItemDelegate {
             id: appDelegate
             width: appGrid.width
@@ -1183,12 +1216,19 @@ FocusScope {
 
                     Label {
                         property string store: appGrid.storeMap[model.name] || ""
+                        // "pinned" is shown only where the pin is the reason for the row being
+                        // this high up: inside the FAVORITES shelf every row is pinned by
+                        // definition, so repeating it there says nothing. Above the shelf —
+                        // an app that is both pinned and recently played — it is the only
+                        // thing explaining why a game that was not just played sits that high.
+                        property bool showPin: model.favorite && model.section !== "favorites"
                         width: parent.width
-                        visible: store.length > 0 || model.overridden
+                        visible: store.length > 0 || model.overridden || showPin
                         text: {
                             var parts = []
                             if (store.length > 0)   parts.push(store)
                             if (model.overridden)   parts.push(qsTr("custom settings"))
+                            if (showPin)            parts.push(qsTr("pinned"))
                             return parts.join("  ·  ")
                         }
                         color: Theme.text3
@@ -1383,6 +1423,12 @@ FocusScope {
 
     AppSettingsDialog {
         id: appSettingsDialog
-        onClosedByUser: appsRoot.focusLibrary()
+        // The shelf reorder waits for the dialog to close: it addresses the model by index,
+        // so rows must not move under it. This is where nothing is addressing it by position
+        // any more.
+        onClosedByUser: {
+            if (appGrid && appGrid.appModel) appGrid.appModel.applyShelfOrder()
+            appsRoot.focusLibrary()
+        }
     }
 }
