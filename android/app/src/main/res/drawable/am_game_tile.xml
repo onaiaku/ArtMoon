@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Fallback tile for a last-session game with no cover: the desktop draws a
+    rounded, faintly-lit rectangle carrying the game name (HostStage.qml).
+    Mirrors that: 16% white fill + thin line border, drawn by the layout --
+    the ImageView with a real cover simply covers this background entirely.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#18FFFFFF" />
+    <corners android:radius="6dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#33FFFFFF" />
+</shape>

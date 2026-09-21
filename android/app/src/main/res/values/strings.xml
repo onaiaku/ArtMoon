@@ -378,6 +378,7 @@
     <string name="am_action_pair">Pair</string>
     <string name="am_action_options">Options</string>
     <string name="am_stat_rtt">RTT</string>
+    <string name="am_stat_peak">peak</string>
     <string name="am_stat_gpu">GPU</string>
     <string name="am_stat_net">NET</string>
     <string name="am_stat_hostlat">Host lat.</string>

@@ -122,9 +122,13 @@ public class HostMetricsPoller {
                                 snap == null ? null : snap.ago,
                                 snap == null ? null : snap.duration,
                                 snap == null ? null : snap.grade,
+                                snap == null ? null : snap.gradeColor,
                                 snap == null ? -1 : snap.rttMs,
+                                snap == null ? -1 : snap.rttPeakMs,
                                 snap == null ? -1 : snap.hostLatMs,
-                                snap == null ? -1 : snap.dropsPct);
+                                snap == null ? -1 : snap.dropsPct,
+                                snap == null ? 0 : snap.gamesTotal,
+                                snap == null ? null : snap.games);
                     }
                 });
             }
@@ -178,8 +182,13 @@ public class HostMetricsPoller {
 
     /**
      * Desktop ComputerModel::requestLastSession reply mapping:
-     * has/ago/duration/grade/rtt_ms/host_latency_ms/drops_pct. A -1 means
-     * the host never measured it and renders as \u2014 — never folded to 0.
+     * has/ago/duration/grade/grade_color/rtt_ms/rtt_peak_ms/host_latency_ms/
+     * drops_pct/games_total/games[]. A -1 means the host never measured it and
+     * renders as — — never folded to 0. games[].cover is the host's inline
+     * thumbnail (base64 PNG "iVBORw0KGgo…" or JPEG "/9j/…"), empty when the
+     * host carries none. The desktop prefers its own cached 600x900 art by
+     * name; Android keeps no per-host art cache, so the host's inline
+     * thumbnail is the parity path here.
      */
     private static LastSessionSnapshot parseLastSession(String json) {
         if (json == null || json.isEmpty() || json.startsWith("ERR")
@@ -191,13 +200,29 @@ public class HostMetricsPoller {
             if (!o.optBoolean("has", false)) {
                 return null;
             }
+            java.util.List<GameCover> games = new java.util.ArrayList<>();
+            org.json.JSONArray arr = o.optJSONArray("games");
+            if (arr != null) {
+                for (int i = 0; i < arr.length(); i++) {
+                    org.json.JSONObject g = arr.optJSONObject(i);
+                    if (g == null) {
+                        continue;
+                    }
+                    games.add(new GameCover(g.optString("name", ""),
+                                            g.optString("cover", "")));
+                }
+            }
             return new LastSessionSnapshot(
                     o.optString("ago", ""),
                     o.optString("duration", ""),
                     o.optBoolean("has_grade", false) ? o.optString("grade", "") : "",
+                    o.optString("grade_color", ""),
                     o.optInt("rtt_ms", -1),
+                    o.optInt("rtt_peak_ms", -1),
                     o.optInt("host_latency_ms", -1),
-                    o.optDouble("drops_pct", -1));
+                    o.optDouble("drops_pct", -1),
+                    o.optInt("games_total", 0),
+                    games);
         } catch (Exception e) {
             LimeLog.info("HostMetricsPoller: lastsession parse failed: " + e.getMessage());
             return null;
@@ -209,18 +234,39 @@ public class HostMetricsPoller {
         final String ago;
         final String duration;
         final String grade;
+        final String gradeColor;
         final int rttMs;
+        final int rttPeakMs;
         final int hostLatMs;
         final double dropsPct;
+        final int gamesTotal;
+        final java.util.List<GameCover> games;
 
         LastSessionSnapshot(String ago, String duration, String grade,
-                            int rttMs, int hostLatMs, double dropsPct) {
+                            String gradeColor, int rttMs, int rttPeakMs,
+                            int hostLatMs, double dropsPct, int gamesTotal,
+                            java.util.List<GameCover> games) {
             this.ago = ago;
             this.duration = duration;
             this.grade = grade;
+            this.gradeColor = gradeColor;
             this.rttMs = rttMs;
+            this.rttPeakMs = rttPeakMs;
             this.hostLatMs = hostLatMs;
             this.dropsPct = dropsPct;
+            this.gamesTotal = gamesTotal;
+            this.games = games;
+        }
+    }
+
+    /** One game credited in the last session: name + host inline cover (base64). */
+    public static final class GameCover {
+        public final String name;
+        public final String cover;
+
+        GameCover(String name, String cover) {
+            this.name = name;
+            this.cover = cover;
         }
     }
 }

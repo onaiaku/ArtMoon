@@ -2,8 +2,10 @@ package io.github.onaiaku.artmoon.grid;
 
 import android.content.Context;
 import io.github.onaiaku.artmoon.artlight.HostBackgroundManager;
+import io.github.onaiaku.artmoon.artlight.HostMetricsPoller.GameCover;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -154,42 +156,181 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     }
 
     /**
-     * v11: paint the card's LAST SESSION panel (desktop HostStage parity).
-     * snapshot == null hides the whole panel; a -1 metric renders as \u2014
-     * (never folded to 0); an empty grade hides the grade line.
-     */
-    public void updateLastSessionByUuid(String uuid, String ago, String duration,
-                                        String grade, int rttMs, int hostLatMs,
-                                        double dropsPct) {
-        View v = boundViews.get(uuid);
-        if (v == null) {
-            return;
+         * v11+: paint the card's LAST SESSION panel (desktop HostStage parity,
+         * extended for rtt_peak_ms / grade_color / the games cover strip).
+         * ago == null hides the whole panel; a -1 metric renders as \u2014
+         * (never folded to 0); an empty grade hides the grade line.
+         */
+        public void updateLastSessionByUuid(String uuid, String ago, String duration,
+                                            String grade, String gradeColor,
+                                            int rttMs, int rttPeakMs, int hostLatMs,
+                                            double dropsPct, int gamesTotal,
+                                            java.util.List<GameCover> games) {
+            View v = boundViews.get(uuid);
+            if (v == null) {
+                return;
+            }
+            View panel = v.findViewById(R.id.am_last_session);
+            if (panel == null) {
+                return;
+            }
+            if (ago == null) {
+                panel.setVisibility(View.GONE);
+                return;
+            }
+            bindText(v, R.id.am_last_session_when,
+                    duration == null || duration.isEmpty() ? ago : ago + " \u00b7 " + duration);
+            TextView gradeTv = v.findViewById(R.id.am_last_session_grade);
+            if (gradeTv != null) {
+                if (grade == null || grade.isEmpty()) {
+                    gradeTv.setVisibility(View.GONE);
+                } else {
+                    gradeTv.setVisibility(View.VISIBLE);
+                    gradeTv.setText(grade);
+                    // Desktop parity: the grade pill is the grade colour at 16%
+                    // alpha with the text in that colour (HostStage.qml).
+                    int color = parseColorHex(gradeColor);
+                    if (color == 0) {
+                        color = context.getResources().getColor(R.color.am_online);
+                    }
+                    gradeTv.setTextColor(color);
+                    android.graphics.drawable.GradientDrawable pill =
+                            new android.graphics.drawable.GradientDrawable();
+                    pill.setCornerRadius(dp(6));
+                    pill.setColor((color & 0x00FFFFFF) | 0x29000000); // 16% alpha
+                    gradeTv.setBackground(pill);
+                    gradeTv.setPadding(dp(12), dp(4), dp(12), dp(4));
+                }
+            }
+            bindText(v, R.id.am_last_session_rtt, rttMs < 0 ? "\u2014" : rttMs + " ms");
+            bindText(v, R.id.am_last_session_hostlat, hostLatMs < 0 ? "\u2014" : hostLatMs + " ms");
+            bindText(v, R.id.am_last_session_drops,
+                    dropsPct < 0 ? "\u2014" : String.format(java.util.Locale.US, "%.1f%%", dropsPct));
+
+            // RTT caption: "11 peak" when the host measured a peak, plain "RTT"
+            // when it never did — byte-for-byte the desktop's HostStage logic.
+            TextView rttCap = v.findViewById(R.id.am_last_session_rtt_caption);
+            if (rttCap != null) {
+                rttCap.setText(rttPeakMs < 0
+                        ? context.getString(R.string.am_stat_rtt)
+                        : rttPeakMs + " " + context.getString(R.string.am_stat_peak));
+            }
+
+            renderGameCovers(v, games, gamesTotal);
+
+            panel.setVisibility(View.VISIBLE);
         }
-        View panel = v.findViewById(R.id.am_last_session);
-        if (panel == null) {
-            return;
+
+        /** The desktop's "+N" rule: games_total can exceed the capped list the host sends. */
+        private void renderGameCovers(View v, java.util.List<GameCover> games, int gamesTotal) {
+            LinearLayout covers = v.findViewById(R.id.am_last_session_covers);
+            if (covers == null) {
+                return;
+            }
+            int shown = (games == null) ? 0 : Math.min(games.size(), 3);
+            if (shown == 0) {
+                covers.setVisibility(View.GONE);
+                return;
+            }
+            int[] tileIds = {
+                    R.id.am_last_session_cover0,
+                    R.id.am_last_session_cover1,
+                    R.id.am_last_session_cover2
+            };
+            int[] imgIds = {
+                    R.id.am_last_session_cover_img0,
+                    R.id.am_last_session_cover_img1,
+                    R.id.am_last_session_cover_img2
+            };
+            int[] nameIds = {
+                    R.id.am_last_session_cover_name0,
+                    R.id.am_last_session_cover_name1,
+                    R.id.am_last_session_cover_name2
+            };
+            for (int i = 0; i < 3; i++) {
+                View tile = v.findViewById(tileIds[i]);
+                if (tile == null) {
+                    continue;
+                }
+                ImageView img = v.findViewById(imgIds[i]);
+                TextView name = v.findViewById(nameIds[i]);
+                if (i < shown) {
+                    tile.setVisibility(View.VISIBLE);
+                    GameCover gc = games.get(i);
+                    android.graphics.Bitmap bmp = decodeCover(gc.cover);
+                    if (bmp != null && img != null) {
+                        img.setImageBitmap(bmp);
+                        img.setVisibility(View.VISIBLE);
+                        if (name != null) {
+                            name.setVisibility(View.GONE);
+                        }
+                    } else {
+                        if (img != null) {
+                            img.setVisibility(View.GONE);
+                        }
+                        if (name != null) {
+                            name.setText(gc.name);
+                            name.setVisibility(View.VISIBLE);
+                        }
+                    }
+                } else {
+                    tile.setVisibility(View.INVISIBLE);
+                }
+            }
+            TextView more = v.findViewById(R.id.am_last_session_more);
+            if (more != null) {
+                int extra = gamesTotal - shown;
+                if (extra > 0) {
+                    more.setText("+" + extra);
+                    more.setVisibility(View.VISIBLE);
+                } else {
+                    more.setVisibility(View.GONE);
+                }
+            }
+            covers.setVisibility(View.VISIBLE);
         }
-        if (ago == null) {
-            panel.setVisibility(View.GONE);
-            return;
-        }
-        bindText(v, R.id.am_last_session_when,
-                duration == null || duration.isEmpty() ? ago : ago + " · " + duration);
-        TextView gradeTv = v.findViewById(R.id.am_last_session_grade);
-        if (gradeTv != null) {
-            if (grade == null || grade.isEmpty()) {
-                gradeTv.setVisibility(View.GONE);
-            } else {
-                gradeTv.setText(grade);
-                gradeTv.setVisibility(View.VISIBLE);
+
+        /** Decodes a host inline cover (base64 PNG/JPEG); cached by payload so the
+         *  2-second poll does not re-decode the same thumbnails every cycle. */
+        private final java.util.HashMap<String, android.graphics.Bitmap> coverCache =
+                new java.util.HashMap<>();
+
+        private android.graphics.Bitmap decodeCover(String b64) {
+            if (b64 == null || b64.isEmpty()) {
+                return null;
+            }
+            android.graphics.Bitmap cached = coverCache.get(b64);
+            if (cached != null) {
+                return cached;
+            }
+            try {
+                byte[] raw = android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
+                android.graphics.Bitmap bmp =
+                        android.graphics.BitmapFactory.decodeByteArray(raw, 0, raw.length);
+                if (bmp != null) {
+                    coverCache.put(b64, bmp);
+                }
+                return bmp;
+            } catch (Exception e) {
+                return null;
             }
         }
-        bindText(v, R.id.am_last_session_rtt, rttMs < 0 ? "\u2014" : rttMs + " ms");
-        bindText(v, R.id.am_last_session_hostlat, hostLatMs < 0 ? "\u2014" : hostLatMs + " ms");
-        bindText(v, R.id.am_last_session_drops,
-                dropsPct < 0 ? "\u2014" : String.format(java.util.Locale.US, "%.1f%%", dropsPct));
-        panel.setVisibility(View.VISIBLE);
-    }
+
+        private int dp(float v) {
+            return Math.round(v * context.getResources().getDisplayMetrics().density);
+        }
+
+        /** "#RRGGBB" -> int; returns 0 when the string is not a colour. */
+        private static int parseColorHex(String s) {
+            if (s == null || s.isEmpty() || !s.startsWith("#")) {
+                return 0;
+            }
+            try {
+                return android.graphics.Color.parseColor(s);
+            } catch (IllegalArgumentException e) {
+                return 0;
+            }
+        }
 
     /**
      * v11: HOST LINK — the STATUS NIC-speed reply, desktop-formatted

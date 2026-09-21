@@ -339,6 +339,7 @@
                 android:gravity="end"
                 android:layout_marginEnd="16dp">
                 <TextView
+                    android:id="@+id/am_last_session_rtt_caption"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/am_stat_rtt"
@@ -402,6 +403,111 @@
                     android:textStyle="bold"
                     android:textColor="@color/am_text_primary" />
             </LinearLayout>
+        </LinearLayout>
+
+        <!-- Cover strip (desktop HostStage parity): up to 3 games credited in
+             the last session, each as the host's inline base64 cover with the
+             game name as fallback; "+N" from games_total when the host capped
+             the list. Hidden entirely when the session credited no games. -->
+        <LinearLayout
+            android:id="@+id/am_last_session_covers"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:visibility="gone">
+
+            <FrameLayout
+                android:id="@+id/am_last_session_cover0"
+                android:layout_width="48dp"
+                android:layout_height="72dp"
+                android:background="@drawable/am_game_tile"
+                android:layout_marginEnd="8dp">
+
+                <ImageView
+                    android:id="@+id/am_last_session_cover_img0"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@null"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/am_last_session_cover_name0"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:padding="4dp"
+                    android:textSize="9sp"
+                    android:textColor="@color/am_text_secondary"
+                    android:maxLines="3"
+                    android:ellipsize="end" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/am_last_session_cover1"
+                android:layout_width="48dp"
+                android:layout_height="72dp"
+                android:background="@drawable/am_game_tile"
+                android:layout_marginEnd="8dp">
+
+                <ImageView
+                    android:id="@+id/am_last_session_cover_img1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@null"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/am_last_session_cover_name1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:padding="4dp"
+                    android:textSize="9sp"
+                    android:textColor="@color/am_text_secondary"
+                    android:maxLines="3"
+                    android:ellipsize="end" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/am_last_session_cover2"
+                android:layout_width="48dp"
+                android:layout_height="72dp"
+                android:background="@drawable/am_game_tile"
+                android:layout_marginEnd="8dp">
+
+                <ImageView
+                    android:id="@+id/am_last_session_cover_img2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@null"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/am_last_session_cover_name2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:padding="4dp"
+                    android:textSize="9sp"
+                    android:textColor="@color/am_text_secondary"
+                    android:maxLines="3"
+                    android:ellipsize="end" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/am_last_session_more"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center|end"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text_secondary"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 
