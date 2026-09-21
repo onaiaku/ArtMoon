@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+Version 1.4.0 (21/09/2026)
+--------------------------------------
+
+New:
+
+- Android: the hero card's LAST SESSION panel matches the desktop - RTT peak
+  caption ("11 peak"), the grade pill in the host's own colour, and the covers
+  of the games the session credited (name-tile fallback when a host has no
+  cover, "+N" when more games were played than the card shows).
+
+--------------------------------------
 Version 1.3.0 (21/09/2026)
 --------------------------------------
 
