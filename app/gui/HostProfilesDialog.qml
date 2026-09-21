@@ -96,9 +96,12 @@ Popup {
     // ⚠️ One table per row, even where two rows offer the same three words. Six of these
     // used to share _hdrLabels because they were all "Global / On / Off"; now that index 0
     // carries a value, sharing would print HDR's answer on the V-Sync row.
-    readonly property var _resLabels: [_globalText("resolution"), "720p", "1080p", "1440p", "4K"]
-    readonly property var _resW:      [0, 1280, 1920, 2560, 3840]
-    readonly property var _resH:      [0, 720, 1080, 1440, 2160]
+    // ⚠️ These are PAIRS, not widths: 1280 appears twice, as 720p and as 800p, because a
+    // handheld panel is 1280x800 and is not a scaled 720p. Every lookup in this file is by
+    // index or by value, so adding a pair is safe — taking one out would shift the rest.
+    readonly property var _resLabels: [_globalText("resolution"), "720p", "800p", "1080p", "1440p", "4K"]
+    readonly property var _resW:      [0, 1280, 1280, 1920, 2560, 3840]
+    readonly property var _resH:      [0, 720,  800,  1080, 1440, 2160]
     // FPS options come from the display's detected rates (sorted, normalised by
     // SystemProperties) instead of a hardcoded list — mirror of AppSettingsDialog.
     // _extraFps pins a stored override value into the list when the display doesn't

@@ -10,6 +10,11 @@
 #define SER_STREAMSETTINGS "streamsettings"
 #define SER_WIDTH "width"
 #define SER_HEIGHT "height"
+// Remembered Custom-dialog values. Deliberately their own keys rather than reusing
+// width/height: these outlive the selection, so a user who typed 1280x800 and then
+// stepped onto a preset still finds their numbers in the dialog.
+#define SER_CUSTOM_WIDTH "customWidth"
+#define SER_CUSTOM_HEIGHT "customHeight"
 #define SER_FPS "fps"
 #define SER_BITRATE "bitrate"
 #define SER_UNLOCK_BITRATE "unlockbitrate"
@@ -122,6 +127,8 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
 
     p->width = width;
     p->height = height;
+    p->customWidth = customWidth;
+    p->customHeight = customHeight;
     p->fps = fps;
     p->bitrateKbps = bitrateKbps;
     p->unlockBitrate = unlockBitrate;
@@ -199,6 +206,8 @@ void StreamingPreferences::reload()
 
     width = settings.value(SER_WIDTH, 1280).toInt();
     height = settings.value(SER_HEIGHT, 720).toInt();
+    customWidth = settings.value(SER_CUSTOM_WIDTH, 0).toInt();
+    customHeight = settings.value(SER_CUSTOM_HEIGHT, 0).toInt();
     fps = settings.value(SER_FPS, 60).toInt();
     enableYUV444 = settings.value(SER_YUV444, false).toBool();
     bitrateKbps = settings.value(SER_BITRATE, getDefaultBitrate(width, height, fps, enableYUV444)).toInt();
@@ -365,6 +374,8 @@ void StreamingPreferences::save()
 
     settings.setValue(SER_WIDTH, width);
     settings.setValue(SER_HEIGHT, height);
+    settings.setValue(SER_CUSTOM_WIDTH, customWidth);
+    settings.setValue(SER_CUSTOM_HEIGHT, customHeight);
     settings.setValue(SER_FPS, fps);
     settings.setValue(SER_BITRATE, bitrateKbps);
     settings.setValue(SER_UNLOCK_BITRATE, unlockBitrate);

@@ -251,7 +251,18 @@ FocusScope {
     CustomResolutionDialog {
         id: customResDialog
         onAccepted: function(w, h) {
-            if (StreamingPreferences.width !== w || StreamingPreferences.height !== h) {
+            var resChanged = StreamingPreferences.width !== w
+                          || StreamingPreferences.height !== h
+            var rememberedChanged = StreamingPreferences.customWidth !== w
+                                 || StreamingPreferences.customHeight !== h
+
+            // Remembered before anything else, and even when it changes nothing: coming back
+            // to this dialog after stepping onto a preset is supposed to find these numbers
+            // waiting, and that survival is the fix for losing them to a stray ◀/▶ (issue #1).
+            StreamingPreferences.customWidth  = w
+            StreamingPreferences.customHeight = h
+
+            if (resChanged) {
                 StreamingPreferences.width  = w
                 StreamingPreferences.height = h
                 if (StreamingPreferences.autoAdjustBitrate) {
@@ -259,6 +270,11 @@ FocusScope {
                         w, h, StreamingPreferences.fps, StreamingPreferences.enableYUV444)
                     bitrateSlider.value = StreamingPreferences.bitrateKbps
                 }
+            }
+
+            // Same guard as before — nothing changed, nothing written — now also covering the
+            // case where only the remembered pair moved, which still has to reach disk.
+            if (resChanged || rememberedChanged) {
                 StreamingPreferences.save()
             }
         }
@@ -846,16 +862,63 @@ FocusScope {
                                     enabled: !settingsScreen._lockRes
                                     opacity: enabled ? 1.0 : 0.4
 
-                                    property var _widths:  [1280, 1920, 2560, 3840]
-                                    property var _heights: [720,  1080, 1440, 2160]
-                                    labels: ["720p", "1080p", "1440p", "4K"]
+                                    /*
+                                     * Index 0 is the panel we are actually drawing on; the rest are the
+                                     * ready-made pairs.
+                                     *
+                                     * 1280x800 is listed because a handheld panel is not a scaled 720p —
+                                     * on a Steam Deck the resolution the user wants is the screen in
+                                     * their hands, and it used to be reachable only by typing it into
+                                     * the Custom dialog with a controller (issue #1).
+                                     *
+                                     * ⚠️ These are PAIRS, not widths. 1280 appears twice with two
+                                     * different heights, so nothing here may key on width alone.
+                                     *
+                                     * The native pair is in PHYSICAL pixels: Screen.width/height are
+                                     * device-independent, so a 2560x1600 panel at 200% scaling reports
+                                     * 1280x800 — and "native" would then be 800p, the wrong answer on the
+                                     * one screen where getting it right matters most.
+                                     *
+                                     * Rounded to EVEN, because the encoders require it (the Custom dialog
+                                     * rounds the same way on commit). Scaling does not divide evenly: a
+                                     * panel of 800 px at 300% reports 267, and 267x3 is 801.
+                                     */
+                                    readonly property int _nativeW: Math.round(Screen.width * Screen.devicePixelRatio / 2) * 2
+                                    readonly property int _nativeH: Math.round(Screen.height * Screen.devicePixelRatio / 2) * 2
+                                    readonly property bool _nativeUsable: _nativeW >= 256 && _nativeW <= 7680
+                                                                          && _nativeH >= 256 && _nativeH <= 7680
+                                    readonly property bool _nativeIsPreset: {
+                                        for (var i = 1; i < _widths.length; ++i) {
+                                            if (_widths[i] === _nativeW && _heights[i] === _nativeH) {
+                                                return true
+                                            }
+                                        }
+                                        return false
+                                    }
+
+                                    property var _widths:  [_nativeW, 1280, 1280, 1920, 2560, 3840]
+                                    property var _heights: [_nativeH, 720,  800,  1080, 1440, 2160]
+                                    labels: [qsTr("Native") + " (" + _nativeW + "×" + _nativeH + ")",
+                                             "720p", "800p", "1080p", "1440p", "4K"]
+
+                                    // The Native pill is hidden — not removed — when it says the same thing
+                                    // as a preset below it (a Deck's 1280x800 is now the 800p pill) or when
+                                    // the panel reports nothing usable. Hidden entries are stepped over by
+                                    // ◀/▶ and never drawn, so the row always shows one pill per resolution
+                                    // with no duplicate and no dead segment.
+                                    hiddenIndices: _nativeUsable && !_nativeIsPreset ? [] : [0]
 
                                     // Highlight the matching preset, or -1 (none) when the
                                     // current resolution is a custom one — the Custom pill
                                     // then shows the actual value instead.
+                                    //
+                                    // ⚠️ Skipped indices are skipped here too: matching a hidden pill
+                                    // would highlight something that is not on screen, which reads as
+                                    // "nothing is selected" while the row quietly holds a preset.
                                     function _resync() {
                                         for (var i = 0; i < _widths.length; i++) {
-                                            if (_widths[i] === StreamingPreferences.width
+                                            if (!isSkipped(i)
+                                             && _widths[i] === StreamingPreferences.width
                                              && _heights[i] === StreamingPreferences.height) {
                                                 currentIndex = i
                                                 return
@@ -863,6 +926,12 @@ FocusScope {
                                         }
                                         currentIndex = -1
                                     }
+
+                                    // The pill set follows the screen, so docking or undocking while
+                                    // this page is open can add or remove the Native entry. Re-resolve
+                                    // the highlight when that happens, exactly as a resolution change
+                                    // does — otherwise the row keeps pointing at a pill that is gone.
+                                    onHiddenIndicesChanged: _resync()
 
                                     Component.onCompleted: _resync()
 
@@ -900,8 +969,19 @@ FocusScope {
                                     text: selected ? (StreamingPreferences.width + "×" + StreamingPreferences.height)
                                                    : qsTr("Custom")
                                     onClicked: {
-                                        customResDialog.initWidth  = StreamingPreferences.width
-                                        customResDialog.initHeight = StreamingPreferences.height
+                                        // Prefill from the last pair typed, not the live resolution:
+                                        // after a hop onto a preset this dialog should offer the numbers
+                                        // from last time rather than the preset's (issue #1). Falls back
+                                        // to the live resolution when nothing has ever been typed.
+                                        if (StreamingPreferences.customWidth >= 256
+                                         && StreamingPreferences.customHeight >= 256) {
+                                            customResDialog.initWidth  = StreamingPreferences.customWidth
+                                            customResDialog.initHeight = StreamingPreferences.customHeight
+                                        }
+                                        else {
+                                            customResDialog.initWidth  = StreamingPreferences.width
+                                            customResDialog.initHeight = StreamingPreferences.height
+                                        }
                                         customResDialog.open()
                                     }
                                     KeyNavigation.left:  resolutionSelector

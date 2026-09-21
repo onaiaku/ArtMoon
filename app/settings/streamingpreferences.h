@@ -204,6 +204,11 @@ public:
 
     Q_PROPERTY(int width MEMBER width NOTIFY displayModeChanged)
     Q_PROPERTY(int height MEMBER height NOTIFY displayModeChanged)
+    // The last resolution typed into the Custom dialog. Not a stream setting: it is the
+    // memory behind that dialog's prefill, so stepping away to a preset and coming back
+    // does not cost the user their numbers a second time (issue #1). 0 = nothing typed yet.
+    Q_PROPERTY(int customWidth MEMBER customWidth NOTIFY customResolutionChanged)
+    Q_PROPERTY(int customHeight MEMBER customHeight NOTIFY customResolutionChanged)
     Q_PROPERTY(int fps MEMBER fps NOTIFY displayModeChanged)
     Q_PROPERTY(int bitrateKbps MEMBER bitrateKbps NOTIFY bitrateChanged)
     Q_PROPERTY(bool unlockBitrate MEMBER unlockBitrate NOTIFY unlockBitrateChanged)
@@ -256,6 +261,10 @@ public:
     // Directly accessible members for preferences
     int width;
     int height;
+    // Last custom resolution typed in the dialog. 0 means "never typed one", which the
+    // dialog treats as "prefill from the live resolution instead".
+    int customWidth;
+    int customHeight;
     int fps;
     int bitrateKbps;
     bool unlockBitrate;
@@ -318,6 +327,7 @@ public:
 
 signals:
     void displayModeChanged();
+    void customResolutionChanged();
     void bitrateChanged();
     void unlockBitrateChanged();
     void autoAdjustBitrateChanged();

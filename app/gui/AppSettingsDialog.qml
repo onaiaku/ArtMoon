@@ -103,9 +103,12 @@ Popup {
     }
 
     // value tables (index 0 == inherit placeholder, labelled by _inheritText)
-    readonly property var _resLabels: [_inheritText("resolution"), "720p", "1080p", "1440p", "4K"]
-    readonly property var _resW:      [0, 1280, 1920, 2560, 3840]
-    readonly property var _resH:      [0, 720, 1080, 1440, 2160]
+    // ⚠️ These are PAIRS, not widths: 1280 appears twice, as 720p and as 800p, because a
+    // handheld panel is 1280x800 and is not a scaled 720p. Every lookup in this file is by
+    // index or by value, so adding a pair is safe — taking one out would shift the rest.
+    readonly property var _resLabels: [_inheritText("resolution"), "720p", "800p", "1080p", "1440p", "4K"]
+    readonly property var _resW:      [0, 1280, 1280, 1920, 2560, 3840]
+    readonly property var _resH:      [0, 720,  800,  1080, 1440, 2160]
     // FPS options come from the display's detected rates (sorted, normalised by
     // SystemProperties) instead of a hardcoded list, so e.g. 138 Hz monitors offer
     // 138. Falls back to the classic presets if detection hasn't run or came back
