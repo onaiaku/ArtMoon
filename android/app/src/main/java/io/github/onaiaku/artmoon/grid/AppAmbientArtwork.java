@@ -118,7 +118,7 @@ public class AppAmbientArtwork {
     }
 
     private Bitmap decodeSoft(InputStream in) {
-        Bitmap bmp = BitmapFactory.decodeStream(in, null);
+        Bitmap bmp = BitmapFactory.decodeStream(in, null, null);
         if (bmp == null) return null;
         int w = bmp.getWidth();
         int h = bmp.getHeight();
