@@ -35,8 +35,8 @@ public class AppAmbientArtwork {
 
     private static final int MAX_CACHE = 8;
     private static final int AMBIENT_WIDTH = 480;
-    private static final int BLUR_RADIUS = 6;
-    private static final float SATURATION = 0.25f;
+    private static final int BLUR_RADIUS = 4;
+        private static final float SATURATION = 0.45f;
 
     private final Context context;
     private final ComputerDetails computer;
@@ -97,8 +97,8 @@ public class AppAmbientArtwork {
     private void apply(ImageView view, Bitmap bmp) {
         if (view.getVisibility() != View.VISIBLE) view.setVisibility(View.VISIBLE);
         view.setImageBitmap(bmp);
-        view.setAlpha(0.5f);
-        AlphaAnimation fade = new AlphaAnimation(0f, 0.5f);
+        view.setAlpha(0.75f);
+        AlphaAnimation fade = new AlphaAnimation(0f, 0.75f);
         fade.setDuration(220);
         fade.setInterpolator(new DecelerateInterpolator());
         view.startAnimation(fade);
