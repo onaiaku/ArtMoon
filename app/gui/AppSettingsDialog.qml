@@ -21,6 +21,9 @@ Popup {
 
     property var appModel: null
     property int appIndex: -1
+    // Carried through the dialog so the page can find the row again by id after the shelf
+    // reorder on close — the shelf move invalidates appIndex (rows move under it).
+    property int appId: -1
     property string appName: ""
     // Name of the host's currently-active profile (empty when none). When set,
     // the "inherit" option (index 0) is labelled with it instead of "Global",

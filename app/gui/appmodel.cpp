@@ -88,6 +88,16 @@ int AppModel::indexOfAppNamed(const QString& name) const
     return -1;
 }
 
+int AppModel::indexOfApp(int appId) const
+{
+    for (int i = 0; i < m_VisibleApps.count(); i++) {
+        if (m_VisibleApps.at(i).id == appId) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 Session* AppModel::createSessionForApp(int appIndex)
 {
     Q_ASSERT(appIndex < m_VisibleApps.count());

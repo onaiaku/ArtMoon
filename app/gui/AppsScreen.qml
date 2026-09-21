@@ -261,10 +261,11 @@ FocusScope {
             appGrid.currentItem.doQuitGame()
         }
     }
-    function openCustomize(idx, name) {
+    function openCustomize(idx, name, appId) {
         if (idx === undefined || idx < 0) return
         appSettingsDialog.appModel = appGrid.appModel
         appSettingsDialog.appIndex = idx
+        appSettingsDialog.appId = appId !== undefined ? appId : -1
         appSettingsDialog.appName = name ? name : ""
         // So the per-game "inherit" option shows the active profile's name.
         appSettingsDialog.activeProfileName = appsRoot.hostProfileName
@@ -273,7 +274,7 @@ FocusScope {
     }
     function openCustomizeForFocused() {
         if (appGrid && appGrid.currentItem) {
-            openCustomize(appGrid.currentIndex, appGrid.currentItem._appName)
+            openCustomize(appGrid.currentIndex, appGrid.currentItem._appName, appGrid.currentItem._appId)
         }
     }
 
@@ -1141,6 +1142,12 @@ FocusScope {
             // Disable Material's default focus highlight; the row draws its own.
             background: Item { anchors.fill: parent }
 
+            // One horizontal stop inside the focused row: Right parks the pad on the
+            // favourite star, Left comes back to the row. There is no stop past the star —
+            // it is the far right edge of the tile. (This list has no other use for
+            // Left/Right; Up/Down walk the games.)
+            KeyNavigation.right: favStar
+
             Rectangle {
                 id: row
                 anchors.fill: parent
@@ -1192,7 +1199,7 @@ FocusScope {
                 // ── Title, and the store under it ────────────────────────────
                 Column {
                     anchors.left: thumbBox.right
-                    anchors.right: runTag.visible ? runTag.left : parent.right
+                    anchors.right: runTag.visible ? runTag.left : favStar.left
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: appsRoot._px(16)
                     anchors.rightMargin: appsRoot._px(16)
@@ -1243,8 +1250,10 @@ FocusScope {
                 Rectangle {
                     id: runTag
                     visible: appDelegate._running
-                    anchors.right: parent.right
-                    anchors.rightMargin: appsRoot._px(16)
+                    // Left of the favourite star, so the running badge and the pin live
+                    // side by side at the tile's far edge instead of colliding for it.
+                    anchors.right: favStar.left
+                    anchors.rightMargin: appsRoot._px(10)
                     anchors.verticalCenter: parent.verticalCenter
                     width: runTagLabel.implicitWidth + appsRoot._px(22)
                     height: appsRoot._px(26)
@@ -1268,6 +1277,74 @@ FocusScope {
                         font.pixelSize: appsRoot._px(13)
                         font.bold: true
                         font.letterSpacing: appsRoot._u
+                    }
+                }
+
+                // ── The favourite star ────────────────────────────────────────
+                // Far right of the tile, one press away: Right puts the pad on it, A
+                // toggles. Hollow ☆ = not pinned, filled ★ = pinned — the state doubles as
+                // the marker, so every row shows its star and no key legend is needed.
+                // Toggling moves the row (it belongs to a shelf now), so the reorder is
+                // deferred one turn and the current index re-snapped to the SAME app — by
+                // id, never by position: the shelves move positions.
+                FocusScope {
+                    id: favStar
+                    anchors.right: parent.right
+                    anchors.rightMargin: appsRoot._px(10)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: appsRoot._px(44)
+                    height: parent.height
+
+                    KeyNavigation.left: appDelegate
+
+                    Keys.onReturnPressed: toggleFav()
+                    Keys.onEnterPressed:  toggleFav()
+                    Keys.onSpacePressed:  toggleFav()
+
+                    // The star's "you are HERE": the row's own highlight already lights
+                    // while the star holds focus (the list still owns the focus), and this
+                    // small box says the press will land on the star, not on the launch.
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: appsRoot._px(6)
+                        visible: favStar.activeFocus
+                        color: appDelegate._lit
+                               ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+                               : "transparent"
+                        border.width: 1
+                        border.color: Theme.accent
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        // ★ U+2605 / ☆ U+2606 — glyphs the shipped fonts all carry
+                        // (DejaVu on desktop, Roboto on Android); a vector would need a
+                        // recolor per state, a glyph is one colour change.
+                        text: model.favorite ? "\u2605" : "\u2606"
+                        color: model.favorite ? Theme.accent
+                             : appDelegate._lit  ? Theme.text2
+                             :                     Theme.text3
+                        font.family: Theme.family
+                        font.pixelSize: appsRoot._px(24)
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: toggleFav()
+                    }
+
+                    function toggleFav() {
+                        appGrid.currentIndex = index
+                        appGrid.appModel.setAppFavorite(index, !model.favorite)
+                        // One turn later: setAppFavorite's own dataChanged has already
+                        // restyled this star; the shelf move must not happen in the middle
+                        // of the press, or the delegate moves out from under the input.
+                        Qt.callLater(function() {
+                            appGrid.appModel.applyShelfOrder()
+                            var i = appGrid.appModel.indexOfApp(appDelegate._appId)
+                            if (i >= 0) appGrid.currentIndex = i
+                        })
                     }
                 }
 
@@ -1422,7 +1499,13 @@ FocusScope {
         // so rows must not move under it. This is where nothing is addressing it by position
         // any more.
         onClosedByUser: {
-            if (appGrid && appGrid.appModel) appGrid.appModel.applyShelfOrder()
+            if (appGrid && appGrid.appModel) {
+                appGrid.appModel.applyShelfOrder()
+                // The dialog can pin or unpin, and that moves rows under the paused pad —
+                // put it back on the SAME game, found by id (positions moved).
+                var i = appGrid.appModel.indexOfApp(appSettingsDialog.appId)
+                if (i >= 0) appGrid.currentIndex = i
+            }
             appsRoot.focusLibrary()
         }
     }

@@ -38,6 +38,9 @@ public:
     // Desktop app, which is the only thing worth launching on a host where nobody has
     // logged in yet.
     Q_INVOKABLE int indexOfAppNamed(const QString& name) const;
+    // Row of the app with this id, or -1. The shelves MOVE rows around, so a position
+    // remembered before a reorder is wrong after one; ids do not move.
+    Q_INVOKABLE int indexOfApp(int appId) const;
 
     Q_INVOKABLE int getDirectLaunchAppIndex();
 
