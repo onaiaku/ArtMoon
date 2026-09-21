@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>gui/main.qml</file>
+        <file>gui/OnScreenKeyboard.qml</file>
         <file>gui/AppShell.qml</file>
         <file>gui/HomeScreen.qml</file>
         <file>gui/HostStage.qml</file>

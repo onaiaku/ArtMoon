@@ -84,6 +84,32 @@ jobs:
           echo "DEP_ROOT=$PWD/dep_root" >> "${GITHUB_ENV}"
           echo "$PWD/dep_root/bin" >> "${GITHUB_PATH}"
 
+      - name: Build Qt Virtual Keyboard
+        run: |
+          # The app's on-screen keyboard (app/gui/OnScreenKeyboard.qml) IS this module, and
+          # aqt's desktop binary archives do not carry it: the archive set for $QT_VERSION
+          # is icu, qtbase, qtdeclarative, qtsvg, qttools, qttranslations, qtwayland. So it
+          # gets built from source against the same Qt, the way qtwayland is above.
+          aqt install-src linux desktop "$QT_VERSION" --archives qtvirtualkeyboard --outputdir /opt/qt-src
+          VK_SRC=$(find /opt/qt-src -maxdepth 3 -type d -name "qtvirtualkeyboard*" | head -1)
+          test -n "$VK_SRC" && test -f "$VK_SRC/CMakeLists.txt" || { echo "qtvirtualkeyboard source not found under /opt/qt-src"; exit 1; }
+          # Discover the install dir rather than guessing it: aqt's arch name (linux_gcc_64)
+          # differs from the directory it installs into (gcc_64).
+          QT_DIR=$(ls -d /opt/qt/$QT_VERSION/*/ | head -1 | sed 's:/$::')
+          # -j2 for the same reason qtwayland uses it: the hosted runner has been OOM-killed
+          # mid-compile (cc1plus killed) on this repo before.
+          cmake -S "$VK_SRC" -B "$VK_SRC/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$QT_DIR" \
+            -DCMAKE_INSTALL_PREFIX="$QT_DIR" \
+            -DBUILD_TESTING=OFF
+          cmake --build "$VK_SRC/build" -j2
+          cmake --install "$VK_SRC/build"
+          # Fail here, loudly, if the module did not land: scripts/build-appimage.sh refuses
+          # to package an AppImage without it, and a silent miss would waste the whole run.
+          test -d "$QT_DIR/qml/QtQuick/VirtualKeyboard" || { echo "QtQuick/VirtualKeyboard missing from $QT_DIR after build"; exit 1; }
+          test -f "$QT_DIR/plugins/platforminputcontexts/libqtvirtualkeyboardplugin.so" || { echo "qtvirtualkeyboard platform input context plugin missing after build"; exit 1; }
+
       - name: Checkout SDL3
         uses: actions/checkout@v5
         with:

@@ -51,6 +51,13 @@ Popup {
         horizontalAlignment: TextInput.AlignHCenter
         inputMethodHints: Qt.ImhDigitsOnly
         validator: IntValidator { bottom: 0; top: 99999 }
+
+        // Handhelds have no physical keyboard, and this dialog exists precisely because a
+        // controller user needs to type. Taking focus in a field IS the request to type, so
+        // ask for the on-screen one; main.qml loads the panel that answers this.
+        onActiveFocusChanged: {
+            if (activeFocus) Qt.inputMethod.show()
+        }
         background: Rectangle {
             color: "#0f0f0f"
             radius: 8

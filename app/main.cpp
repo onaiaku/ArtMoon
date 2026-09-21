@@ -811,6 +811,31 @@ int main(int argc, char *argv[])
     // use this functionality and it can cause hangs when querying broken devices.
     SDL_SetHint("SDL_WINDOWS_DETECT_DEVICE_HOTPLUG", "0");
 
+// ⚠️ !defined(Q_OS_ANDROID): Qt defines Q_OS_LINUX on Android as well, and Android has an
+// input method of its own that must not be replaced by a module this build does not carry.
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+    // On-screen keyboard for handhelds. Bundled in the Linux build only (see the Qt
+    // Virtual Keyboard steps in scripts/build-appimage.sh), and both settings have to be
+    // in place before the platform plugin initialises, which is why they are here and not
+    // somewhere later:
+    //
+    //  * QT_IM_MODULE selects the input method. It is claimed only when nothing else in
+    //    the environment signals a desktop input method: setting it over a user's ibus or
+    //    fcitx would silently take their input method away and leave them unable to type
+    //    anything but Latin script.
+    //  * QT_VIRTUALKEYBOARD_DESKTOP_DISABLE keeps the keyboard inside our own window. The
+    //    module's desktop integration puts it in a top-level window of its own, and this
+    //    app runs fullscreen under gamescope on a Steam Deck, where a second window has no
+    //    window manager to place it. In-window is the only form that can be relied on.
+    if (qEnvironmentVariableIsEmpty("QT_IM_MODULE") &&
+            qEnvironmentVariableIsEmpty("GTK_IM_MODULE") &&
+            qEnvironmentVariableIsEmpty("XMODIFIERS") &&
+            qEnvironmentVariableIsEmpty("INPUT_METHOD")) {
+        qputenv("QT_IM_MODULE", QByteArrayLiteral("qtvirtualkeyboard"));
+    }
+    qputenv("QT_VIRTUALKEYBOARD_DESKTOP_DISABLE", QByteArrayLiteral("1"));
+#endif
+
     QGuiApplication app(argc, argv);
 
 #ifdef Q_OS_UNIX

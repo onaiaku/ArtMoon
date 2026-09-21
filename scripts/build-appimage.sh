@@ -127,6 +127,51 @@ done
 SHELL_PLUGS=$(ls $DEPLOY_FOLDER/usr/plugins/wayland-shell-integration/*.so 2>/dev/null | wc -l)
 [ "$SHELL_PLUGS" -gt 0 ] || fail "No Qt Wayland shell-integration plugins found to bundle - check aqt Qt build"
 
+# ── Qt Virtual Keyboard ────────────────────────────────────────────────────────
+# The app's on-screen keyboard for handhelds (app/gui/OnScreenKeyboard.qml). It is NOT in
+# aqt's desktop binary archives — the archive set for $QT_VERSION is icu, qtbase,
+# qtdeclarative, qtsvg, qttools, qttranslations, qtwayland — so CI builds the module from
+# source into $QT_DIR before this script runs (see the "Build Qt Virtual Keyboard" step in
+# .github/workflows/build-linux.yml).
+#
+# ⚠️ Hard failure, not the skip the loop above uses. A build that quietly ships without
+# this module ships without a keyboard on a Steam Deck while looking completely normal,
+# and that is precisely the bug the module was added to fix.
+VK_QML="$QT_QML_DIR/QtQuick/VirtualKeyboard"
+[ -d "$VK_QML" ] || fail "QtQuick/VirtualKeyboard missing from $QT_QML_DIR - the on-screen keyboard would be absent from this build (was the module built into \$QT_DIR?)"
+echo "Bundling QML module: QtQuick/VirtualKeyboard"
+mkdir -p $DEPLOY_FOLDER/usr/qml/QtQuick
+cp -r "$VK_QML" $DEPLOY_FOLDER/usr/qml/QtQuick/VirtualKeyboard/ || fail "Failed to bundle QtQuick/VirtualKeyboard"
+
+# The platform input context plugin is what makes QT_IM_MODULE=qtvirtualkeyboard resolve
+# at runtime (main.cpp sets it). The QML types load without it, but nothing ever activates
+# them, so the keyboard simply never appears.
+VK_PLUGIN=$(ls "$QT_PLUGIN_DIR"/platforminputcontexts/libqtvirtualkeyboardplugin.so 2>/dev/null | head -1)
+[ -n "$VK_PLUGIN" ] || fail "libqtvirtualkeyboardplugin.so missing from $QT_PLUGIN_DIR/platforminputcontexts"
+echo "Bundling platform input context: $(basename "$VK_PLUGIN")"
+mkdir -p $DEPLOY_FOLDER/usr/plugins/platforminputcontexts
+cp "$VK_PLUGIN" $DEPLOY_FOLDER/usr/plugins/platforminputcontexts/ || fail "Failed to bundle $VK_PLUGIN"
+
+# The module's own libraries. linuxdeploy's dependency walk starts from the executable,
+# which links none of these — they are reached only from the plugin and from the QML
+# plugins inside the module tree — so they have to be copied in by hand.
+QT_LIB_DIR=$(qmake6 -query QT_INSTALL_LIBS) || fail "qmake -query failed!"
+VK_LIBS=0
+for LIB in "$QT_LIB_DIR"/libQt6VirtualKeyboard.so* "$QT_LIB_DIR"/libQt6HunspellInputMethod.so*; do
+    [ -e "$LIB" ] || continue
+    mkdir -p $DEPLOY_FOLDER/usr/lib
+    cp -P "$LIB" $DEPLOY_FOLDER/usr/lib/ || fail "Failed to bundle $LIB"
+    VK_LIBS=$((VK_LIBS + 1))
+done
+[ "$VK_LIBS" -gt 0 ] || fail "No libQt6VirtualKeyboard* libraries found in $QT_LIB_DIR"
+
+# Layout / word-list data, where the Qt install has any.
+QT_DATA_DIR=$(qmake6 -query QT_INSTALL_DATA) || fail "qmake -query failed!"
+if [ -d "$QT_DATA_DIR/qtvirtualkeyboard" ]; then
+    echo "Bundling Qt Virtual Keyboard data"
+    cp -r "$QT_DATA_DIR/qtvirtualkeyboard" $DEPLOY_FOLDER/usr/ || fail "Failed to bundle Qt Virtual Keyboard data"
+fi
+
 # Bundle the Wayland client buffer / graphics-integration plugins. Without
 # these Qt loads the wayland platform plugin + shell integrations but has no
 # way to hand GPU buffers to the compositor: "Failed to load client buffer

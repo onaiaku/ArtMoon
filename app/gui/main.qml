@@ -481,4 +481,17 @@ ApplicationWindow {
         }
     }
 
+    /*
+     * On-screen keyboard (handhelds). Behind a Loader, and deliberately not imported
+     * here: the Qt Virtual Keyboard module is bundled in the Linux build only, and an
+     * `import` that fails takes this whole file — the entire UI — down with it. A Loader
+     * that cannot load the module logs it and carries on, so the worst case is "no
+     * keyboard", which is what the app had before. See OnScreenKeyboard.qml.
+     */
+    Loader {
+        id: onScreenKeyboard
+        source: "qrc:/gui/OnScreenKeyboard.qml"
+        asynchronous: false
+    }
+
 }

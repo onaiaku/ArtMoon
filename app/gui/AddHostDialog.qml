@@ -71,6 +71,13 @@ Popup {
             horizontalAlignment: TextInput.AlignHCenter
             inputMethodHints: Qt.ImhPreferNumbers | Qt.ImhUrlCharactersOnly
 
+            // Handhelds have no physical keyboard: taking focus in a field IS the request
+            // to type, so ask for the on-screen one. main.qml loads the panel that answers
+            // this; on a build without it (Windows) the call is a no-op.
+            onActiveFocusChanged: {
+                if (activeFocus) Qt.inputMethod.show()
+            }
+
             background: Rectangle {
                 color: "#0f0f0f"
                 radius: pop._px(8)
