@@ -980,18 +980,11 @@ FocusScope {
     }
 
     // ── Rail caption ──────────────────────────────────────────────────────────
-    Label {
-        id: railLabel
-        anchors.top: cfgLine.bottom
-        anchors.left: parent.left
-        anchors.leftMargin: appsRoot._sideMargin
-        anchors.topMargin: appsRoot._px(16)
-        text: qsTr("ALL APPS")
-        color: Theme.text3
-        font.family: Theme.family
-        font.pixelSize: appsRoot._px(13)
-        font.letterSpacing: appsRoot._u * 1.6
-    }
+    // There is no static "ALL APPS" label here any more: the library's caption moved
+    // into the list's section system, where it sits directly above the library rows.
+    // A static label above the ListView sat above the shelves too, so the screen read
+    // "ALL APPS … (nothing) … RECENTLY PLAYED … everything" — the 21/09 report.
+    //
 
     // ═════════════════════════════════════════════════════════════════════════
     // The library — the only zone
@@ -1007,7 +1000,7 @@ FocusScope {
      */
     ListView {
         id: appGrid
-        anchors.top: railLabel.bottom
+        anchors.top: cfgLine.bottom
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.topMargin: appsRoot._px(6)
@@ -1103,13 +1096,15 @@ FocusScope {
         // section string is a new shelf — and is left unset rather than spelled out, because
         // a misspelled enum in a delegate is a whole screen that fails to load.
         section.delegate: Label {
-            // The tail of the list has no caption, and ⚠️ its height has to collapse with it:
-            // an empty header still occupies its row, which would open a gap in the middle of
-            // the library exactly where the shelves end.
+            // Every part of the list carries its own caption — RECENTLY PLAYED, FAVORITES,
+            // ALL APPS — so where one shelf ends and the next begins is visible at a glance.
+            // ⚠️ The height still collapses when the text is empty: no known section produces
+            // that, but a stray header between shelves would open a gap mid-list.
             width: appGrid.width
             height: text.length > 0 ? appsRoot._px(34) : 0
             text: section === "recent"    ? qsTr("RECENTLY PLAYED")
                 : section === "favorites" ? qsTr("FAVORITES")
+                : section === "all"       ? qsTr("ALL APPS")
                 : ""
 
             // The page's rail caption, in miniature: same size, same tracking.

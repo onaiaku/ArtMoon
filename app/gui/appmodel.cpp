@@ -264,16 +264,19 @@ QVariant AppModel::data(const QModelIndex &index, int role) const
     case FavoriteRole:
         return m_FavoriteIds.contains(app.id);
     case SectionRole:
-        // Empty for the tail of the list. The two shelves get a caption because they are
-        // exceptions to the order the reader expects; what is left after them is the
-        // library itself and needs no label to explain it.
+        // Every part of the list gets a caption, because a caption is the only thing that
+        // tells the eye where a shelf ends and the library begins. The shelves are "recent"
+        // and "favorites"; the tail of the list is "all", and it is captioned AS such —
+        // without it the library reads as a continuous run under the last shelf above it
+        // (the 21/09 report: "it's put every app under recently played" — the shelf held
+        // one app; the tail simply had no caption left to say otherwise).
         if (m_RecentShelfIds.contains(app.id)) {
             return QStringLiteral("recent");
         }
         if (m_FavoriteIds.contains(app.id)) {
             return QStringLiteral("favorites");
         }
-        return QString();
+        return QStringLiteral("all");
     default:
         return QVariant();
     }
