@@ -874,19 +874,26 @@ FocusScope {
                                      * ⚠️ These are PAIRS, not widths. 1280 appears twice with two
                                      * different heights, so nothing here may key on width alone.
                                      *
-                                     * The native pair is in PHYSICAL pixels: Screen.width/height are
-                                     * device-independent, so a 2560x1600 panel at 200% scaling reports
-                                     * 1280x800 — and "native" would then be 800p, the wrong answer on the
-                                     * one screen where getting it right matters most.
+                                     * The native pair is the monitor's PHYSICAL pixel
+                                     * mode, straight from SDL — the same ground truth the
+                                     * streamer uses to pick a resolution. It is NOT derived
+                                     * from QML's Screen.width: Qt reports that in
+                                     * device-independent pixels, and a KDE X11 display scale
+                                     * multiplies a pair wrongly (1920x1200 at 160% reads as
+                                     * 3072x1920, because the X screen size never changes
+                                     * while Qt scales the widgets around it).
                                      *
                                      * Rounded to EVEN, because the encoders require it (the Custom dialog
                                      * rounds the same way on commit). Scaling does not divide evenly: a
                                      * panel of 800 px at 300% reports 267, and 267x3 is 801.
                                      */
-                                    readonly property int _nativeW: Math.round(Screen.width * Screen.devicePixelRatio / 2) * 2
-                                    readonly property int _nativeH: Math.round(Screen.height * Screen.devicePixelRatio / 2) * 2
-                                    readonly property bool _nativeUsable: _nativeW >= 256 && _nativeW <= 7680
-                                                                          && _nativeH >= 256 && _nativeH <= 7680
+                                    readonly property var _nativeRect: SystemProperties.getNativeResolutionForPoint(
+                                        Screen.virtualX + Screen.width / 2,
+                                        Screen.virtualY + Screen.height / 2)
+                                    readonly property int _nativeW: Math.round(_nativeRect.width  / 2) * 2
+                                    readonly property int _nativeH: Math.round(_nativeRect.height / 2) * 2
+                                    readonly property bool _nativeUsable: _nativeRect.width  >= 256 && _nativeRect.width  <= 7680
+                                                                          && _nativeRect.height >= 256 && _nativeRect.height <= 7680
                                     readonly property bool _nativeIsPreset: {
                                         for (var i = 1; i < _widths.length; ++i) {
                                             if (_widths[i] === _nativeW && _heights[i] === _nativeH) {

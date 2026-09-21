@@ -52,6 +52,16 @@ public:
     Q_INVOKABLE QRect getSafeAreaResolution(int displayIndex);
     Q_INVOKABLE int getRefreshRate(int displayIndex);
 
+    // Native resolution of the display whose bounds contain a global-desktop point
+    // (pass the window's centre). Falls back to the first display with a valid
+    // resolution when no display claims the point (e.g. Wayland, where windows
+    // often have no reliable global position). SDL-backed, so it is the monitor's
+    // PHYSICAL pixel mode. It is deliberately NOT derived from QML's Screen.width:
+    // Qt reports that in device-independent pixels, and a KDE X11 "Display Scale"
+    // multiplies the pair wrongly — 1920x1200 at 160% reads as 3072x1920, because
+    // the X screen size itself never changes while Qt scales the widgets.
+    Q_INVOKABLE QRect getNativeResolutionForPoint(int x, int y);
+
     // Rates of the display whose bounds contain the given global-desktop point
     // (pass the window's centre). Falls back to the union across all displays when
     // no display's bounds contain the point (e.g. Wayland, where windows often

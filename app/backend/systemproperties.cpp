@@ -203,6 +203,25 @@ QList<int> SystemProperties::refreshRatesForPoint(int x, int y)
     return availableRefreshRates;
 }
 
+QRect SystemProperties::getNativeResolutionForPoint(int x, int y)
+{
+    // The same display-resolution as refreshRatesForPoint(): the display whose
+    // bounds contain the point (typically the window's centre). Falls back to the
+    // first display with a valid resolution — the "all displays" union, which is
+    // the right single answer when the locale gives no usable position (Wayland).
+    for (int i = 0; i < monitorDisplayBounds.size() && i < monitorNativeResolutions.size(); i++) {
+        if (monitorDisplayBounds[i].contains(x, y) && monitorNativeResolutions[i].isValid()) {
+            return monitorNativeResolutions[i];
+        }
+    }
+    for (int i = 0; i < monitorNativeResolutions.size(); i++) {
+        if (monitorNativeResolutions[i].isValid()) {
+            return monitorNativeResolutions[i];
+        }
+    }
+    return QRect();
+}
+
 void SystemProperties::startAsyncLoad()
 {
     if (systemPropertyQueryThread) {
