@@ -276,7 +276,7 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
         if (selectedApp != null && obj == selectedApp) {
             parentView.setBackgroundResource(R.drawable.am_pick_row_sel);
         } else {
-            parentView.setBackgroundResource(R.drawable.am_card);
+            parentView.setBackgroundResource(R.drawable.am_card_ambient);
         }
     }
 }

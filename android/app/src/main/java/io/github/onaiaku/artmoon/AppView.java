@@ -7,6 +7,7 @@ import java.util.List;
 
 import io.github.onaiaku.artmoon.computers.ComputerManagerListener;
 import io.github.onaiaku.artmoon.computers.ComputerManagerService;
+import io.github.onaiaku.artmoon.grid.AppAmbientArtwork;
 import io.github.onaiaku.artmoon.grid.AppGridAdapter;
 import io.github.onaiaku.artmoon.nvstream.http.ComputerDetails;
 import io.github.onaiaku.artmoon.nvstream.http.NvApp;
@@ -67,6 +68,10 @@ public class AppView extends io.github.onaiaku.artmoon.ArtMoonActivity implement
     private boolean suspendGridUpdates;
     private boolean inForeground;
     private boolean showHiddenApps;
+    // Ambient backdrop (desktop CoverAmbient parity): the focused app's cover,
+    // blurred, behind the whole picker. Landscape only — the layouts carry the view.
+    private ImageView ambientView;
+    private AppAmbientArtwork ambientArtwork;
     private HashSet<Integer> hiddenAppIds = new HashSet<>();
 
     // Landscape master-detail picker: the app highlighted in the master list
@@ -945,7 +950,31 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         paintPickerFocus();
     }
 
+        /** Paint the focused app's cover art, blurred, behind the picker (desktop
+     *  CoverAmbient parity). The same selection the detail panel uses drives it,
+     * and the same host /appasset art the rows use is the source — so the first
+     *  fetch is the only one per app.
+     */
+    private void updateAmbient() {
+
+if (ambientView == null) {
+            ambientView = findViewById(R.id.am_pick_ambient);
+        }
+        if (ambientView == null || computer == null) return;
+        if (appGridAdapter == null || selectedApp == null || managerBinder == null) {
+            ambientView.setVisibility(View.GONE);
+            return;
+        }
+        if (ambientArtwork == null) {
+            ambientArtwork = new AppAmbientArtwork(
+                    AppView.this, computer, managerBinder.getUniqueId());
+        }
+        ambientArtwork.show(selectedApp.app, ambientView);
+    }
+
         private void updateDetailPanel() {
+        // Ambient backdrop follows the same selection (desktop CoverAmbient parity).
+        updateAmbient();
         View detail = findViewById(R.id.am_pick_detail);
         if (detail == null || appGridAdapter == null) {
             return;
