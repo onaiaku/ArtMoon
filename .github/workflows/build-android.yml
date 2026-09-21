@@ -22,7 +22,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Decode signing keystore
         if: env.ARTMOON_KEYSTORE_B64 != ''
