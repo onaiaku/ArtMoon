@@ -5,6 +5,43 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+Version 1.3.0 (21/09/2026)
+--------------------------------------
+
+New:
+
+• Library shelves: the game list is ordered into shelves on the way in — a
+  "Recently played" section, most recently launched first, then a
+  "Favourites" section, then the rest of the library in the host's own
+  order. Every section carries its own caption, so a game's place in the
+  list explains itself instead of leaving the reader to guess where one
+  shelf ends and the next begins. Each app still appears exactly once.
+
+• Favourites on the tile: every row now shows a star at its far right —
+  hollow when the game is not pinned, filled when it is. D-pad Right moves
+  onto it, A pins or unpins, Left returns to the row: no dialog and no
+  keyboard shortcut needed, because the pad is what this list is walked
+  with. Pinning lifts the game into the Favourites shelf; the cursor stays
+  on that same game through the move, found by id rather than position.
+
+Fixed:
+
+• Settings: the Native resolution option multiplied the panel by the
+  desktop's UI scale, so a 1920x1200 display at 160% scaling was offered
+  as 3072x1920 — a mode the host was then asked to render at. It now takes
+  the physical display mode from SDL, the same source the streamer uses to
+  choose a mode, so the offered pair is always the real one. Also correct
+  on Windows, where the old arithmetic only worked at clean scale factors.
+
+• Library: the "ALL APPS" caption sat above the shelves instead of
+  labelling the library, so the rest of the list read as though it were
+  part of the last shelf above it.
+
+• Library: closing the per-game settings dialog after pinning or unpinning
+  could leave the cursor on a different game, because a shelf move changes
+  what lives at a given row index.
+
+--------------------------------------
 Version 1.2.5 (21/09/2026)
 --------------------------------------
 
