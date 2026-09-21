@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Veil drawn over the ambient cover art (desktop CoverAmbient's dithered gradient):
-     a soft dark wash, deepest at the very top and very bottom, most open in the
-     middle band where the master list sits. Pure gradient - no solid fill. -->
+     a soft dark wash, most open in the middle band where the master list sits,
+     deepest at the foot so the artwork never ends on a hard line. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <gradient
         android:angle="270"
-        android:startColor="#DF05080A"
-        android:centerColor="#8C05080A"
-        android:endColor="#DF05080A" />
+        android:startColor="#D005080A"
+        android:centerColor="#B805080A"
+        android:endColor="#FF05080A" />
 </shape>

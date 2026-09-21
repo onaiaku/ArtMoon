@@ -20,18 +20,23 @@ import java.util.HashMap;
 /**
  * Ambient backdrop for the app picker (desktop CoverAmbient parity): fetches the
  * focused app's cover art from the host (/appasset - each app's own box art),
- * shrinks it hard (128px wide) and lets the picker's ImageView upsample it with
- * filtering - a cheap, dependency-free soft blur that reads right on a big screen.
+ * downscales it to a sane working size and runs a real blur (three-box Gaussian
+ * approximation) plus the desktop layer's desaturation (saturation 0.25). The
+ * ImageView then upscales the soft result with filtering, so on a big screen the
+ * backdrop reads calm and smooth, like the desktop's blurred cover, not smeared.
 
- * The veil drawn over it in the layout does the rest of the depth. Results are
- * cached by app id, so roaming the list stays instant after the first pass. If a
- * fetch fails, the backdrop stays hidden - never broken art. Landscape picker
- * only: the layouts carry the view; this is inert where the view is absent。
+ * The veil drawn over it in the layout and the 0.5 art opacity complete the
+ * desktop look. Results are cached by app id, so roaming the list stays instant
+ * after the first pass. If a fetch fails, the backdrop stays hidden - never
+ * broken art. Landscape picker only: the layouts carry the view; this is inert
+ * where the view is absent.
  */
 public class AppAmbientArtwork {
 
     private static final int MAX_CACHE = 8;
-    private static final int AMBIENT_WIDTH = 128;
+    private static final int AMBIENT_WIDTH = 480;
+    private static final int BLUR_RADIUS = 6;
+    private static final float SATURATION = 0.25f;
 
     private final Context context;
     private final ComputerDetails computer;
@@ -92,8 +97,8 @@ public class AppAmbientArtwork {
     private void apply(ImageView view, Bitmap bmp) {
         if (view.getVisibility() != View.VISIBLE) view.setVisibility(View.VISIBLE);
         view.setImageBitmap(bmp);
-        view.setAlpha(1f);
-        AlphaAnimation fade = new AlphaAnimation(0f, 1f);
+        view.setAlpha(0.5f);
+        AlphaAnimation fade = new AlphaAnimation(0f, 0.5f);
         fade.setDuration(220);
         fade.setInterpolator(new DecelerateInterpolator());
         view.startAnimation(fade);
@@ -123,12 +128,103 @@ public class AppAmbientArtwork {
         int w = bmp.getWidth();
         int h = bmp.getHeight();
 
-        if (w <= AMBIENT_WIDTH) return bmp;
+        Bitmap small;
+        if (w <= AMBIENT_WIDTH) {
+            small = bmp;
+        } else {
+            int nh = Math.max(1, Math.round((float) h * AMBIENT_WIDTH / w));
+            small = Bitmap.createScaledBitmap(bmp, AMBIENT_WIDTH, nh, true);
+            bmp.recycle();
+        }
 
-        int nw = AMBIENT_WIDTH;
-        int nh = Math.max(1, Math.round((float) h * AMBIENT_WIDTH / w));
-        Bitmap small = Bitmap.createScaledBitmap(bmp, nw, nh, true);
-        bmp.recycle();
-        return small;
+        Bitmap finished = blurAndDesaturate(small);
+        if (finished != small) small.recycle();
+        return finished;
+    }
+
+    /**
+     * Desktop CoverAmbient parity in the pixels: a real blur (three-box
+     * approximation of a Gaussian) plus the desktop layer's desaturation
+     * (saturation 0.25). The ImageView upscales this soft result with
+     * filtering, so the backdrop reads smooth and calm at full screen.
+     */
+    private static Bitmap blurAndDesaturate(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] pix = new int[w * h];
+        src.getPixels(pix, 0, w, 0, 0, w, h);
+
+        int[] tmp = new int[w * h];
+        for (int i = 0; i < 3; i++) {
+            boxBlurH(pix, tmp, w, h, BLUR_RADIUS);
+            boxBlurV(tmp, pix, w, h, BLUR_RADIUS);
+        }
+
+        for (int i = 0; i < pix.length; i++) {
+            int c = pix[i];
+            int r = (c >> 16) & 0xFF;
+            int g = (c >> 8) & 0xFF;
+            int b = c & 0xFF;
+            int lum = (r * 77 + g * 151 + b * 28) >> 8;
+            r = lum + (int) ((r - lum) * SATURATION);
+            g = lum + (int) ((g - lum) * SATURATION);
+            b = lum + (int) ((b - lum) * SATURATION);
+            pix[i] = 0xFF000000 | (clamp(r) << 16) | (clamp(g) << 8) | clamp(b);
+        }
+
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        out.setPixels(pix, 0, w, 0, 0, w, h);
+        return out;
+    }
+
+    private static int clamp(int v) {
+        return v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+
+    private static int clampIndex(int i, int limit) {
+        return i < 0 ? 0 : (i >= limit ? limit - 1 : i);
+    }
+
+    private static void boxBlurH(int[] src, int[] dst, int w, int h, int r) {
+        int div = r + r + 1;
+        for (int y = 0; y < h; y++) {
+            int row = y * w;
+            int rs = 0, gs = 0, bs = 0;
+            for (int x = -r; x <= r; x++) {
+                int c = src[row + clampIndex(x, w)];
+                rs += (c >> 16) & 0xFF;
+                gs += (c >> 8) & 0xFF;
+                bs += c & 0xFF;
+            }
+            for (int x = 0; x < w; x++) {
+                dst[row + x] = 0xFF000000 | ((rs / div) << 16) | ((gs / div) << 8) | (bs / div);
+                int leave = src[row + clampIndex(x - r, w)];
+                int enter = src[row + clampIndex(x + r + 1, w)];
+                rs += ((enter >> 16) & 0xFF) - ((leave >> 16) & 0xFF);
+                gs += ((enter >> 8) & 0xFF) - ((leave >> 8) & 0xFF);
+                bs += (enter & 0xFF) - (leave & 0xFF);
+            }
+        }
+    }
+
+    private static void boxBlurV(int[] src, int[] dst, int w, int h, int r) {
+        int div = r + r + 1;
+        for (int x = 0; x < w; x++) {
+            int rs = 0, gs = 0, bs = 0;
+            for (int y = -r; y <= r; y++) {
+                int c = src[clampIndex(y, h) * w + x];
+                rs += (c >> 16) & 0xFF;
+                gs += (c >> 8) & 0xFF;
+                bs += c & 0xFF;
+            }
+            for (int y = 0; y < h; y++) {
+                dst[y * w + x] = 0xFF000000 | ((rs / div) << 16) | ((gs / div) << 8) | (bs / div);
+                int leave = src[clampIndex(y - r, h) * w + x];
+                int enter = src[clampIndex(y + r + 1, h) * w + x];
+                rs += ((enter >> 16) & 0xFF) - ((leave >> 16) & 0xFF);
+                gs += ((enter >> 8) & 0xFF) - ((leave >> 8) & 0xFF);
+                bs += (enter & 0xFF) - (leave & 0xFF);
+            }
+        }
     }
 }
