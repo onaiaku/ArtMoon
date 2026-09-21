@@ -35,7 +35,7 @@ public class AppAmbientArtwork {
 
     private static final int MAX_CACHE = 8;
     private static final int AMBIENT_WIDTH = 480;
-    private static final int BLUR_RADIUS = 4;
+    private static final int BLUR_RADIUS =  3;
         private static final float SATURATION = 0.45f;
 
     private final Context context;
