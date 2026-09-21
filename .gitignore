@@ -10,3 +10,9 @@ config.tests/*/Makefile
 scripts/build/
 instructions.png
 instructions.txt
+
+# Build and download artifacts. These are produced by CI on every tag and are 70 MB each;
+# one of them was committed by accident on 21/09/2026 and had to be removed again.
+*.AppImage
+art.zip
+/x/
