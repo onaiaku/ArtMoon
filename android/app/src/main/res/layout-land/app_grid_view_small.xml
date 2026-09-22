@@ -195,8 +195,8 @@
 
         <TextView
             android:id="@+id/am_pick_kb_settings"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:gravity="center"
             android:text="@string/am_footer_key_s"
             android:textSize="11sp"
@@ -222,8 +222,8 @@
 
         <TextView
             android:id="@+id/am_pick_kb_hosts"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:gravity="center"
             android:text="@string/am_footer_key_esc"
             android:textSize="11sp"

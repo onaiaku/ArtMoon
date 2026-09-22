@@ -197,8 +197,8 @@
 
         <TextView
             android:id="@+id/am_footer_kb_shutdown"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:text="@string/am_footer_key_p"
             android:textSize="11sp"
             android:textStyle="bold"
@@ -225,8 +225,8 @@
 
         <TextView
             android:id="@+id/am_footer_kb_settings"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:text="@string/am_footer_key_s"
             android:textSize="11sp"
             android:textStyle="bold"
@@ -253,8 +253,8 @@
 
         <TextView
             android:id="@+id/am_footer_kb_exit"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:text="@string/am_footer_key_esc"
             android:textSize="11sp"
             android:textStyle="bold"
