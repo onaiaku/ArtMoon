@@ -10,6 +10,21 @@
     android:background="@color/am_ground"
     tools:context=".AppView" >
 
+    <!-- Ambient backdrop (full-bleed, desktop CoverAmbient parity): covers the whole screen,
+         including the header zone — filled by AppView + AppAmbientArtwork. -->
+    <ImageView
+        android:id="@+id/am_pick_ambient"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Veil over the ambient art, full-bleed, so the header gives the list​contrast. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/am_ambient_veil" />
+
     <LinearLayout
         android:id="@+id/am_app_header"
         android:layout_width="match_parent"
