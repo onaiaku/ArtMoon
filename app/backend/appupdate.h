@@ -61,7 +61,7 @@ class AppUpdate : public QObject
 public:
     enum State {
         Idle,           // nothing running; the button (if shown) offers the update
-        Checking,       // releases/latest for StreamLight is in flight
+        Checking,       // releases/latest for ArtMoon is in flight
         Downloading,
         Ready,          // installer downloaded and verified; the button offers to install it
         Launching,      // installer started, the app is on its way out

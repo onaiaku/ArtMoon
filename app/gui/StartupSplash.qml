@@ -20,7 +20,7 @@ import Theme 1.0
  *   0.0 – 1.6   the waves rise (OutCubic) — for a moment they are all there is
  *   0.5 – 1.3   the icon fades in, growing from 94%
  *   0.9 – 1.8   one ring leaves the icon, like a wave
- *   1.2 – 2.3   a band of light sweeps STREAMLIGHT left to right: a letter appears as the band
+ *   1.2 – 2.3   a band of light sweeps ARTMOON left to right: a letter appears as the band
  *               reaches it and glows while the band is on it
  *   2.3 – 2.5   still
  *   2.5 – 2.9   icon and wordmark fade out, Home fades in
@@ -73,7 +73,7 @@ FocusScope {
     readonly property real _u: Theme.uiScale
     readonly property real _iconSize: Math.round(175 * _u)
     readonly property real _fontPx: Math.round(42 * _u)
-    readonly property string _word: "STREAMLIGHT"
+    readonly property string _word: "ARTMOON"
 
     // The accent, half way to white: what a letter shows at the peak of its glow.
     readonly property color _hot: Qt.rgba(Theme.accent.r + (1 - Theme.accent.r) * 0.55,
@@ -243,7 +243,7 @@ FocusScope {
                         blurMax: 32
                         brightness: 0.2
                         opacity: letter._glow
-                        // Off when there is nothing to show: eleven blurs for the whole of the
+                        // Off when there is nothing to show: seven blurs for the whole of the
                         // splash would be GPU spent on zeros.
                         visible: letter._glow > 0.02
                     }
