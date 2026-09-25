@@ -4,6 +4,7 @@ import QtQuick.Controls 2.2
 
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
+import AppUpdate 1.0
 
 // AppShell — two-panel shell (sidebar + content area).
 // Pushed as the initial StackView item by main.qml.
@@ -30,7 +31,12 @@ FocusScope {
      * whole defect this exists to close.
      */
     onWidthChanged: Theme.uiScale = width / 1330
-    Component.onCompleted: Theme.uiScale = width / 1330
+    Component.onCompleted: {
+        Theme.uiScale = width / 1330
+        // The release lookup behind the startup update prompt (see _maybePromptUpdate at the
+        // bottom). Settings runs the same lookup again when it opens.
+        AppUpdate.checkLatest()
+    }
 
     // Design tokens (mirrored from main.qml — id scopes are per-document).
     readonly property color _bg1:      "#151515"
@@ -632,5 +638,50 @@ FocusScope {
                 font.letterSpacing: 1
             }
         }
+    }
+
+    // ── Startup update prompt ─────────────────────────────────────────────────
+    // Offered once per launch when AppUpdate finds a newer release it can update to and the
+    // user has not asked not to be reminded of it (AppUpdate::shouldPrompt). The lookup is
+    // started in main.qml; the answer arrives as latestChanged.
+    //
+    // Yes only opens Settings → About, where Update now is — nothing is downloaded from here.
+    //
+    // ⚠️ StartupSplash is not wired in this tree yet (its own open item), so the "not over the
+    // opening animation" guard his version carries is deliberately absent here. Add
+    // `if (startupSplash.running) return` — and the `onFinished: _maybePromptUpdate()` — when
+    // the opening animation lands, or the prompt can appear over it.
+    property bool _updatePrompted: false
+
+    function _maybePromptUpdate() {
+        if (_updatePrompted || !AppUpdate.shouldPrompt()) return
+        // Never over a stream or its launch screen: both are pushed on the global stackView
+        // above this shell. Not marked as prompted, so a later lookup (Settings runs one) can
+        // still offer it this launch.
+        if (typeof stackView !== "undefined" && stackView.depth > 1) return
+        _updatePrompted = true
+        updatePrompt.latestVersion = AppUpdate.latestStreamLight
+        updatePrompt.open()
+    }
+
+    Connections {
+        target: AppUpdate
+        function onLatestChanged() { appShell._maybePromptUpdate() }
+    }
+
+    UpdatePromptDialog {
+        id: updatePrompt
+        onAccepted: function(dontRemind) {
+            if (dontRemind) AppUpdate.skipLatestVersion()
+            appShell.openSettings()
+            if (settingsLoader.item && settingsLoader.item.showAbout)
+                settingsLoader.item.showAbout()
+        }
+        onDeclined: function(dontRemind) {
+            if (dontRemind) AppUpdate.skipLatestVersion()
+        }
+        // The popup took the focus from the page under it; give it back, or the pad drives
+        // nothing until something is clicked. Not after Yes: Settings takes the focus itself.
+        onClosed: if (appShell.currentPage === 0 && homeLoader.item) homeLoader.item.forceActiveFocus()
     }
 }
