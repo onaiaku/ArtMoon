@@ -187,7 +187,7 @@ FocusScope {
 
             Image {
                 anchors.fill: parent
-                source: "qrc:/streamlight.ico"
+                source: "qrc:/res/artmoon-brand.png"
                 // Rasterised at device-pixel size, like the brand icon on Home.
                 sourceSize.width:  splash._iconSize * Screen.devicePixelRatio
                 sourceSize.height: splash._iconSize * Screen.devicePixelRatio

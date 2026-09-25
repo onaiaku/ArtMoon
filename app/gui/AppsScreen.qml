@@ -762,7 +762,7 @@ FocusScope {
 
             Image {
                 anchors.verticalCenter: parent.verticalCenter
-                source: "qrc:/streamlight.ico"
+                source: "qrc:/res/artmoon-brand.png"
                 width: appsRoot._px(40); height: width
                 sourceSize.width:  40 * Screen.devicePixelRatio
                 sourceSize.height: 40 * Screen.devicePixelRatio
