@@ -4,6 +4,7 @@
 #include "backend/linkmatcher.h"
 #include "../TailscaleManager.h"
 #include "settings/appsettings.h"
+#include "settings/playtime.h"
 #include "settings/streamingpreferences.h"
 
 #include <QJsonArray>
@@ -99,8 +100,17 @@ QVariant ComputerModel::data(const QModelIndex& index, int role) const
         return computer->stageImagePath;
     case StageSeedRole:
         return computer->stageSeedColor;
+    case StageOpacityRole:
+        // 0 is "never set" — every host saved before 6.0.0 — and reads as the default.
+        // Clamped on the way out as well as on the way in: the floor has already moved once
+        // (60 → 70) and a value stored under the old one must not draw below the new one.
+        return computer->stageOpacity > 0
+                   ? qBound(int(StageOpacityMin), computer->stageOpacity, 100)
+                   : StageOpacityDefault;
     case StreamTweakEnabledRole:
         return computer->streamTweakEnabled;
+    case AsleepRole:
+        return computer->heldAsleep;
     case DetailsRole: {
         QString state, pairState;
 
@@ -183,7 +193,9 @@ QHash<int, QByteArray> ComputerModel::roleNames() const
     names[StageColorToRole] = "stageColorTo";
     names[StageImageRole] = "stageImage";
     names[StageSeedRole] = "stageSeed";
+    names[StageOpacityRole] = "stageOpacity";
     names[StreamTweakEnabledRole] = "streamTweakEnabled";
+    names[AsleepRole] = "asleep";
 
     return names;
 }
@@ -227,26 +239,57 @@ void ComputerModel::deleteComputer(int computerIndex)
     endRemoveRows();
 }
 
-class DeferredWakeHostTask : public QRunnable
+/*
+ * ⚠️ The result of wake() used to go straight in the bin, and the wake dialog paid for it.
+ *
+ * NvComputer::wake() already answers a real question — did at least one datagram leave this
+ * machine? — and it can say no for reasons the user can act on: no MAC address stored for
+ * this host, every send refused. It is also not instant: a host saved by NAME goes through a
+ * blocking QHostInfo::fromName() in the middle of the address sweep. With the answer thrown
+ * away, a host with no MAC sat under a spinner for the full two-and-a-half minute give-up.
+ *
+ * Reported the same way the connection test does it — QObject + queued signal back to the
+ * GUI thread — because run() is on a thread-pool thread and nothing here may touch the UI.
+ */
+class DeferredWakeHostTask : public QObject, public QRunnable
 {
+    Q_OBJECT
 public:
-    DeferredWakeHostTask(NvComputer* computer)
-        : m_Computer(computer) {}
+    DeferredWakeHostTask(NvComputer* computer, int computerIndex)
+        : m_Computer(computer), m_ComputerIndex(computerIndex) {}
 
     void run()
     {
-        m_Computer->wake();
+        emit wakeCompleted(m_ComputerIndex, m_Computer->wake());
     }
+
+signals:
+    void wakeCompleted(int computerIndex, bool sent);
 
 private:
     NvComputer* m_Computer;
+    int m_ComputerIndex;
 };
 
 void ComputerModel::wakeComputer(int computerIndex)
 {
     Q_ASSERT(computerIndex < m_Computers.count());
 
-    DeferredWakeHostTask* wakeTask = new DeferredWakeHostTask(m_Computers[computerIndex]);
+    // Wake is the one way back from heldAsleep: polling and the bridge resume with it, so the
+    // wake flow sees the host come online. If someone else already woke it, the magic packet
+    // lands on an awake NIC and does nothing, and the next poll finds it online.
+    {
+        QString uuid;
+        {
+            QReadLocker lock(&m_Computers[computerIndex]->lock);
+            uuid = m_Computers[computerIndex]->uuid;
+        }
+        m_ComputerManager->setHeldAsleep(uuid, false);
+    }
+
+    DeferredWakeHostTask* wakeTask = new DeferredWakeHostTask(m_Computers[computerIndex], computerIndex);
+    QObject::connect(wakeTask, &DeferredWakeHostTask::wakeCompleted,
+                     this, &ComputerModel::wakeCompleted);
     QThreadPool::globalInstance()->start(wakeTask);
 }
 
@@ -359,9 +402,12 @@ void ComputerModel::requestHostNetInfo(int computerIndex)
     //
     // probeStreamTweakPresence() is the single deliberate exception; see its declaration.
     //
+    // bridgeAllowed() is streamTweakEnabled() AND not held asleep (6.2.0): a host this client
+    // put to sleep gets no bridge request either, because a TCP connection is what wakes it.
+    //
     // Where a caller is waiting on a signal, the guard emits the same "nothing" answer the
     // empty-address path emits. Returning silently would hang the waiter.
-    if (!streamTweakEnabled(computerIndex)) return;
+    if (!bridgeAllowed(computerIndex)) return;
 
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return;
 
@@ -399,139 +445,9 @@ void ComputerModel::requestHostNetInfo(int computerIndex)
     });
 }
 
-void ComputerModel::requestLastSession(int computerIndex)
-{
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
-    if (computerIndex < 0 || computerIndex >= m_Computers.count()) return;
-
-    NvComputer* computer = m_Computers[computerIndex];
-    QString address;
-    {
-        QReadLocker lock(&computer->lock);
-        address = computer->activeAddress.address();
-    }
-    if (address.isEmpty()) return;
-
-    m_streamTweakBridge.requestLastSession(address, [this, computerIndex](const QString& reply) {
-        QVariantMap out;
-        out[QStringLiteral("has")] = false;
-
-        if (!reply.isEmpty() && !reply.startsWith(QStringLiteral("ERR"))) {
-            QJsonDocument doc = QJsonDocument::fromJson(reply.toUtf8());
-            if (doc.isObject()) {
-                QJsonObject o = doc.object();
-                if (o.value(QStringLiteral("has")).toBool()) {
-                    out[QStringLiteral("has")]        = true;
-                    out[QStringLiteral("ago")]        = o.value(QStringLiteral("ago")).toString();
-                    out[QStringLiteral("duration")]   = o.value(QStringLiteral("duration")).toString();
-                    out[QStringLiteral("hasGrade")]   = o.value(QStringLiteral("has_grade")).toBool();
-                    out[QStringLiteral("grade")]      = o.value(QStringLiteral("grade")).toString();
-                    out[QStringLiteral("gradeColor")] = o.value(QStringLiteral("grade_color")).toString();
-
-                    // -1 means the host never measured it. Kept as -1 rather than folded to 0
-                    // so the QML can tell "no data" from "a genuinely excellent zero".
-                    out[QStringLiteral("rttMs")]      = o.value(QStringLiteral("rtt_ms")).toDouble(-1);
-                    out[QStringLiteral("rttPeakMs")]  = o.value(QStringLiteral("rtt_peak_ms")).toDouble(-1);
-                    out[QStringLiteral("hostLatMs")]  = o.value(QStringLiteral("host_latency_ms")).toDouble(-1);
-                    out[QStringLiteral("dropsPct")]   = o.value(QStringLiteral("drops_pct")).toDouble(-1);
-
-                    // Not games.length: the host caps the list it sends, so this is the only
-                    // way the client can know a session credited more than it can draw.
-                    out[QStringLiteral("gamesTotal")] =
-                        o.value(QStringLiteral("games_total")).toInt(0);
-
-                    /*
-                     * The covers are resolved against this host's own app list first, and
-                     * only fall back to what the reply carries.
-                     *
-                     * The client already holds the real artwork: the host page fetches it
-                     * from the streaming server (/appasset, keyed by app id) at full size
-                     * and caches it per host. The inline thumbnail in this reply exists
-                     * because the panel had no way to reach that cache — LASTSESSION names
-                     * the games but carries no app id, so there was nothing to look them up
-                     * by. Matching on the name closes that: both sides get it from the same
-                     * apps.json entry, so the strings agree by construction.
-                     *
-                     * Worth the lookup because the thumbnail is the weaker picture by some
-                     * way — it is sized for the panel's design size and is stretched, not
-                     * fitted, so a cover that is not 2:3 arrives distorted. The cached one
-                     * is the same file the library is showing.
-                     *
-                     * ⚠️ Deliberately does NOT fetch anything it does not already have.
-                     * This is a summary on the home screen, not a library being browsed:
-                     * kicking off downloads for games the user has not opened would be
-                     * doing work nobody asked for, and BoxArtManager::loadBoxArt() would
-                     * hand back its placeholder in the meantime — which is worse than the
-                     * thumbnail we already have in hand.
-                     */
-                    QHash<QString, int> appIdByName;
-                    NvComputer* computer = nullptr;
-                    if (computerIndex >= 0 && computerIndex < m_Computers.count()) {
-                        computer = m_Computers[computerIndex];
-                        QReadLocker lock(&computer->lock);
-                        for (const NvApp& app : computer->appList) {
-                            appIdByName.insert(app.name.toLower(), app.id);
-                        }
-                    }
-
-                    QVariantList games;
-                    for (const QJsonValue& v : o.value(QStringLiteral("games")).toArray()) {
-                        QJsonObject g = v.toObject();
-                        QVariantMap game;
-                        const QString gameName = g.value(QStringLiteral("name")).toString();
-                        game[QStringLiteral("name")] = gameName;
-
-                        QUrl localCover;
-                        if (computer != nullptr) {
-                            const auto it = appIdByName.constFind(gameName.toLower());
-                            if (it != appIdByName.constEnd()) {
-                                localCover = BoxArtManager::cachedBoxArt(computer, it.value());
-                            }
-                        }
-
-                        if (!localCover.isEmpty()) {
-                            game[QStringLiteral("cover")] = localCover.toString();
-                        }
-                        else {
-                            // Nothing cached for it — a game that has been removed from the
-                            // host's library, or one this client has simply never opened. The
-                            // host's inline thumbnail is the fallback, handed to QML as a
-                            // data: URI so an Image can take it with no image provider and
-                            // nothing written to disk.
-                            //
-                            // ⚠️ The MIME is read off the payload rather than assumed. A
-                            // data: URI has to declare a type, and hardcoding one ties this
-                            // line to whatever the host happens to encode. Base64 is 6 bits
-                            // per character, so the first bytes always land on the same
-                            // leading characters: "iVBORw0KGgo" is the PNG signature, "/9j/"
-                            // is FF D8 FF (JPEG).
-                            const QString cover = g.value(QStringLiteral("cover")).toString();
-                            if (!cover.isEmpty()) {
-                                const QLatin1String mime =
-                                    cover.startsWith(QLatin1String("iVBORw0KGgo"))
-                                        ? QLatin1String("image/png")
-                                        : QLatin1String("image/jpeg");
-                                game[QStringLiteral("cover")] =
-                                    QStringLiteral("data:") + mime + QStringLiteral(";base64,") + cover;
-                            }
-                            else {
-                                game[QStringLiteral("cover")] = QString();
-                            }
-                        }
-
-                        games.append(game);
-                    }
-                    out[QStringLiteral("games")] = games;
-                }
-            }
-        }
-        emit lastSessionReceived(computerIndex, out);
-    });
-}
-
 void ComputerModel::restoreHostLink(int computerIndex)
 {
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) return;   // see requestHostNetInfo()
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return;
 
     NvComputer* computer = m_Computers[computerIndex];
@@ -568,6 +484,39 @@ void ComputerModel::setHostStageBackground(int computerIndex, const QString& ima
     emit dataChanged(idx, idx, { StageColorFromRole, StageColorToRole, StageImageRole, StageSeedRole });
 }
 
+void ComputerModel::setHostStageOpacity(int computerIndex, int percent)
+{
+    if (computerIndex < 0 || computerIndex >= m_Computers.count()) return;
+
+    NvComputer* computer = m_Computers[computerIndex];
+    QString uuid;
+    {
+        QReadLocker lock(&computer->lock);
+        uuid = computer->uuid;
+    }
+    if (uuid.isEmpty()) return;
+
+    m_ComputerManager->setStageOpacity(uuid, qBound(int(StageOpacityMin), percent, 100));
+
+    // Same reason as setHostStageBackground: the slider is being dragged, and the card has
+    // to follow it now rather than on the next poll tick.
+    QModelIndex idx = createIndex(computerIndex, 0);
+    emit dataChanged(idx, idx, { StageOpacityRole });
+}
+
+bool ComputerModel::heldAsleep(int computerIndex) const
+{
+    if (computerIndex < 0 || computerIndex >= m_Computers.count()) return false;
+    NvComputer* computer = m_Computers[computerIndex];
+    QReadLocker lock(&computer->lock);
+    return computer->heldAsleep;
+}
+
+bool ComputerModel::bridgeAllowed(int computerIndex) const
+{
+    return streamTweakEnabled(computerIndex) && !heldAsleep(computerIndex);
+}
+
 bool ComputerModel::streamTweakEnabled(int computerIndex) const
 {
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return false;
@@ -602,6 +551,12 @@ void ComputerModel::probeStreamTweakPresence(int computerIndex)
 {
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return;
 
+    // Not even CAPS to a host held asleep: any connection wakes it (see bridgeAllowed()).
+    if (heldAsleep(computerIndex)) {
+        emit streamTweakPresenceReceived(computerIndex, false, QString());
+        return;
+    }
+
     NvComputer* computer = m_Computers[computerIndex];
     QString address;
     {
@@ -611,7 +566,7 @@ void ComputerModel::probeStreamTweakPresence(int computerIndex)
     if (address.isEmpty()) {
         // Offline, or no address resolved yet — nothing to ask. The tab distinguishes this
         // from "asked and got nothing" using the host's own online state.
-        emit streamTweakPresenceReceived(computerIndex, false);
+        emit streamTweakPresenceReceived(computerIndex, false, QString());
         return;
     }
 
@@ -621,8 +576,17 @@ void ComputerModel::probeStreamTweakPresence(int computerIndex)
     // from a pre-7.1 host, a plain Sunshine box refusing the port) means not found.
     m_streamTweakBridge.requestCaps(address,
         [this, computerIndex](const QString& caps) {
-            emit streamTweakPresenceReceived(computerIndex,
-                                             caps.startsWith(QLatin1String("CAPS1")));
+            const bool found = caps.startsWith(QLatin1String("CAPS1"));
+            // "clip=on|off" rides on the same CAPS line; absent from any host whose bridge
+            // does not offer clipboard sharing — which is every ArtLight build today.
+            QString clip;
+            if (found) {
+                for (const QString& token : caps.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                    if (token.startsWith(QLatin1String("clip=")))
+                        clip = token.mid(5);
+                }
+            }
+            emit streamTweakPresenceReceived(computerIndex, found, clip);
         });
 }
 
@@ -630,7 +594,7 @@ void ComputerModel::refreshTailscale(int computerIndex)
 {
     // Note this only drops the endpoint we would have LEARNED from the bridge. Tailscale
     // itself keeps working: the range classification in NvComputer is independent of us.
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) return;   // see requestHostNetInfo()
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return;
 
     NvComputer* computer = m_Computers[computerIndex];
@@ -721,7 +685,7 @@ void ComputerModel::shutdownHost(int computerIndex, bool installUpdates)
 {
     // Powering off the CLIENT is not a StreamTweak feature and is not affected — that lives
     // in SystemProperties. Only the host half goes away.
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) return;   // see requestHostNetInfo()
 
     if (computerIndex < 0 || computerIndex >= m_Computers.count())
         return;
@@ -736,9 +700,84 @@ void ComputerModel::shutdownHost(int computerIndex, bool installUpdates)
     m_streamTweakBridge.sendShutdown(address, installUpdates);
 }
 
+void ComputerModel::requestPowerCaps(int computerIndex)
+{
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
+        emit powerCapsReceived(computerIndex, false, QStringList(), false);
+        return;
+    }
+
+    if (computerIndex < 0 || computerIndex >= m_Computers.count())
+        return;
+
+    NvComputer* computer = m_Computers[computerIndex];
+    QReadLocker lock(&computer->lock);
+
+    QString address = computer->activeAddress.address();
+    if (address.isEmpty()) {
+        emit powerCapsReceived(computerIndex, false, QStringList(), false);
+        return;
+    }
+
+    m_streamTweakBridge.requestPowerCaps(address,
+        [this, computerIndex](const QString& response) {
+            // An older host answers "ERR" (unknown verb) or nothing: not an empty list of
+            // modes, but "ask me the old way".
+            QJsonObject obj = QJsonDocument::fromJson(response.toUtf8()).object();
+            if (!obj.contains(QLatin1String("modes"))) {
+                emit powerCapsReceived(computerIndex, false, QStringList(), false);
+                return;
+            }
+            QStringList modes;
+            for (const QJsonValue& v : obj.value(QLatin1String("modes")).toArray())
+                modes << v.toString();
+            emit powerCapsReceived(computerIndex, true, modes,
+                                   obj.value(QLatin1String("wake_lan")).toBool());
+        });
+}
+
+void ComputerModel::powerHost(int computerIndex, const QString& mode, bool installUpdates)
+{
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
+        emit powerHostResult(computerIndex, mode, false);
+        return;
+    }
+
+    if (computerIndex < 0 || computerIndex >= m_Computers.count())
+        return;
+
+    NvComputer* computer = m_Computers[computerIndex];
+    QReadLocker lock(&computer->lock);
+
+    QString address = computer->activeAddress.address();
+    if (address.isEmpty()) {
+        emit powerHostResult(computerIndex, mode, false);
+        return;
+    }
+
+    m_streamTweakBridge.sendPower(address, mode, installUpdates,
+        [this, computerIndex, mode](const QString& response) {
+            bool ok = response.trimmed() == QLatin1String("OK");
+            if (!ok)
+                qWarning() << "POWER" << mode << "refused by host:" << response;
+            // Asleep or hibernating: from here on, not one connection until Wake — the next
+            // poll would otherwise be the packet that wakes it (NvComputer::heldAsleep).
+            if (ok && (mode == QLatin1String("sleep") || mode == QLatin1String("hibernate"))
+                    && computerIndex >= 0 && computerIndex < m_Computers.count()) {
+                QString uuid;
+                {
+                    QReadLocker lock(&m_Computers[computerIndex]->lock);
+                    uuid = m_Computers[computerIndex]->uuid;
+                }
+                m_ComputerManager->setHeldAsleep(uuid, true);
+            }
+            emit powerHostResult(computerIndex, mode, ok);
+        });
+}
+
 void ComputerModel::requestUpdateState(int computerIndex)
 {
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit updateStateReceived(computerIndex, false);
         return;
     }
@@ -770,7 +809,7 @@ void ComputerModel::requestLockState(int computerIndex)
 {
     // supported=false, which every caller already reads as "this host cannot tell us" — the
     // same conclusion, arrived at without a round trip.
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit lockStateReceived(computerIndex, false, false);
         return;
     }
@@ -803,7 +842,7 @@ void ComputerModel::matchHostLinkSpeed(int computerIndex)
     // ⚠️ Must emit, not just return: the wake flow's last step waits for
     // linkMatchProgress(running=false) to finish, so a silent return would hang it on a host
     // whose integration is off.
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit linkMatchProgress(computerIndex, false, QString());
         return;
     }
@@ -835,7 +874,7 @@ void ComputerModel::matchHostLinkSpeed(int computerIndex)
 
 void ComputerModel::markUnlockSession(int computerIndex, bool begin)
 {
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) return;   // see requestHostNetInfo()
     if (computerIndex < 0 || computerIndex >= m_Computers.count())
         return;
     NvComputer* computer = m_Computers[computerIndex];
@@ -854,7 +893,7 @@ void ComputerModel::markUnlockSession(int computerIndex, bool begin)
 
 void ComputerModel::startUpdateCheck(int computerIndex)
 {
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) return;   // see requestHostNetInfo()
     if (computerIndex < 0 || computerIndex >= m_Computers.count())
         return;
     NvComputer* computer = m_Computers[computerIndex];
@@ -867,7 +906,7 @@ void ComputerModel::startUpdateCheck(int computerIndex)
 
 void ComputerModel::startUpdateInstall(int computerIndex, const QString& scope)
 {
-    if (!streamTweakEnabled(computerIndex)) return;   // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) return;   // see requestHostNetInfo()
     if (computerIndex < 0 || computerIndex >= m_Computers.count())
         return;
     NvComputer* computer = m_Computers[computerIndex];
@@ -880,7 +919,7 @@ void ComputerModel::startUpdateInstall(int computerIndex, const QString& scope)
 
 void ComputerModel::requestUpdateProgress(int computerIndex)
 {
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit updateProgressReceived(computerIndex, QVariantMap{{ "phase", "IDLE" }});
         return;
     }
@@ -914,7 +953,7 @@ void ComputerModel::requestUpdateProgress(int computerIndex)
 
 void ComputerModel::requestStreamTweakStatus(int computerIndex)
 {
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit streamTweakStatusReceived(computerIndex, QString());
         return;
     }
@@ -952,7 +991,7 @@ void ComputerModel::requestStreamTweakAuth(int computerIndex)
     // "none" is what a host that doesn't run StreamTweak reports, and it is what hides the
     // access chip and every Options tile gated on "authorized" — so switching the
     // integration off takes the whole UI surface with it for free, with no separate gates.
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit streamTweakAuthReceived(computerIndex, QStringLiteral("none"), QString());
         return;
     }
@@ -1044,7 +1083,7 @@ void ComputerModel::rememberStreamTweakSeen(const QString& uuid)
 
 void ComputerModel::requestAppStores(int computerIndex)
 {
-    if (!streamTweakEnabled(computerIndex)) {         // see requestHostNetInfo()
+    if (!bridgeAllowed(computerIndex)) {         // see requestHostNetInfo()
         emit appStoresReceived(computerIndex, QVariantMap());
         return;
     }
@@ -1194,6 +1233,152 @@ QVariantMap ComputerModel::hostActiveOverride(int computerIndex) const
 {
     if (computerIndex < 0 || computerIndex >= m_Computers.count()) return QVariantMap();
     return appOverrideToMap(HostProfileManager::get()->activeOverride(m_Computers[computerIndex]->uuid));
+}
+
+QVariantMap ComputerModel::lastPlayedFor(int computerIndex) const
+{
+    QVariantMap out;
+    if (computerIndex < 0 || computerIndex >= m_Computers.count())
+        return out;
+
+    NvComputer* computer = m_Computers[computerIndex];
+    PlaytimeRecord rec = PlaytimeManager::get()->lastPlayedOn(computer->uuid);
+    if (!rec.valid || rec.name.isEmpty())
+        return out;
+
+    /*
+     * Find it in the host's current app list, by name.
+     *
+     * ⚠️ This lookup is the gate, not a step towards one. If the name is not there the game
+     * cannot be launched — that IS what the app list means, since it is the list the server
+     * accepts launches from — so the block is not drawn at all rather than offering a button
+     * that would fail. A game uninstalled on the host disappears from apps.json at the next
+     * sync (SunshineSync removes managed entries whose games are gone), and from here with it.
+     *
+     * ⚠️ By name and not by rec.appId, even though we stored one: ids move when the host
+     * rebuilds apps.json, and for StreamTweak-managed entries the id is derived from the
+     * lowercased name, so a corrected title changes it. The name is what the record is keyed
+     * on everywhere else.
+     */
+    int appId = 0;
+    bool found = false;
+    {
+        QReadLocker lock(&computer->lock);
+        for (const NvApp& app : computer->appList) {
+            if (app.name.compare(rec.name, Qt::CaseInsensitive) == 0) {
+                appId = app.id;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found)
+        return out;
+
+    // ⚠️ The name, and no app id. The id was handed out here and nothing ever read it: the
+    // launch goes through indexOfAppNamed() because the model works in names, and the id is
+    // a hint that goes stale when the host rebuilds apps.json. A field nobody consumes is a
+    // field that starts lying without anyone noticing.
+    out[QStringLiteral("name")] = rec.name;
+
+    // The artwork this client already pulled from the host, at full size. cachedBoxArt()
+    // never fetches: an empty answer means "not on disk", and the placeholder every other
+    // screen uses stands in — there is no second placeholder to invent.
+    QUrl cover = BoxArtManager::cachedBoxArt(computer, appId);
+    out[QStringLiteral("cover")] = cover.isEmpty()
+                                   ? QStringLiteral("qrc:/res/no_app_image.png")
+                                   : cover.toString();
+
+    /*
+     * ⚠️ No "store" field, deliberately. It was here briefly, read from the APPSTORES cache,
+     * and went with the badge when the Home card dropped it: the room is worth more to the
+     * artwork on a card that shows one game.
+     *
+     * Putting it back means putting all three pieces back — this lookup, a
+     * requestAppStores() when the host is authorised (only the host page asks otherwise, so
+     * a card drawn before you ever opened the library would have no name to match), and a
+     * re-read when the map lands, since it arrives after this record has been read.
+     */
+    out[QStringLiteral("totalSeconds")] = (qint64)rec.totalSeconds;
+    out[QStringLiteral("total")]        = PlaytimeManager::formatDuration(rec.totalSeconds);
+    out[QStringLiteral("sessions")]     = rec.sessionCount;
+    out[QStringLiteral("lastSession")]  = rec.lastSessionSeconds > 0
+                                          ? PlaytimeManager::formatDuration(rec.lastSessionSeconds)
+                                          : QString();
+    out[QStringLiteral("lastPlayed")]   = rec.lastPlayed.isValid()
+                                          ? rec.lastPlayed.toLocalTime().toString(Qt::ISODate)
+                                          : QString();
+    out[QStringLiteral("ago")]          = formatAgo(rec.lastPlayed);
+
+    out[QStringLiteral("fpsAvg")]    = rec.lastFpsAvg;
+    out[QStringLiteral("targetFps")] = rec.lastTargetFps;
+    out[QStringLiteral("dropsPct")]  = rec.lastDropsPct;
+
+    return out;
+}
+
+QVariantMap ComputerModel::runningAppFor(int computerIndex) const
+{
+    QVariantMap out;
+    if (computerIndex < 0 || computerIndex >= m_Computers.count())
+        return out;
+
+    NvComputer* computer = m_Computers[computerIndex];
+
+    QString name;
+    int appId = 0;
+    {
+        QReadLocker lock(&computer->lock);
+        // ⚠️ Online first: currentGameId is whatever the last serverinfo said, and a host that
+        // has since gone away would otherwise keep offering to resume a session it cannot hold.
+        if (computer->state != NvComputer::CS_ONLINE || computer->currentGameId == 0)
+            return out;
+        for (const NvApp& app : computer->appList) {
+            if (app.id == computer->currentGameId) {
+                name = app.name;
+                appId = app.id;
+                break;
+            }
+        }
+    }
+
+    if (name.isEmpty())
+        return out;
+
+    out[QStringLiteral("name")] = name;
+    // Same artwork rule as lastPlayedFor(): the cache only, never a fetch, and the shared
+    // placeholder when the picture is not on disk.
+    QUrl cover = BoxArtManager::cachedBoxArt(computer, appId);
+    out[QStringLiteral("cover")] = cover.isEmpty()
+                                   ? QStringLiteral("qrc:/res/no_app_image.png")
+                                   : cover.toString();
+    return out;
+}
+
+QString ComputerModel::formatAgo(const QDateTime& utcStamp)
+{
+    if (!utcStamp.isValid())
+        return QString();
+
+    // Same vocabulary the host's own LASTSESSION reply used, so the card reads the way it
+    // always has even though nothing about it comes from the host any more.
+    const qint64 mins = utcStamp.secsTo(QDateTime::currentDateTimeUtc()) / 60;
+
+    if (mins < 1)   return QObject::tr("just now");
+    if (mins < 60)  return QObject::tr("%1 min ago").arg(mins);
+
+    const qint64 hours = mins / 60;
+    if (hours < 24) return QObject::tr("%1 h ago").arg(hours);
+
+    const qint64 days = hours / 24;
+    if (days == 1)  return QObject::tr("yesterday");
+    if (days < 30)  return QObject::tr("%1 days ago").arg(days);
+
+    // Past a month the exact figure stops meaning anything — what matters is that it has
+    // been a while.
+    const qint64 months = days / 30;
+    return months <= 1 ? QObject::tr("a month ago") : QObject::tr("%1 months ago").arg(months);
 }
 
 #include "computermodel.moc"

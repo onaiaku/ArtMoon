@@ -9,6 +9,9 @@ public:
     Uint32 getPlatformWindowFlags();
 
     static
+    SDL_Window* createTestWindow();
+
+    static
     void scaleSourceToDestinationSurface(SDL_Rect* src, SDL_Rect* dst);
 
     static
@@ -22,6 +25,12 @@ public:
 
     static
     int getDisplayRefreshRate(SDL_Window* window);
+
+    // Unlike getDisplayRefreshRate(), this does not guess 60 Hz.  It is used
+    // to decide whether a session may enter the opt-in VRR path, where an
+    // invented refresh rate would produce an invalid pacing configuration.
+    static
+    bool tryGetDisplayRefreshRate(SDL_Window* window, int& outHz);
 
     static
     bool hasFastAes();

@@ -15,7 +15,7 @@ Popup {
 
     // Shared dialog measurements — see Theme.uiScale.
     readonly property real _u: Theme.uiScale
-    function _px(n) { return Math.round(n * _u) }
+    function _px(n) { return Math.round(n * _u) | 0 }
 
     // ── Live state (bound from HomeScreen's update job) ───────────────────────
     property string hostName: ""

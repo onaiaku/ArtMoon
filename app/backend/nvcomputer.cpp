@@ -1,6 +1,7 @@
 #include "nvcomputer.h"
 #include "nvapp.h"
 #include "settings/compatfetcher.h"
+#include "settings/playtime.h"
 
 #include <QUdpSocket>
 #include <QHostInfo>
@@ -30,7 +31,9 @@
 #define SER_STAGESEED "stageseed"
 #define SER_STAGEFROM "stagefrom"
 #define SER_STAGETO "stageto"
+#define SER_STAGEOPACITY "stageopacity"
 #define SER_STENABLED "streamtweakenabled"
+#define SER_HELDASLEEP "heldasleep"
 
 NvComputer::NvComputer(QSettings& settings)
 {
@@ -56,6 +59,9 @@ NvComputer::NvComputer(QSettings& settings)
     this->stageSeedColor = settings.value(SER_STAGESEED).toString();
     this->stageColorFrom = settings.value(SER_STAGEFROM).toString();
     this->stageColorTo   = settings.value(SER_STAGETO).toString();
+    // Absent on every host saved before 6.0.0: 0, which means "use the default".
+    this->stageOpacity   = settings.value(SER_STAGEOPACITY, 0).toInt();
+    this->heldAsleep     = settings.value(SER_HELDASLEEP, false).toBool();
 
     // ⚠️ Absence of the key is NOT the same as false, and reading it as false would be a
     // regression shipped in a release: everyone already using StreamTweak would upgrade and
@@ -176,7 +182,9 @@ void NvComputer::serialize(QSettings& settings, bool serializeApps) const
     settings.setValue(SER_STAGESEED, stageSeedColor);
     settings.setValue(SER_STAGEFROM, stageColorFrom);
     settings.setValue(SER_STAGETO, stageColorTo);
+    settings.setValue(SER_STAGEOPACITY, stageOpacity);
     settings.setValue(SER_STENABLED, streamTweakEnabled);
+    settings.setValue(SER_HELDASLEEP, heldAsleep);
 
     // Avoid deleting an existing applist if we couldn't get one
     if (!appList.isEmpty() && serializeApps) {
@@ -209,20 +217,25 @@ bool NvComputer::isEqualSerialized(const NvComputer &that) const
            this->stageSeedColor == that.stageSeedColor &&
            this->stageColorFrom == that.stageColorFrom &&
            this->stageColorTo == that.stageColorTo &&
+           this->stageOpacity == that.stageOpacity &&
            this->streamTweakEnabled == that.streamTweakEnabled &&
+           this->heldAsleep == that.heldAsleep &&
            this->appList == that.appList;
 }
 
 void NvComputer::sortAppList()
 {
-    auto appOrder = [](const NvApp& app) -> int {
-        if (app.name.compare("Desktop", Qt::CaseInsensitive) == 0) return 0;
-        if (app.name.compare("Steam Big Picture", Qt::CaseInsensitive) == 0) return 1;
-        return 2;
-    };
+    // ⚠️ appSortOrder() lives in nvapp.h because AppModel::updateAppList() inserts against
+    // the same order and asserts that the two agree. Change one and the other must follow —
+    // which is precisely why it is no longer written out twice.
+    //
+    // Read once for the whole sort rather than per comparison: the name comes off disk, and a
+    // comparator is called O(n log n) times.
+    const QString lastPlayed = PlaytimeManager::get()->lastPlayedOn(uuid).name;
+    const QSet<QString> pinned = PlaytimeManager::get()->pinnedOn(uuid);
 
-    std::stable_sort(appList.begin(), appList.end(), [&appOrder](const NvApp& a, const NvApp& b) {
-        int oa = appOrder(a), ob = appOrder(b);
+    std::stable_sort(appList.begin(), appList.end(), [&lastPlayed, &pinned](const NvApp& a, const NvApp& b) {
+        int oa = appSortOrder(a.name, lastPlayed, pinned), ob = appSortOrder(b.name, lastPlayed, pinned);
         if (oa != ob) return oa < ob;
         return a.name.toLower() < b.name.toLower();
     });

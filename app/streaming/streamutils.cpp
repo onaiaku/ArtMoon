@@ -84,6 +84,35 @@ Uint32 StreamUtils::getPlatformWindowFlags()
 #endif
 }
 
+SDL_Window* StreamUtils::createTestWindow()
+{
+    SDL_Window* testWindow;
+
+    // Stop text input before creating the test window to avoid sdl2-compat
+    // starting text input on the new window. This might trigger the IME to
+    // be displayed.
+    SDL_StopTextInput();
+
+    // NB: upstream also adds SDL_WINDOW_FULLSCREEN_DESKTOP here under KMSDRM (Linux
+    // Vulkan probing). Not carried: that video driver never exists on Windows.
+
+    // Try to add the platform-specific flags first and fall back if that fails
+    testWindow = SDL_CreateWindow("", 0, 0, 1280, 720,
+                                  SDL_WINDOW_HIDDEN | StreamUtils::getPlatformWindowFlags());
+    if (!testWindow) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Failed to create test window with platform flags: %s",
+                    SDL_GetError());
+
+        testWindow = SDL_CreateWindow("", 0, 0, 1280, 720, SDL_WINDOW_HIDDEN);
+        if (!testWindow) {
+            return nullptr;
+        }
+    }
+
+    return testWindow;
+}
+
 void StreamUtils::scaleSourceToDestinationSurface(SDL_Rect* src, SDL_Rect* dst)
 {
     int dstH = SDL_ceilf((float)dst->w * src->h / src->w);
@@ -117,14 +146,34 @@ void StreamUtils::screenSpaceToNormalizedDeviceCoords(SDL_Rect* src, SDL_FRect* 
 
 int StreamUtils::getDisplayRefreshRate(SDL_Window* window)
 {
+    int refreshHz;
+    if (tryGetDisplayRefreshRate(window, refreshHz)) {
+        return refreshHz;
+    }
+
+    // Preserve the historical behavior for existing fixed-pacing callers.
+    // VRR qualification must use tryGetDisplayRefreshRate() instead.
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "Refresh rate unavailable; assuming 60 Hz for legacy pacing");
+    return 60;
+}
+
+bool StreamUtils::tryGetDisplayRefreshRate(SDL_Window* window, int& outHz)
+{
+    outHz = 0;
+
+    if (window == nullptr) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Failed to get display refresh rate: window is null");
+        return false;
+    }
+
     int displayIndex = SDL_GetWindowDisplayIndex(window);
     if (displayIndex < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Failed to get current display: %s",
                      SDL_GetError());
-
-        // Assume display 0 if it fails
-        displayIndex = 0;
+        return false;
     }
 
     SDL_DisplayMode mode;
@@ -134,9 +183,7 @@ int StreamUtils::getDisplayRefreshRate(SDL_Window* window)
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                          "SDL_GetWindowDisplayMode() failed: %s",
                          SDL_GetError());
-
-            // Assume 60 Hz
-            return 60;
+            return false;
         }
     }
     else {
@@ -145,20 +192,20 @@ int StreamUtils::getDisplayRefreshRate(SDL_Window* window)
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                          "SDL_GetCurrentDisplayMode() failed: %s",
                          SDL_GetError());
-
-            // Assume 60 Hz
-            return 60;
+            return false;
         }
     }
 
-    // May be zero if undefined
-    if (mode.refresh_rate == 0) {
+    // SDL uses zero for an undefined refresh rate.  A strict caller must be
+    // able to reject that state instead of silently qualifying VRR at 60 Hz.
+    if (mode.refresh_rate <= 0) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Refresh rate unknown; assuming 60 Hz");
-        mode.refresh_rate = 60;
+                    "Refresh rate unknown");
+        return false;
     }
 
-    return mode.refresh_rate;
+    outHz = mode.refresh_rate;
+    return true;
 }
 
 bool StreamUtils::hasFastAes()

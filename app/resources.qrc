@@ -11,7 +11,6 @@
         <file>res/baseline-help_outline-24px.svg</file>
         <file>res/baseline-error_outline-24px.svg</file>
         <file>res/baseline-check_circle_outline-24px.svg</file>
-        <file>res/streamtweak_logo.png</file>
         <file>res/store_steam.svg</file>
         <file>res/store_epic.svg</file>
         <file>res/store_gog.svg</file>
@@ -27,6 +26,7 @@
         <file>res/pad_xbox_lt.svg</file>
         <file>res/pad_xbox_rt.svg</file>
         <file>res/pad_xbox_rb.svg</file>
+        <file>res/pad_xbox_rs.svg</file>
         <file>res/pad_ps_cross.svg</file>
         <file>res/pad_ps_circle.svg</file>
         <file>res/pad_ps_square.svg</file>
@@ -35,6 +35,7 @@
         <file>res/pad_ps_l2.svg</file>
         <file>res/pad_ps_r2.svg</file>
         <file>res/pad_ps_r1.svg</file>
+        <file>res/pad_ps_r3.svg</file>
         <file>res/pad_switch_a.svg</file>
         <file>res/pad_switch_b.svg</file>
         <file>res/pad_switch_x.svg</file>
@@ -43,12 +44,14 @@
         <file>res/pad_switch_zl.svg</file>
         <file>res/pad_switch_zr.svg</file>
         <file>res/pad_switch_r.svg</file>
+        <file>res/pad_switch_rs.svg</file>
         <file>res/pad_switch_minus.svg</file>
         <file>res/pad_xbox_start.svg</file>
         <file>res/pad_xbox_view.svg</file>
         <file>res/pad_ps_options.svg</file>
         <file>res/pad_ps_create.svg</file>
         <file>res/pad_switch_plus.svg</file>
+        <file>res/pin.svg</file>
         <file>res/fonts/DMSans-Regular.ttf</file>
         <file>res/fonts/DMSans-Medium.ttf</file>
         <file>res/fonts/DMSans-SemiBold.ttf</file>

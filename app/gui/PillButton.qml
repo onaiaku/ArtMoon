@@ -22,7 +22,7 @@ FocusScope {
     // Same scale, read the same way, as SegmentedSelector — read the note there. These two
     // are meant to be indistinguishable, so they cannot take it from different places.
     readonly property real _u: Theme.uiScale
-    function _px(n) { return Math.round(n * _u) }
+    function _px(n) { return Math.round(n * _u) | 0 }
 
     activeFocusOnTab: true
     implicitHeight: btn._px(36)

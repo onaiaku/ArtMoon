@@ -11,7 +11,7 @@ Popup {
 
     // Shared dialog measurements — see Theme.uiScale.
     readonly property real _u: Theme.uiScale
-    function _px(n) { return Math.round(n * _u) }
+    function _px(n) { return Math.round(n * _u) | 0 }
 
     property string hostName: ""
     property var    items: []

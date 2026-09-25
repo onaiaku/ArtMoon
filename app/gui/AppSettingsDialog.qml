@@ -17,7 +17,7 @@ Popup {
 
     // Shared dialog measurements — see Theme.uiScale.
     readonly property real _u: Theme.uiScale
-    function _px(n) { return Math.round(n * _u) }
+    function _px(n) { return Math.round(n * _u) | 0 }
 
     property var appModel: null
     property int appIndex: -1
@@ -25,6 +25,11 @@ Popup {
     // reorder on close — the shelf move invalidates appIndex (rows move under it).
     property int appId: -1
     property string appName: ""
+    // The game's own cover, handed in by the opener — the focused row's box art. Empty for a
+    // game that has none (and for Desktop and Steam Big Picture), and then the header is the
+    // plain title line it has always been. It is passed in rather than looked up here because
+    // the model addresses rows by index and the shelf reorder moves them; see the note on appId.
+    property string boxArt: ""
     // Name of the host's currently-active profile (empty when none). When set,
     // the "inherit" option (index 0) is labelled with it instead of "Global",
     // since per-game settings cascade on top of the active profile.
@@ -55,7 +60,13 @@ Popup {
     // HostProfilesDialog — this was a flat 120 px while everything it stands for
     // scaled, so on a large screen the popup ran off both ends. One row row fewer
     // than the profiles dialog, which also has the profile tabs.
-    readonly property int   _chromeH: _px(44) + _px(52) + _px(48)
+    readonly property int   _chromeH: _hdrH + _px(52) + _px(48)
+
+    // The header, tall enough to carry the cover when there is one. ⚠️ One expression, used by
+    // both the header itself and _chromeH above: two copies of this number would let the
+    // scrolling list be sized for a header that is not the one being drawn, which is exactly
+    // the class of bug the note below _chromeH is about.
+    readonly property int   _hdrH: boxArt.length > 0 ? _px(96) : _px(44)
 
     // Label for the index-0 "inherit" option: the active profile's name, or "Global".
     readonly property string _inheritLabel: activeProfileName.length > 0 ? activeProfileName : qsTr("Global")
@@ -271,31 +282,58 @@ Popup {
     contentItem: ColumnLayout {
         spacing: dlg._px(0)
 
-        // ── Header (title + app name inline) ────────────────────────────────
+        // ── Header (cover, title, app name) ─────────────────────────────────
+        //
+        // The cover is the same HeroCover the host page's spotlight and the launch curtain use,
+        // so a game reads as the same picture here as it does a second earlier on the shelf.
+        // Give it a height; the 2:3 box, the crop and the rounded corners come with it.
+        //
+        // ⚠️ shadow: false, and that is deliberate rather than an omission. HeroCover's shadow
+        // reserves 40 px of its own geometry on every side (_shadowPad, sized for the 340 px
+        // hero cover). At this size that is most of the header, and the blur would be clipped
+        // by the gutter and the title rule below it. The shadow earns its keep at 340 px; at
+        // 68 px it is only a way to draw a rectangle of clipped black.
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: dlg._px(44)
+            Layout.preferredHeight: dlg._hdrH
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: dlg._padX
                 anchors.rightMargin: dlg._padX
-                spacing: dlg._px(12)
-                Image {
-                    source: "qrc:/res/tune.svg"
-                    sourceSize.width: 22; sourceSize.height: 22
-                    Layout.preferredWidth: dlg._px(22); Layout.preferredHeight: dlg._px(22)
+                spacing: dlg._px(16)
+
+                HeroCover {
+                    id: hdrCover
+                    visible: dlg.boxArt.length > 0
+                    source: dlg.boxArt
+                    Layout.preferredHeight: dlg._px(68)
+                    radius: dlg._px(7)
+                    shadow: false
                 }
-                Label {
-                    text: qsTr("Per-game settings")
-                    font.family: "DM Sans"; font.pixelSize: dlg._px(18); font.bold: true
-                    color: dlg._text
-                }
-                Label {
-                    text: dlg.appName
-                    font.family: "DM Sans"; font.pixelSize: dlg._px(13)
-                    color: dlg._dim; elide: Text.ElideRight
+
+                ColumnLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
+                    spacing: dlg._px(6)
+                    RowLayout {
+                        spacing: dlg._px(12)
+                        Image {
+                            source: "qrc:/res/tune.svg"
+                            sourceSize.width: 22; sourceSize.height: 22
+                            Layout.preferredWidth: dlg._px(22); Layout.preferredHeight: dlg._px(22)
+                        }
+                        Label {
+                            text: qsTr("Per-game settings")
+                            font.family: "DM Sans"; font.pixelSize: dlg._px(18); font.bold: true
+                            color: dlg._text
+                        }
+                    }
+                    Label {
+                        text: dlg.appName
+                        font.family: "DM Sans"; font.pixelSize: dlg._px(13)
+                        color: dlg._dim; elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
                 }
             }
         }

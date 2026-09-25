@@ -20,7 +20,7 @@ Popup {
     // The shared dialog measurements, all of them multiplied by the window scale — see
     // Theme.uiScale for why a dialog cannot take this from the page it is covering.
     readonly property real _u: Theme.uiScale
-    function _px(n) { return Math.round(n * _u) }
+    function _px(n) { return Math.round(n * _u) | 0 }
 
     modal: true
     dim: true

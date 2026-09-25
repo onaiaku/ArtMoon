@@ -3,6 +3,7 @@
 #include <Limelight.h>
 #include "SDL_compat.h"
 #include "settings/streamingpreferences.h"
+#include "ffmpeg-renderers/pacer/vrr/readinesswindow.h"
 
 #define SDL_CODE_FRAME_READY 0
 
@@ -15,14 +16,57 @@ typedef struct _VIDEO_STATS {
     uint32_t totalFrames;
     uint32_t networkDroppedFrames;
     uint32_t pacerDroppedFrames;
+    // Latest 30-frame-time source snapshot, independent of client delivery time.
+    uint64_t incomingTimingSequence;
+    double incomingTimingVarianceTicksSquared;
+    bool incomingTimingValid;
+    // Pacer telemetry is merged into decoder-owned windows from coherent
+    // cumulative snapshots. These remain zero on non-VRR pacing paths.
+    bool vrrTelemetryActive;
+    uint64_t vrrPacingDroppedFrames;
+    uint64_t vrrEligibleFrames;
+    uint64_t vrrPrepareLateFrames;
+    Vrr13::ReadinessWindow::Snapshot vrrReadiness;
+    uint64_t vrrOnTimeTargetPerMillion;
+    bool vrrBufferAtLimit;
+    uint64_t vrrQueueResidenceUs;
+    uint64_t vrrDecodeWaitUs;
+    uint64_t vrrBufferUs;
+    uint64_t vrrMotionPairs;
+    uint64_t vrrMotionHitches;
+    uint64_t vrrCadenceIntervals;
+    uint64_t vrrCadenceHitches;
+    uint64_t vrrEstimatedCadenceIntervals;
+    uint64_t vrrEstimatedCadenceHitches;
+    uint64_t vrrTargetWaitEntryLateFrames;
+    uint64_t vrrPresentFailedFrames;
+    uint64_t vrrPresentCancelledFrames;
+    uint64_t vrrSpacingCorrections;
+    uint64_t vrrPrepareLatenessP50Us;
+    uint64_t vrrPrepareLatenessP95Us;
+    uint64_t vrrPrepareLatenessP99Us;
+    int64_t vrrSubmitErrorP50Us;
+    int64_t vrrSubmitErrorP95Us;
+    int64_t vrrSubmitErrorP99Us;
+    int64_t vrrSubmitErrorMaxUs;
+    uint64_t vrrStateSequence;
+    uint64_t vrrStateSampleTimeUs;
+    int64_t vrrReadinessBudgetUs;
+    uint64_t vrrTimingBudgetUs;
+    uint64_t vrrRenderLeadUs;
+    uint64_t vrrRenderWakeLeadUs;
+    uint64_t vrrTargetWakeLeadUs;
+    uint64_t vrrGuardUs;
+    uint64_t vrrSourcePeriodUs;
     uint16_t minHostProcessingLatency;         // low-res from RTP
     uint16_t maxHostProcessingLatency;         // low-res from RTP
     uint32_t totalHostProcessingLatency;       // low-res from RTP
     uint32_t framesWithHostProcessingLatency;  // low-res from RTP
     uint64_t totalReassemblyTimeUs;            // high-res (1us)
     uint64_t totalDecodeTimeUs;                // high-res (1us)
-    uint64_t totalPacerTimeUs;                 // high-res (1us)
-    uint64_t totalRenderTimeUs;                // high-res (1us)
+    uint64_t totalClientProcessingTimeUs;      // high-res (1us)
+    uint64_t totalQueuePacingTimeUs;           // high-res (1us)
+    uint64_t totalRenderingTimeUs;             // high-res (1us)
     uint32_t lastRtt;                          // low-res from enet (1ms)
     uint32_t lastRttVariance;                  // low-res from enet (1ms)
     double totalFps;                           // high-res
@@ -44,11 +88,36 @@ typedef struct _DECODER_PARAMETERS {
     bool enableVsync;
     bool enableFramePacing;
     int  framePacingMode;   // StreamingPreferences::FramePacingMode
+
+    // 5.6.0 EXPERIMENT (issue #11). Ask DXGI to hold each presented frame for a whole
+    // number of V-blanks, so a 60 FPS stream on a 120 Hz panel is presented once every
+    // two refreshes instead of once per refresh with the panel repeating it. This is
+    // what Special-K's "PresentationInterval = 2" does from outside our process, and
+    // what @Soladus has been using instead of anything we ship.
+    //
+    // ⚠️ NOT the 5.1.x "hardware pacing". That one also switched the software Pacer OFF
+    // (RENDERER_ATTRIBUTE_SELF_PACING) and left Present() as the render loop's only
+    // clock, which is the arrangement issue #9 came out of. This flag changes the sync
+    // interval and nothing else: the Pacer keeps running on its V-blank source, exactly
+    // as it does with Special-K injected. That combination has never shipped either way.
+    bool fractionalVsync;
+
+    // VRR is an opt-in, session-snapshotted third pacing mode.
+    bool enableVrr;
+    int vrrLatencyMode = 0;
+    bool smoothVrrFrameTiming;
+    // Strictly obtained during Session initialization. A value of zero means
+    // the session was not qualified for VRR; Pacer must not substitute a
+    // legacy 60 Hz fallback when this path is requested.
+    int vrrDisplayRefreshHz;
     bool testOnly;
 } DECODER_PARAMETERS, *PDECODER_PARAMETERS;
 
 #define WINDOW_STATE_CHANGE_SIZE 0x01
 #define WINDOW_STATE_CHANGE_DISPLAY 0x02
+#define WINDOW_STATE_CHANGE_MINIMIZED 0x04
+#define WINDOW_STATE_CHANGE_RESTORED 0x08
+#define WINDOW_STATE_CHANGE_SUSPENDED 0x10
 
 typedef struct _WINDOW_STATE_CHANGE_INFO {
     SDL_Window* window;

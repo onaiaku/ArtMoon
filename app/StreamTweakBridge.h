@@ -50,7 +50,23 @@ public:
     explicit StreamTweakBridge(QObject* parent = nullptr);
 
     // installUpdates: send SHUTDOWN_UPDATE ("Update and shut down") instead of SHUTDOWN.
+    // Kept for hosts older than StreamTweak 8.6.0, which do not know POWER.
     void sendShutdown(const QString& hostAddress, bool installUpdates = false);
+
+    /**
+     * Host power modes (StreamTweak 8.6.0+).
+     *
+     *  - requestPowerCaps: which modes the host machine supports, read there from the running
+     *    system: {"v":1,"modes":["sleep","hibernate","restart","shutdown"],"wake_lan":bool}.
+     *    "" / "ERR" on an older host — the caller falls back to SHUTDOWN, i.e. to what the
+     *    Power dialog offered before.
+     *
+     *  - sendPower: POWER <mode> [UPDATE]. Authenticated like SHUTDOWN, but the reply is read:
+     *    OK / ERR_UNSUPPORTED / ERR, or "" on timeout.
+     */
+    void requestPowerCaps(const QString& hostAddress, ResponseCallback onResult);
+    void sendPower(const QString& hostAddress, const QString& mode, bool installUpdates,
+                   ResponseCallback onResult);
 
     /**
      * Asynchronously queries the NIC speed from StreamTweak.
@@ -139,21 +155,17 @@ public:
     void sendRestore(const QString& hostAddress, ResponseCallback onResult);
     void sendSetSpeed(const QString& hostAddress, quint64 mbps, ResponseCallback onResult);
 
-    /**
-     * The host's most recent finished session (StreamTweak 8.1.0+), as JSON:
-     * {"v":1,"has":true,"ago":"3d ago","duration":"1m 1s","grade":"Excellent",
-     *  "grade_color":"#4ade80","rtt_ms":1,"rtt_peak_ms":3,"host_latency_ms":1.3,
-     *  "drops_pct":0.6,"games":[{"name":…,"cover":"<base64 png>"}]}
+    /*
+     * ⚠️ requestLastSession() — the LASTSESSION verb — was removed here in 5.7.0, and the
+     * host still implements it: this is the client no longer asking, not the protocol
+     * losing a command.
      *
-     * Note this is the HOST's last session and not necessarily one of ours — StreamTweak
-     * logs whatever streamed and does not record which client it belonged to.
-     *
-     * Replies "" / "ERR" on older hosts, which is how the client detects the feature is
-     * unavailable and simply draws nothing. The reply carries thumbnail images and is by
-     * far the largest one the bridge produces; sendRawRequest accumulates until the '\n'
-     * terminator, so it is already segment-safe.
+     * The card it fed now shows what THIS client last played, from a record kept on this
+     * machine (settings/playtime.h) and artwork already in the box art cache. That answers
+     * a better question — the host's reply described whatever had streamed, possibly from
+     * another device, and needed StreamTweak authorised to exist at all — so the call had
+     * no callers left. If it is ever wanted back, the host end never went away.
      */
-    void requestLastSession(const QString& hostAddress, ResponseCallback onResult);
 
     /**
      * Asynchronously asks the host whether Tailscale is installed and active.
@@ -200,6 +212,23 @@ public:
      * repeatedly; each call uses its own socket on its own thread.
      */
     static void sendSessionDataFireAndForget(const QString& hostAddress, const QString& jsonPayload);
+
+    /**
+     * Shared clipboard (StreamTweak 8.7.0, §79), all authenticated. CLIPKEY answers
+     * "KEY <base64>" (the session key, RSA-OAEP for our certificate) or ERR_NOT_ALLOWED;
+     * CLIPSET takes one sealed line; CLIPGET answers "CLIP <seq> <base64>", OWN, EMPTY,
+     * NOTEXT or an ERR_*. See streaming/clipboardsync.h for who calls what, and when.
+     */
+    void requestClipKey(const QString& hostAddress, ResponseCallback onResult);
+    void sendClipSet(const QString& hostAddress, const QString& sealedB64, ResponseCallback onResult);
+    void requestClipGet(const QString& hostAddress, ResponseCallback onResult);
+
+    /**
+     * Blocking authenticated request, for the end of a stream only (final CLIPGET, CLIPEND):
+     * there the Qt event loop is not running and an async socket would never complete.
+     * Returns the reply line, or "" on timeout.
+     */
+    QString requestSync(const QString& hostAddress, const QString& command, int timeoutMs);
 
     static constexpr quint16 BridgePort = 47998;
 

@@ -154,6 +154,11 @@ public:
     QString stageSeedColor;    // "#rrggbb", empty when the source is a picture or unset
     QString stageColorFrom;    // derived, "#rrggbb"
     QString stageColorTo;      // derived, "#rrggbb"
+    // How opaque this host's card is on Home, in percent (6.0.0), so the waves of the
+    // app's floor can show through it. 0 means never set, and reads as the default — which
+    // is how every host saved before 6.0.0 arrives, with no migration. The range and the
+    // default live in ComputerModel (StageOpacityMin / StageOpacityDefault), not here.
+    int stageOpacity = 0;
 
     // Whether ArtMoon may use the StreamTweak integration on this host: link matching,
     // remote power and Windows Update, the PIN unlock, the last-session panel, store
@@ -168,6 +173,14 @@ public:
     // Off for a newly discovered host. A host stored by an older build has no key at all,
     // and that case is NOT the same as off — see the seed in the QSettings constructor.
     bool streamTweakEnabled;
+
+    // This client put the host to sleep or into hibernation (6.2.0) and has not woken it
+    // since. While it is set NOTHING in StreamLight opens a connection to the host: no
+    // serverinfo polling, no bridge request, no follow-up of an mDNS answer. A sleeping NIC
+    // with "wake on pattern match" on wakes for an incoming TCP SYN, so the first poll after
+    // this device itself woke up used to wake the host with it (measured 19/09/2026, §77).
+    // Cleared only by Wake. Persisted, so a restart of StreamLight does not wake it either.
+    bool heldAsleep = false;
     // Remember to update isEqualSerialized() when adding fields here!
 
     // Set when the QSettings constructor had to repair persisted addresses. Deliberately

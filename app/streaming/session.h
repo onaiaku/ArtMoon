@@ -1,8 +1,12 @@
 #pragma once
 
+#include <atomic>
+
 #include <QAtomicInt>
+#include <QElapsedTimer>
 #include <QSemaphore>
 #include <QQuickWindow>
+#include <QTimer>
 
 #include <Limelight.h>
 #include <opus_multistream.h>
@@ -12,6 +16,7 @@
 #include "audio/renderers/renderer.h"
 #include "video/overlaymanager.h"
 #include "../HostMetricsPoller.h"
+#include "clipboardsync.h"
 #include "../backend/linkmatcher.h"
 #include "../backend/launchgate.h"
 #include "launchcurtain.h"
@@ -131,7 +136,17 @@ public:
     // stayed up until the user pressed B. It also drives the launch screen's "press B" prompt
     // and its slow-launch hint, neither of which should appear when nothing is being waited on.
     bool waitsForGame() const {
-        return !m_UnlockMode && m_StreamTweakEnabled && m_Preferences->waitForGameOnScreen;
+        // 5.9.0: never for a Vibeshine / Vibepollo host control. Remote Input and Remote Monitor
+        // put no game window on screen, and Terminate or a Disconnect never stream at all, so
+        // a wait for "the game on screen" would only run to its cap.
+        //
+        // 6.3.0: never on a resume either, game or app alike. What we are rejoining is already
+        // on the host's screen, and the host's launch watcher is still reporting on the launch
+        // that started it — a phase that has nothing to do with this connection, and that kept
+        // the curtain up over a picture ready from the first frame.
+        return !m_UnlockMode && !m_RejoinsRunningApp
+            && m_StreamTweakEnabled && m_Preferences->waitForGameOnScreen
+            && hostControlKind(m_App.id, m_App.uuid, m_App.name) == HostControl::None;
     }
 
     explicit Session(NvComputer* computer, NvApp& app, StreamingPreferences *preferences = nullptr);
@@ -154,6 +169,10 @@ public:
     // protocol-level BYE to the host. Use this for stop requests that arrive
     // after the stream is fully running (e.g. StreamTweak "Return to client").
     void requestGracefulStop();
+
+    // A one-line notice from the shared clipboard (6.3.0, §79), in the status corner for 3 s.
+    // It gives way to what already uses that corner — connection warnings, gamepad mouse mode.
+    void showClipboardNotice(const QString& text);
     Q_PROPERTY(QStringList launchWarnings MEMBER m_LaunchWarnings NOTIFY launchWarningsChanged);
 
     static
@@ -174,6 +193,17 @@ public:
     // Host and app of this session — used by the live Stream Settings overlay to
     // resolve which profile layer (per-game / host profile / global) to save to.
     NvComputer* getComputer() const { return m_Computer; }
+
+    // Whether THIS session runs VRR pacing — the snapshot, which the renderer can still
+    // turn false by refusing it. The live Stream Settings overlay locks Frame pacing on it.
+    bool isVrrActive() const { return m_PresentationSettings.enableVrr; }
+
+    // Whether the user asked for VRR on this session, and — when it is not running — why
+    // Session refused it or turned it off. The reason is a string literal behind an atomic
+    // pointer: it can change mid-stream (display refresh changed) while the decoder thread
+    // formats the overlay. nullptr when nothing was refused here.
+    bool isVrrRequested() const { return m_VrrRequested; }
+    const char* vrrInactiveReason() const { return m_VrrInactiveReason.load(); }
     const NvApp& getApp() const { return m_App; }
 
     // Show or hide the performance overlay — bound to the overlay hotkey
@@ -207,7 +237,12 @@ public:
 
     /** Accessors used by SessionTelemetrySampler for thread-safe decoder stat reads. */
     SDL_mutex*    decoderLock()  const { return m_DecoderLock;  }
+    // True while Session is replacing the decoder after a renderer reset (6.0.0, §73.19).
+    // Readers that can run inside a window-message pump on this thread — Qt timers — must
+    // skip, because videoDecoder() is not a usable object for that whole stretch.
+    bool          isReplacingVideoDecoder() const { return m_ReplacingVideoDecoder; }
     IVideoDecoder* videoDecoder() const { return m_VideoDecoder; }
+    QString vrrCalibrationContext() const;
 
     void flushWindowEvents();
 
@@ -342,6 +377,11 @@ signals:
 
     void displayLaunchError(QString text);
 
+    // 5.9.0. The host answered the launch with HTTP 410: not a failure but a finished action
+    // (Terminate, Disconnect) or a request to confirm by launching the same entry again. Apollo
+    // established the convention and Vibeshine / Vibepollo 2.0 use it for their host controls.
+    void launchNotice(QString text, bool needsConfirmation);
+
     void quitStarting();
 
     void sessionFinished(int portTestResult);
@@ -364,6 +404,8 @@ private:
 
     bool populateDecoderProperties(SDL_Window* window);
 
+    void snapshotPresentationSettings(SDL_Window* window);
+
     IAudioRenderer* createAudioRenderer(const POPUS_MULTISTREAM_CONFIGURATION opusConfig);
 
     bool initializeAudioRenderer();
@@ -381,6 +423,12 @@ private:
     void revealWindowNow();
 
     void notifyMouseEmulationMode(bool enabled);
+
+    /** Banks the seconds streamed since the last flush. Cheap, and safe to call twice. */
+    void flushPlaytime();
+
+    /** Banks the rest and records this as the game last played on this host. */
+    void endPlaytime();
 
     void updateOptimalWindowDisplayMode();
 
@@ -401,7 +449,14 @@ private:
                        int frameRate, bool enableVsync, bool enableFramePacing,
                        bool testOnly,
                        IVideoDecoder*& chosenDecoder,
-                       int framePacingMode = 0);
+                       int framePacingMode = 0,
+                       bool fractionalVsync = false,
+                       // VRR (6.0.0): enableVrr is the request, effectiveVrr the answer —
+                       // the renderer can still refuse it. vrrDisplayRefreshHz is strict:
+                       // zero means the session was never qualified for VRR.
+                       bool enableVrr = false, int vrrDisplayRefreshHz = 0,
+                       bool* effectiveVrr = nullptr, bool smoothVrrFrameTiming = true,
+                       int vrrLatencyMode = 0);
 
     static
     void clStageStarting(int stage);
@@ -456,7 +511,27 @@ private:
     static
     int drSubmitDecodeUnit(PDECODE_UNIT du);
 
+    struct PresentationSettings {
+        bool effectiveVsync = false;
+        bool enableFramePacing = false;
+        bool enableVrr = false;
+        int vrrLatencyMode = 0;
+        bool smoothVrrFrameTiming = true;
+        // Resolved in snapshotPresentationSettings(): the §64 cascade, and off whenever
+        // VRR is on — the two are mutually exclusive.
+        bool fractionalVsync = false;
+        int refreshRate = 0;
+        StreamingPreferences::WindowMode effectiveWindowMode = StreamingPreferences::WM_WINDOWED;
+        StreamingPreferences::VideoDecoderSelection decoderSelection = StreamingPreferences::VDS_AUTO;
+    };
+
     StreamingPreferences* m_Preferences;
+    PresentationSettings m_PresentationSettings;
+    bool m_VrrRequested = false;
+    std::atomic<const char*> m_VrrInactiveReason{nullptr};
+    // Main thread only, like its one reader (SessionTelemetrySampler): the re-entrancy it
+    // guards against is on the same thread, so there is nothing to synchronise.
+    bool m_ReplacingVideoDecoder = false;
     bool m_IsFullScreen;
     SupportedVideoFormatList m_SupportedVideoFormats; // Sorted in order of descending priority
     STREAM_CONFIGURATION m_StreamConfig;
@@ -515,11 +590,37 @@ private:
 
     Overlay::OverlayManager m_OverlayManager;
     HostMetricsPoller*       m_HostMetricsPoller      = nullptr;
+    ClipboardSync*           m_ClipboardSync          = nullptr;
+    // True while the status corner shows a clipboard notice and nothing has written over it
+    // since. Cleared from the connection-status callback (another thread), hence atomic.
+    std::atomic<bool>        m_ClipboardNoticeShown{false};
+    bool                     m_EventLoopDone          = false;   // exec()'s loop has returned
     LinkMatcher*             m_LinkMatcher            = nullptr;
     LaunchGate*              m_LaunchGate             = nullptr;
     LaunchCurtain            m_Curtain;
     SessionTelemetrySampler* m_TelemetrySampler       = nullptr;
     HueSyncManager*          m_HueSyncManager         = nullptr;
+
+    // ── Play time (5.7.0) ────────────────────────────────────────────────────────────────
+    /*
+     * How long this session has been streaming, for the per-game total the host card and the
+     * host page are drawn from.
+     *
+     * Deliberately NOT the telemetry sampler's clock, and not gated the way it is: the
+     * sampler only runs when this host's StreamTweak integration is on, and hours are ours
+     * to keep whether or not the host has StreamTweak at all. It starts and stops at the same
+     * two moments though — stream up, and just before the decoder is torn down — so a failed
+     * connection or a launch the user cancelled never counts as time played.
+     *
+     * ⚠️ The flush timer is why an app that is killed rather than closed still keeps its
+     * hours: no destructor runs in that case, so a total written only at the end would lose
+     * the whole session. Sixty seconds is also the threshold below which a session does not
+     * become "last played", so the first flush and the first eligible moment coincide.
+     */
+    QElapsedTimer            m_PlaytimeTimer;
+    QTimer*                  m_PlaytimeFlushTimer     = nullptr;
+    qint64                   m_PlaytimeFlushedSecs    = 0;
+    bool                     m_PlaytimeTracking       = false;
 
     // Whether this host's StreamTweak integration is switched on, captured once at
     // construction. Deliberately a snapshot and not a live read: the flag can only change
@@ -529,6 +630,16 @@ private:
     // nothing else expects it. Gates the metrics poller, the telemetry sampler, the launch
     // gate and the link match.
     bool m_StreamTweakEnabled = false;
+
+    // 6.3.0: the host was already running this very app when the session was built — Resume
+    // from Home or from the host page, a no-video retry, a live reconfigure. Latched for the
+    // same reason as the flag above: waitsForGame() is read at the gate AND at the reveal, and
+    // currentGameId turns non-zero halfway through every fresh launch, so a live read would
+    // make the two disagree and the window would never be revealed. Compared with the app's
+    // id, not just with zero: a different game still running is one the UI is about to quit,
+    // and the launch that follows is a real one. The /resume-or-/launch choice on the wire,
+    // in startConnectionAsync(), is untouched.
+    bool m_RejoinsRunningApp = false;
 
     // Remote PIN unlock. The buffer is fixed and small: a Windows Hello PIN is a handful of
     // digits, and a fixed array is something we can actually overwrite afterwards.

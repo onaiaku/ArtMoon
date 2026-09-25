@@ -33,6 +33,29 @@ public:
     // answer is decided once at startup, before any of this exists.
     Q_PROPERTY(bool settingsWereReset MEMBER settingsWereReset CONSTANT)
 
+    /*
+     * True when this machine is configured for the Xbox full screen experience — a handheld
+     * device form, or a gaming home app set. Windows-only; false everywhere else.
+     *
+     * It gates rebuilding the native window on the way out of a stream (main.qml), which is
+     * the only known cure for the grey screen that shell leaves behind and a pointless step
+     * anywhere else.
+     *
+     * ⚠️ It says DEVICE, not SESSION, and that is not a shortcut — it is what the data
+     * allows. Measured on 01/09/2026, an Ally in the Xbox experience and an ordinary desktop
+     * are indistinguishable from inside the process: explorer.exe is the shell in both,
+     * GetShellWindow, the taskbar, Progman and Winlogon all read the same. The only thing
+     * that moved with the shell was Progman's visibility, and only when the device had
+     * BOOTED into the experience — not when it was entered from the desktop, which is the
+     * case where the grey screen was actually observed. So a session detector would have
+     * skipped the fix exactly where it is needed.
+     *
+     * The consequence, stated rather than hidden: on a handheld the rebuild runs even in
+     * desktop mode. That errs towards the working behaviour and away from the hitch, which
+     * is the right way round for a defect that reads as a broken app.
+     */
+    Q_PROPERTY(bool isGamingPostureDevice MEMBER isGamingPostureDevice CONSTANT)
+
     // Properties queried asynchronously (startAsyncLoad() must be called!)
     Q_PROPERTY(bool hasHardwareAcceleration MEMBER hasHardwareAcceleration NOTIFY hasHardwareAccelerationChanged)
     Q_PROPERTY(bool rendererAlwaysFullScreen MEMBER rendererAlwaysFullScreen NOTIFY rendererAlwaysFullScreenChanged)
@@ -67,6 +90,29 @@ public:
     // no display's bounds contain the point (e.g. Wayland, where windows often
     // have no reliable global position).
     Q_INVOKABLE QList<int> refreshRatesForPoint(int x, int y);
+    /*
+     * What the resolution and frame-rate pickers offer (5.5.0): the presets plus whatever
+     * this machine's displays report, already deduplicated, sorted and labelled.
+     *
+     *   { fps: [{value, label, isNative}], res: [{width, height, label, isNative}],
+     *     fpsHint: "165 Hz", resHint: "2560x1600", displays: 1 }
+     *
+     * Read once when a picker is built. The answer cannot change while it is on screen —
+     * refreshDisplays() runs at startup and nothing calls it again.
+     */
+    Q_INVOKABLE QVariantMap videoOptions();
+
+    /**
+     * The VRR stream rate recommended for the client display, and the refresh it was
+     * derived from: { fps, refreshHz }, or an empty map when no display reports a
+     * usable rate. Settings shows it as a subline under Frame rate when VRR is on.
+     *
+     * ⚠️ Advisory only. It never rewrites the saved frame rate, and the FPS strip is
+     * still built from VideoOptions — §73.4.1 decided against a second, VRR-flavoured
+     * list that reorders itself when a switch is flipped. The arithmetic is
+     * VrrRatePolicy's, so this and the pacing gate cannot drift apart.
+     */
+    Q_INVOKABLE QVariantMap vrrRecommendation();
 
     Q_INVOKABLE void startAsyncLoad();
     Q_INVOKABLE void waitForAsyncLoad();
@@ -82,6 +128,23 @@ public:
     // installUpdates: install pending Windows updates before powering off
     // ("Update and shut down", via InitiateShutdown + SHUTDOWN_INSTALL_UPDATES).
     Q_INVOKABLE void shutdownClient(bool installUpdates = false);
+
+    /*
+     * THIS device's power modes (6.2.0), read from the running system — never from what the
+     * Ally or any particular client is known to have. Same rules as StreamTweak's
+     * HostPowerCapabilities, so both rows of the Power dialog mean the same thing:
+     *   "sleep"     — S1-S3, or Modern Standby (entered by turning the display off)
+     *   "restart", "shutdown" — whenever the user holds SeShutdownPrivilege
+     * No "hibernate", though StreamTweak offers it for the host: see clientPowerModes().
+     * An empty list means the account may not power the machine down at all.
+     */
+    Q_INVOKABLE QStringList clientPowerModes();
+
+    // Carries out one of clientPowerModes(). installUpdates applies to restart and shutdown.
+    Q_INVOKABLE void powerClient(const QString& mode, bool installUpdates = false);
+
+    // This machine's name, as the Power dialog labels the "This device" row.
+    Q_INVOKABLE QString clientName();
 
     // True when this (client) PC has a Windows update installed and waiting for a
     // reboot. Read-only registry probe; Windows-only (false elsewhere). Used to hint
@@ -136,6 +199,7 @@ private:
     QString versionString;
     bool usesMaterial3Theme;
     bool settingsWereReset;
+    bool isGamingPostureDevice;
 
     // Properties only set if startAsyncLoad() is called
     bool hasHardwareAcceleration;

@@ -5,6 +5,7 @@
 #include "nvpairingmanager.h"
 #include "../settings/appsettings.h"
 #include "../settings/appliststate.h"
+#include "../settings/playtime.h"
 
 #include <Limelight.h>
 #include <QtEndian>
@@ -34,7 +35,7 @@ public:
 private:
     bool tryPollComputer(QNetworkAccessManager* nam, NvAddress address, bool& changed)
     {
-        NvHTTP http(address, 0, m_Computer->serverCert, nam);
+        NvHTTP http(address, 0, m_Computer->serverCert, !m_Computer->isNvidiaServerSoftware, nam);
 
         QString serverInfo;
         try {
@@ -97,6 +98,26 @@ private:
         // Always fetch the applist the first time
         int pollsSinceLastAppListFetch = POLLS_PER_APPLIST_FETCH;
         while (!isInterruptionRequested()) {
+            // Put to sleep by this client (NvComputer::heldAsleep): not one packet until Wake.
+            // A serverinfo poll is a TCP connection, and its SYN is exactly what a sleeping NIC
+            // with "wake on pattern match" wakes up for. The host is shown offline meanwhile.
+            bool held;
+            {
+                QReadLocker lock(&m_Computer->lock);
+                held = m_Computer->heldAsleep;
+            }
+            if (held) {
+                if (m_Computer->state != NvComputer::CS_OFFLINE) {
+                    qInfo() << m_Computer->name << "is held asleep: not polling it until Wake";
+                    m_Computer->state = NvComputer::CS_OFFLINE;
+                    emit computerStateChanged(m_Computer);
+                }
+                for (int i = 0; i < 10 && !isInterruptionRequested(); i++) {
+                    QThread::msleep(100);
+                }
+                continue;
+            }
+
             bool stateChanged = false;
             bool online = false;
             bool wasOnline = m_Computer->state == NvComputer::CS_ONLINE;
@@ -124,10 +145,15 @@ private:
             // Tailscale for this host (Open on Tailscale) or for pinned legacy clones.
             // Reading the fields without a lock is safe here for the same reason as the
             // offline check below: we're on the only thread that writes them.
+            //
+            // ⚠️ The last condition is a guard, not an optimisation: if the LAN slot ever holds
+            // the Tailscale address itself, the probe below "succeeds" on the address we are
+            // already on, changes nothing, and logs a move back to LAN on every poll forever.
             if (online && !m_Computer->preferTailscaleAddress && !m_Computer->isAddressPinned &&
                     !m_Computer->tailscaleAddress.isNull() &&
                     m_Computer->activeAddress == m_Computer->tailscaleAddress &&
-                    !m_Computer->localAddress.isNull()) {
+                    !m_Computer->localAddress.isNull() &&
+                    m_Computer->localAddress != m_Computer->tailscaleAddress) {
                 bool lanChanged = false;
                 if (tryPollComputer(&nam, m_Computer->localAddress, lanChanged)) {
                     stateChanged |= lanChanged;
@@ -493,22 +519,69 @@ void ComputerManager::startPollingComputer(NvComputer* computer)
 void ComputerManager::handleMdnsServiceResolved(MdnsPendingComputer* computer,
                                                 QVector<QHostAddress>& addresses)
 {
+    // ⚠️ An mDNS answer can come from the resolver's cache as well as from the host, and
+    // following it up means a serverinfo request — a TCP connection — to that address. For a
+    // host this client put to sleep that would be the very packet that wakes it, so answers
+    // pointing at a held host are dropped here. The host comes back through Wake.
+    {
+        QReadLocker lock(&m_Lock);
+        for (NvComputer* known : std::as_const(m_KnownHosts)) {
+            bool held;
+            {
+                QReadLocker cLock(&known->lock);
+                held = known->heldAsleep;
+            }
+            // uniqueAddresses() takes the lock itself: not while we hold it.
+            if (!held) {
+                continue;
+            }
+            for (const NvAddress& a : known->uniqueAddresses()) {
+                for (const QHostAddress& resolved : std::as_const(addresses)) {
+                    if (a.address() == resolved.toString()) {
+                        m_PendingResolution.removeOne(computer);
+                        computer->deleteLater();
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     QHostAddress v6Global = getBestGlobalAddressV6(addresses);
     bool added = false;
 
-    // Add the host using the IPv4 address
+    // Add the host using the IPv4 address.
+    //
+    // ⚠️ Not simply the first IPv4 in the list. A host running Tailscale announces its 100.x
+    // interface address alongside the LAN one, in no guaranteed order, and taking whichever
+    // came first could file the Tailscale address as the host's LAN address — which then
+    // answers from everywhere and pins the poller to the slow path (the §34 bug, reached
+    // through mDNS instead of serverinfo). Prefer a real LAN address; a Tailscale-range one
+    // is used only when it is all the host offered, and PendingAddTask then routes it into
+    // the Tailscale slot rather than the LAN one.
+    QHostAddress chosenV4;
     for (const QHostAddress& address : std::as_const(addresses)) {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol) {
-            // NB: We don't just call addNewHost() here with v6Global because the IPv6
-            // address may not be reachable (if the user hasn't installed the IPv6 helper yet
-            // or if this host lacks outbound IPv6 capability). We want to add IPv6 even if
-            // it's not currently reachable.
-            addNewHost(NvAddress(address, computer->port()),
-                       true, computer->hostname(),
-                       NvAddress(v6Global, computer->port()));
-            added = true;
-            break;
+        if (address.protocol() != QAbstractSocket::IPv4Protocol || address.isLoopback()) {
+            continue;
         }
+        if (NvAddress(address, computer->port()).isTailscaleRange()) {
+            if (chosenV4.isNull()) {
+                chosenV4 = address;
+            }
+            continue;
+        }
+        chosenV4 = address;
+        break;
+    }
+    if (!chosenV4.isNull()) {
+        // NB: We don't just call addNewHost() here with v6Global because the IPv6
+        // address may not be reachable (if the user hasn't installed the IPv6 helper yet
+        // or if this host lacks outbound IPv6 capability). We want to add IPv6 even if
+        // it's not currently reachable.
+        addNewHost(NvAddress(chosenV4, computer->port()),
+                   true, computer->hostname(),
+                   NvAddress(v6Global, computer->port()));
+        added = true;
     }
 
     if (!added) {
@@ -634,6 +707,11 @@ public:
             HostProfileManager::get()->forgetHost(orphanedUuid);
             AppSettingsManager::get()->forgetHost(orphanedUuid);
             AppListStateManager::get()->forgetHost(orphanedUuid);
+            // Play time is keyed by uuid like the two above, so deleting a host takes its
+            // hours with it. The guard that matters is the same one: orphanedUuid is only
+            // set once nothing refers to the uuid any more, so removing a Tailscale clone
+            // and keeping the LAN tile leaves the record where it is.
+            PlaytimeManager::get()->forgetHost(orphanedUuid);
         }
 
         // Finally, delete the computer itself. This must be done
@@ -935,7 +1013,8 @@ private:
 
     void run()
     {
-        NvHTTP http(m_Address, 0, QSslCertificate());
+        // Use the placeholder UID for the initial poll, then we'll switch to the real one if it's not GFE
+        NvHTTP http(m_Address, 0, QSslCertificate(), false);
 
         if (m_Mdns) {
             if (m_MdnsIpv6Address.isNull()) {
@@ -963,6 +1042,7 @@ private:
 
         // Create initial newComputer using HTTP serverinfo with no pinned cert
         NvComputer* newComputer = new NvComputer(http, serverInfo);
+        http.setTrueUid(!newComputer->isNvidiaServerSoftware);
 
         // Tag this entry as a local clone (e.g. Tailscale dual-tile) if requested.
         // The uuid stays the real one (Moonlight protocol identity); aliasSuffix is
@@ -1023,8 +1103,22 @@ private:
             // Only update local address if we actually reached the PC via this address.
             // If we reached it via the IPv6 address after the local address failed,
             // don't store the non-working local address.
+            //
+            // ⚠️ Same classification the serverinfo constructor applies to LocalIP
+            // (nvcomputer.cpp): a Tailscale-range address goes to the Tailscale slot, never
+            // the LAN one, and loopback identifies no host at all. Without it an mDNS answer
+            // from the 100.x interface became localAddress while also being tailscaleAddress,
+            // and the LAN-preferred recovery in PcMonitorThread "moved back to LAN" onto the
+            // very same address on every poll.
             if (http.address() == m_Address) {
-                newComputer->localAddress = m_Address;
+                if (m_Address.isTailscaleRange()) {
+                    if (newComputer->tailscaleAddress.isNull()) {
+                        newComputer->tailscaleAddress = m_Address;
+                    }
+                }
+                else if (!m_Address.isLoopback()) {
+                    newComputer->localAddress = m_Address;
+                }
             }
 
             // Get the WAN IP address using STUN if we're on mDNS over IPv4
@@ -1234,6 +1328,62 @@ bool ComputerManager::setStageBackground(QString uuid, QString imagePath, QStrin
         computer->stageColorTo   = haveColours ? to.name()   : QString();
     }
 
+    saveHost(computer);
+    emit computerStateChanged(computer);
+    return true;
+}
+
+bool ComputerManager::setStageOpacity(QString uuid, int percent)
+{
+    if (uuid.isEmpty()) {
+        return false;
+    }
+
+    NvComputer* computer = nullptr;
+    {
+        QReadLocker lock(&m_Lock);
+        computer = m_KnownHosts.value(uuid);
+    }
+    if (computer == nullptr) {
+        return false;
+    }
+
+    {
+        QWriteLocker cLock(&computer->lock);
+        computer->stageOpacity = percent;
+    }
+
+    saveHost(computer);
+    emit computerStateChanged(computer);
+    return true;
+}
+
+bool ComputerManager::setHeldAsleep(QString uuid, bool held)
+{
+    if (uuid.isEmpty()) {
+        return false;
+    }
+
+    NvComputer* computer = nullptr;
+    {
+        QReadLocker lock(&m_Lock);
+        computer = m_KnownHosts.value(uuid);
+    }
+    if (computer == nullptr) {
+        return false;
+    }
+
+    {
+        QWriteLocker cLock(&computer->lock);
+        if (computer->heldAsleep == held) {
+            return true;
+        }
+        computer->heldAsleep = held;
+    }
+    qInfo() << computer->name << (held ? "put to sleep by this client: held until Wake"
+                                       : "no longer held asleep");
+
+    // The polling thread notices on its next tick (within ~3 s) and marks the host offline.
     saveHost(computer);
     emit computerStateChanged(computer);
     return true;

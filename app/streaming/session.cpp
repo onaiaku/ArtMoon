@@ -1,8 +1,11 @@
+#include <QNetworkInterface>
+#include <QSysInfo>
 #include "session.h"
+#include "settings/playtime.h"
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
-#include "streaming/refreshratematch.h"
 #include "backend/nvhttp.h"
+#include "streaming/vrrratepolicy.h"
 #include "backend/richpresencemanager.h"
 
 #include <Limelight.h>
@@ -48,12 +51,12 @@
 #include <QQuickOpenGLUtils>
 #endif
 
-// ⚠️ A Windows-only restoreDesktopDisplayModeIfChanged() lived here, with the
-// <SDL_syswm.h> include it needed. It went in 5.2.0 along with "Refresh rate
-// switching", and came back in 5.2.1 with "Match refresh rate" — but in
-// streaming/refreshratematch.cpp, not here. That is the point of the rewrite:
-// the whole feature sits beside the engine instead of inside it, and this file
-// carries three call lines and nothing else.
+// ⚠️ Display mode selection here is upstream Moonlight's, and nothing of ours sits on
+// top of it any more. A Windows-only restoreDesktopDisplayModeIfChanged() lived here
+// until 5.2.0; "Match refresh rate" then put the same idea back in 5.2.1 as a post-pass
+// at the tail of this function, and 5.5.0 removed it — measured as worse than what it
+// replaced, by the user it was built for, on his own hardware. Do not put it back
+// without a measurement that says otherwise.
 
 #define CONN_TEST_SERVER "qt.conntest.moonlight-stream.org"
 
@@ -229,6 +232,10 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
         return;
     }
 
+    // The status corner is ours from here: a clipboard notice showing in it must not be hidden
+    // on top of this warning when its 3 s run out.
+    s_ActiveSession->m_ClipboardNoticeShown = false;
+
     switch (connectionStatus)
     {
     case CONN_STATUS_POOR:
@@ -323,14 +330,18 @@ void Session::clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlag
 bool Session::chooseDecoder(StreamingPreferences::VideoDecoderSelection vds,
                             SDL_Window* window, int videoFormat, int width, int height,
                             int frameRate, bool enableVsync, bool enableFramePacing, bool testOnly, IVideoDecoder*& chosenDecoder,
-                            int framePacingMode)
+                            int framePacingMode, bool fractionalVsync,
+                            bool enableVrr, int vrrDisplayRefreshHz,
+                            [[maybe_unused]] bool* effectiveVrr, bool smoothVrrFrameTiming,
+                            int vrrLatencyMode)
 {
-    DECODER_PARAMETERS params;
+    DECODER_PARAMETERS params = {};
 
     // We should never have vsync enabled for test-mode.
     // It introduces unnecessary delay for renderers that may
     // block while waiting for a backbuffer swap.
     SDL_assert(!enableVsync || !testOnly);
+    SDL_assert(!enableVrr || !testOnly);
 
     params.width = width;
     params.height = height;
@@ -340,16 +351,55 @@ bool Session::chooseDecoder(StreamingPreferences::VideoDecoderSelection vds,
     params.enableVsync = enableVsync;
     params.enableFramePacing = enableFramePacing;
     params.framePacingMode = framePacingMode;
+
+    // 5.6.0 (issue #11). Passed in by the caller, exactly like enableVsync and
+    // framePacingMode above and for the same reason: a host profile can override it, and
+    // profile overrides are applied to the session's *cloned* preferences. This function
+    // is static, so it has no clone to read.
+    //
+    // ⚠️ An earlier version of this read StreamingPreferences::get() here. That was wrong
+    // the moment the setting became overridable per profile — the global singleton never
+    // carries an override, so a profile that switched this on would have been ignored and
+    // a profile that switched it off would have run with it on. Nothing would have said so
+    // except the `Fractional V-Sync:` log line disagreeing with the profile.
+    //
+    // The eight probe call sites leave this at its default false; they pass V-sync off, so
+    // the renderer's gate would reject it anyway.
+    params.fractionalVsync = !testOnly && fractionalVsync;
+
+    params.enableVrr = enableVrr;
+    params.vrrLatencyMode = vrrLatencyMode;
+    params.smoothVrrFrameTiming = smoothVrrFrameTiming;
+    params.vrrDisplayRefreshHz = vrrDisplayRefreshHz;
     params.testOnly = testOnly;
     params.vds = vds;
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "V-sync %s",
                 enableVsync ? "enabled" : "disabled");
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "VRR %s",
+                enableVrr ? "enabled" : "disabled");
 
 #ifdef HAVE_SLVIDEO
+    // SLVideo owns its own presentation path and has no VRR backend. Try it
+    // as the normal fixed-presentation fallback without passing a misleading
+    // active-VRR request; if it cannot initialize, FFmpeg still receives the
+    // original parameters and may provide a real VRR-capable renderer.
+    DECODER_PARAMETERS slVideoParams = params;
+    slVideoParams.enableVrr = false;
+    slVideoParams.vrrDisplayRefreshHz = 0;
     chosenDecoder = new SLVideoDecoder(testOnly);
-    if (chosenDecoder->initialize(&params)) {
+    if (chosenDecoder->initialize(&slVideoParams)) {
+        if (enableVrr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "VRR pacing unavailable: unsupported renderer (SLVideo); using fixed presentation");
+            if (effectiveVrr != nullptr) {
+                // Keep the session snapshot aligned with the decoder that was
+                // actually selected without changing the stored preference.
+                *effectiveVrr = false;
+            }
+        }
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "SLVideo video decoder chosen");
         return true;
@@ -651,6 +701,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
     {
         QReadLocker lock(&computer->lock);
         m_StreamTweakEnabled = computer->streamTweakEnabled;
+        // 6.3.0: rejoining what is already running, not launching it — see m_RejoinsRunningApp.
+        m_RejoinsRunningApp = computer->currentGameId != 0 && computer->currentGameId == app.id;
     }
 
     // Start polling StreamTweak for host metrics immediately.
@@ -680,6 +732,62 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
     // Session telemetry sampler: sends per-second client stats to StreamTweak every 10s.
     // start() is called later in exec() once the stream is running (after LiStartConnection).
     m_TelemetrySampler = new SessionTelemetrySampler(this);
+
+    // Play time. Created here, with the sampler, because both own a QTimer and both need it
+    // to belong to the Qt main thread — the connection completes on
+    // AsyncConnectionStartThread, and a QTimer created there would never fire.
+    m_PlaytimeFlushTimer = new QTimer(this);
+    m_PlaytimeFlushTimer->setInterval(PlaytimeManager::kMinSessionSeconds * 1000);
+    m_PlaytimeFlushTimer->setSingleShot(false);
+    connect(m_PlaytimeFlushTimer, &QTimer::timeout, this, &Session::flushPlaytime);
+}
+
+void Session::flushPlaytime()
+{
+    if (!m_PlaytimeTracking || !m_PlaytimeTimer.isValid())
+        return;
+
+    const qint64 elapsed = m_PlaytimeTimer.elapsed() / 1000;
+    const qint64 unbanked = elapsed - m_PlaytimeFlushedSecs;
+    if (unbanked <= 0)
+        return;
+
+    PlaytimeManager::get()->addSeconds(m_Computer->uuid, m_App.name, m_App.id, unbanked);
+    m_PlaytimeFlushedSecs = elapsed;
+}
+
+void Session::endPlaytime()
+{
+    if (!m_PlaytimeTracking)
+        return;
+
+    // Stop first: the record below is written once, and a flush landing between the two
+    // would bank the same seconds twice.
+    m_PlaytimeTracking = false;
+    if (m_PlaytimeFlushTimer)
+        m_PlaytimeFlushTimer->stop();
+
+    const qint64 elapsed = m_PlaytimeTimer.isValid() ? m_PlaytimeTimer.elapsed() / 1000 : 0;
+    const qint64 unbanked = qMax<qint64>(0, elapsed - m_PlaytimeFlushedSecs);
+
+    // How the session went, read off the decoder while it is still alive. An empty set of
+    // stats — every field at -1 — is what a session that never rendered a frame leaves
+    // behind, and the panel prints dashes for it rather than zeroes.
+    PlaytimeSessionStats stats;
+    SDL_LockMutex(m_DecoderLock);
+    if (m_VideoDecoder) {
+        auto* ffDec = dynamic_cast<FFmpegVideoDecoder*>(m_VideoDecoder);
+        if (ffDec)
+            stats = ffDec->getSessionStats();
+    }
+    SDL_UnlockMutex(m_DecoderLock);
+    stats.targetFps = m_StreamConfig.fps;
+
+    // Only the tail goes towards the total — the flushes already took the rest — while the
+    // full length is what decides "last played" and what gets stored as the session's
+    // duration.
+    PlaytimeManager::get()->endSession(m_Computer->uuid, m_App.name, m_App.id,
+                                       unbanked, elapsed, stats);
 }
 
 Session::~Session()
@@ -688,6 +796,124 @@ Session::~Session()
     // Use Session::exec() or DeferredSessionCleanupTask instead.
 
     SDL_DestroyMutex(m_DecoderLock);
+}
+
+void Session::snapshotPresentationSettings(SDL_Window* window)
+{
+    const bool requestedVrr = m_Preferences->enableVrr;
+    m_VrrRequested = requestedVrr;
+    m_VrrInactiveReason = nullptr;
+    m_PresentationSettings.decoderSelection = m_Preferences->videoDecoderSelection;
+    m_PresentationSettings.effectiveWindowMode = m_Preferences->windowMode;
+
+    int strictRefreshRate = 0;
+    const bool hasStrictRefreshRate = StreamUtils::tryGetDisplayRefreshRate(window, strictRefreshRate);
+    m_PresentationSettings.refreshRate = hasStrictRefreshRate ? strictRefreshRate : 0;
+
+    // Retain the legacy V-sync behavior when display information is incomplete,
+    // but do not use its 60 Hz fallback to qualify VRR.
+    const int vsyncRefreshRate = hasStrictRefreshRate ? strictRefreshRate : 60;
+    if (!hasStrictRefreshRate) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Refresh rate unavailable; assuming 60 Hz for legacy pacing");
+    }
+    m_PresentationSettings.effectiveVsync = m_Preferences->enableVsync;
+    if (m_PresentationSettings.effectiveVsync && vsyncRefreshRate + 5 < m_StreamConfig.fps) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Disabling V-sync because refresh rate limit exceeded");
+        m_PresentationSettings.effectiveVsync = false;
+    }
+
+    m_PresentationSettings.enableFramePacing = m_PresentationSettings.effectiveVsync &&
+                                               m_Preferences->framePacingMode != StreamingPreferences::FP_OFF;
+    m_PresentationSettings.enableVrr = false;
+    m_PresentationSettings.vrrLatencyMode = m_Preferences->vrrLatencyMode;
+    m_PresentationSettings.smoothVrrFrameTiming = m_Preferences->smoothVrrFrameTiming;
+
+    if (requestedVrr) {
+        const bool hasAdaptiveHeadroom = hasStrictRefreshRate &&
+            VrrRatePolicy::hasAdaptiveHeadroom(m_StreamConfig.fps,
+                                               strictRefreshRate);
+        if (!hasStrictRefreshRate) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "VRR disabled: invalid display refresh");
+            m_VrrInactiveReason = "display refresh unknown";
+        }
+        if (!m_PresentationSettings.effectiveVsync) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "VRR disabled: ineffective V-sync");
+            // ⚠️ V-Sync the user left ON was switched off just above because the frame rate
+            // is past refresh + 5. Saying "V-Sync off" then blamed a setting that is on, while
+            // Settings rightly names the frame rate (§73.16).
+            m_VrrInactiveReason = m_Preferences->enableVsync ? "frame rate above display refresh"
+                                                             : "V-Sync off";
+        }
+        if (hasStrictRefreshRate && m_PresentationSettings.effectiveVsync &&
+                !hasAdaptiveHeadroom) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "VRR disabled: %d FPS exceeds the display maximum of %d Hz",
+                        m_StreamConfig.fps, strictRefreshRate);
+            m_VrrInactiveReason = "frame rate above display refresh";
+        }
+        if (hasStrictRefreshRate && m_PresentationSettings.effectiveVsync &&
+                hasAdaptiveHeadroom) {
+            m_PresentationSettings.enableVrr = true;
+            m_PresentationSettings.effectiveWindowMode = StreamingPreferences::WM_FULLSCREEN_DESKTOP;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "VRR requested at %d Hz; forcing borderless desktop fullscreen for this session",
+                        strictRefreshRate);
+        }
+    }
+
+    // A rejected VRR request still uses the seamless fixed-V-sync fallback.
+    // Keep that fallback paced even when the separate frame-pacing preference
+    // is off, matching renderer-level VRR rejection later in initialization.
+    if (requestedVrr &&
+            !m_PresentationSettings.enableVrr &&
+            m_PresentationSettings.effectiveVsync) {
+        m_PresentationSettings.enableFramePacing = true;
+    }
+
+    // 5.6.0 Fractional V-Sync (§64), resolved HERE and nowhere else, with the cascade it
+    // has always had: V-Sync (which the refresh-rate check above can force off whatever
+    // the profile says), frame pacing, and the setting itself — all read from
+    // m_Preferences, the CLONE that carries host-profile overrides. Reading the global
+    // singleton instead is the defect §64 shipped once and caught by accident.
+    m_PresentationSettings.fractionalVsync = m_PresentationSettings.effectiveVsync &&
+                                             m_PresentationSettings.enableFramePacing &&
+                                             m_Preferences->fractionalVsync;
+
+    // ⚠️ VRR and Fractional V-Sync are mutually exclusive, and VRR wins. On the VRR path
+    // the present uses sync interval 0 (or the tearing flag), so a fractional interval
+    // cannot apply at all: leaving the setting "on" would make it lie rather than do
+    // anything. Said out loud in the log, because a dependent setting ignored in silence
+    // is precisely what appsettings.h warns about for this family of options.
+    //
+    // ⚠️ The consequence worth knowing: a session that qualifies for VRR but has it
+    // refused by the renderer later runs on fixed V-sync WITHOUT the fractional cadence.
+    // Switching VRR off restores it. Re-deciding after the renderer has answered would
+    // mean two places owning this setting, which is the arrangement §64 exists to prevent.
+    if (m_PresentationSettings.enableVrr && m_PresentationSettings.fractionalVsync) {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Fractional V-Sync switched off for this session: VRR is active and "
+                    "presents with sync interval 0");
+        m_PresentationSettings.fractionalVsync = false;
+    }
+
+    // This is session-local state.  The stored window preference remains
+    // untouched, so disabling VRR for a later stream returns to that choice.
+    m_IsFullScreen = m_PresentationSettings.effectiveWindowMode != StreamingPreferences::WM_WINDOWED ||
+                     !WMUtils::isRunningDesktopEnvironment();
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Presentation snapshot: V-sync %s, VRR requested %s, VRR enabled %s, "
+                "fractional V-sync %s, refresh %d Hz, window mode %d",
+                m_PresentationSettings.effectiveVsync ? "enabled" : "disabled",
+                requestedVrr ? "yes" : "no",
+                m_PresentationSettings.enableVrr ? "yes" : "no",
+                m_PresentationSettings.fractionalVsync ? "on" : "off",
+                m_PresentationSettings.refreshRate,
+                static_cast<int>(m_PresentationSettings.effectiveWindowMode));
 }
 
 bool Session::initialize(QQuickWindow* qtWindow)
@@ -750,6 +976,12 @@ bool Session::initialize(QQuickWindow* qtWindow)
         return false;
     }
 
+    // Stop text input. SDL enables it by default
+    // when we initialize the video subsystem, but this
+    // causes an IME popup when certain keys are held down
+    // on macOS.
+    SDL_StopTextInput();
+
     LiInitializeStreamConfiguration(&m_StreamConfig);
     m_StreamConfig.width = m_Preferences->width;
     m_StreamConfig.height = m_Preferences->height;
@@ -758,22 +990,20 @@ bool Session::initialize(QQuickWindow* qtWindow)
     getWindowDimensions(x, y, width, height);
 
     // Create a hidden window to use for decoder initialization tests
-    SDL_Window* testWindow = SDL_CreateWindow("", x, y, width, height,
-                                              SDL_WINDOW_HIDDEN | StreamUtils::getPlatformWindowFlags());
+    SDL_Window* testWindow = StreamUtils::createTestWindow();
     if (!testWindow) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Failed to create test window with platform flags: %s",
-                    SDL_GetError());
-
-        testWindow = SDL_CreateWindow("", x, y, width, height, SDL_WINDOW_HIDDEN);
-        if (!testWindow) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                         "Failed to create window for hardware decode test: %s",
-                         SDL_GetError());
-            SDL_QuitSubSystem(SDL_INIT_VIDEO);
-            return false;
-        }
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Failed to create window for hardware decode test: %s",
+                     SDL_GetError());
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        return false;
     }
+
+    // createTestWindow() normally starts on display zero.  Move it to the
+    // display selected for the real streaming window before snapshotting the
+    // refresh rate, otherwise a multi-monitor session could qualify VRR using
+    // the wrong panel's refresh.
+    SDL_SetWindowPosition(testWindow, x, y);
 
     qInfo() << "Server GPU:" << m_Computer->gpuModel;
     qInfo() << "Server GFE version:" << m_Computer->gfeVersion;
@@ -782,6 +1012,7 @@ bool Session::initialize(QQuickWindow* qtWindow)
     m_VideoCallbacks.setup = drSetup;
 
     m_StreamConfig.fps = m_Preferences->fps;
+    snapshotPresentationSettings(testWindow);
     m_StreamConfig.bitrate = m_Preferences->bitrateKbps;
 
 #ifndef STEAM_LINK
@@ -899,24 +1130,6 @@ bool Session::initialize(QQuickWindow* qtWindow)
             }
         }
 
-#if 0
-        // TODO: Determine if AV1 is better depending on the decoder
-        if (getDecoderAvailability(testWindow,
-                                   m_Preferences->videoDecoderSelection,
-                                   m_Preferences->enableYUV444 ?
-                                        (m_Preferences->enableHdr ? VIDEO_FORMAT_AV1_HIGH10_444 : VIDEO_FORMAT_AV1_HIGH8_444) :
-                                        (m_Preferences->enableHdr ? VIDEO_FORMAT_AV1_MAIN10 : VIDEO_FORMAT_AV1_MAIN8),
-                                   m_StreamConfig.width,
-                                   m_StreamConfig.height,
-                                   m_StreamConfig.fps) != DecoderAvailability::Hardware) {
-            // Deprioritize AV1 unless we can't hardware decode HEVC and have HDR enabled.
-            // We want to keep AV1 at the top of the list for HDR with software decoding
-            // because dav1d is higher performance than FFmpeg's HEVC software decoder.
-            if (hevcDA == DecoderAvailability::Hardware || !m_Preferences->enableHdr) {
-                m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_AV1);
-            }
-        }
-#else
         // Deprioritize AV1 unless we can't hardware decode HEVC, and have HDR enabled
         // or we're on Windows or a non-x86 Linux/BSD.
         //
@@ -944,7 +1157,15 @@ bool Session::initialize(QQuickWindow* qtWindow)
             ) {
             m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_AV1);
         }
-#endif
+        else if (!m_Preferences->enableHdr &&
+                   getDecoderAvailability(testWindow,
+                                          m_Preferences->videoDecoderSelection,
+                                          m_Preferences->enableYUV444 ? VIDEO_FORMAT_AV1_HIGH8_444 : VIDEO_FORMAT_AV1_MAIN8,
+                                          m_StreamConfig.width,
+                                          m_StreamConfig.height,
+                                          m_StreamConfig.fps) != DecoderAvailability::Hardware) {
+            m_SupportedVideoFormats.deprioritizeByMask(VIDEO_FORMAT_MASK_AV1);
+        }
 
 #ifdef Q_OS_DARWIN
         {
@@ -1006,44 +1227,52 @@ bool Session::initialize(QQuickWindow* qtWindow)
         m_SupportedVideoFormats.deprioritizeByMask(~VIDEO_FORMAT_MASK_10BIT);
     }
 
-    switch (m_Preferences->windowMode)
-    {
-    default:
-        // Normally we'd default to fullscreen desktop when starting in windowed
-        // mode, but in the case of a slow GPU, we want to use real fullscreen
-        // to allow the display to assist with the video scaling work.
-        if (WMUtils::isGpuSlow()) {
-            m_FullScreenFlag = SDL_WINDOW_FULLSCREEN;
-            break;
-        }
-        // Fall-through
-    case StreamingPreferences::WM_FULLSCREEN_DESKTOP:
-        // Only use full-screen desktop mode if we're running a desktop environment
-        if (WMUtils::isRunningDesktopEnvironment()) {
-            m_FullScreenFlag = SDL_WINDOW_FULLSCREEN_DESKTOP;
-            break;
-        }
-        // Fall-through
-    case StreamingPreferences::WM_FULLSCREEN:
+    if (m_PresentationSettings.enableVrr) {
+        // The session snapshot has already established that this is an active
+        // VRR request.  Do not overwrite the saved mode, but always create the
+        // streaming window in the compatible borderless mode.
+        m_FullScreenFlag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+    }
+    else {
+        switch (m_PresentationSettings.effectiveWindowMode)
+        {
+        default:
+            // Normally we'd default to fullscreen desktop when starting in windowed
+            // mode, but in the case of a slow GPU, we want to use real fullscreen
+            // to allow the display to assist with the video scaling work.
+            if (WMUtils::isGpuSlow()) {
+                m_FullScreenFlag = SDL_WINDOW_FULLSCREEN;
+                break;
+            }
+            // Fall-through
+        case StreamingPreferences::WM_FULLSCREEN_DESKTOP:
+            // Only use full-screen desktop mode if we're running a desktop environment
+            if (WMUtils::isRunningDesktopEnvironment()) {
+                m_FullScreenFlag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+                break;
+            }
+            // Fall-through
+        case StreamingPreferences::WM_FULLSCREEN:
 #ifdef Q_OS_DARWIN
-        if (qEnvironmentVariableIntValue("I_WANT_BUGGY_FULLSCREEN") == 0) {
-            // Don't use "real" fullscreen on macOS by default. See comments above.
-            m_FullScreenFlag = SDL_WINDOW_FULLSCREEN_DESKTOP;
-        }
-        else {
-            m_FullScreenFlag = SDL_WINDOW_FULLSCREEN;
-        }
+            if (qEnvironmentVariableIntValue("I_WANT_BUGGY_FULLSCREEN") == 0) {
+                // Don't use "real" fullscreen on macOS by default. See comments above.
+                m_FullScreenFlag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+            }
+            else {
+                m_FullScreenFlag = SDL_WINDOW_FULLSCREEN;
+            }
 #else
-        m_FullScreenFlag = SDL_WINDOW_FULLSCREEN;
+            m_FullScreenFlag = SDL_WINDOW_FULLSCREEN;
 #endif
-        break;
+            break;
+        }
     }
 
 #if !SDL_VERSION_ATLEAST(2, 0, 11)
     // HACK: Using a full-screen window breaks mouse capture on the Pi's LXDE
     // GUI environment. Force the session to use windowed mode (which won't
     // really matter anyway because the MMAL renderer always draws full-screen).
-    if (qgetenv("DESKTOP_SESSION") == "LXDE-pi") {
+    if (!m_PresentationSettings.enableVrr && qgetenv("DESKTOP_SESSION") == "LXDE-pi") {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "Forcing windowed mode on LXDE-Pi");
         m_FullScreenFlag = 0;
@@ -1105,7 +1334,7 @@ void Session::refreshHostCapabilities()
         // Mirror PcMonitorThread::tryPollComputer: pass 0 for httpsPort so
         // NvHTTP rediscovers it from the HTTP response. Using a cached value
         // here would risk failing if the port has changed.
-        NvHTTP http(address, 0, m_Computer->serverCert, &nam);
+        NvHTTP http(address, 0, m_Computer->serverCert, !m_Computer->isNvidiaServerSoftware, &nam);
 
         QString serverInfo;
         try {
@@ -1619,7 +1848,8 @@ void Session::updateOptimalWindowDisplayMode()
     if (!matchVideo) {
         // Start with the native desktop resolution and try to find
         // the highest refresh rate that our stream FPS evenly divides.
-        for (int i = 0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
+        int numDisplayModes = SDL_GetNumDisplayModes(displayIndex);
+        for (int i = 0; i < numDisplayModes; i++) {
             if (SDL_GetDisplayMode(displayIndex, i, &mode) == 0) {
                 if (mode.w == desktopMode.w && mode.h == desktopMode.h &&
                     mode.refresh_rate % m_StreamConfig.fps == 0) {
@@ -1642,7 +1872,8 @@ void Session::updateOptimalWindowDisplayMode()
     if (bestMode.refresh_rate == 0) {
         float bestModeAspectRatio = 0;
         float videoAspectRatio = (float)m_ActiveVideoWidth / (float)m_ActiveVideoHeight;
-        for (int i = 0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
+        int numDisplayModes = SDL_GetNumDisplayModes(displayIndex);
+        for (int i = 0; i < numDisplayModes; i++) {
             if (SDL_GetDisplayMode(displayIndex, i, &mode) == 0) {
                 float modeAspectRatio = (float)mode.w / (float)mode.h;
                 if (mode.w >= m_ActiveVideoWidth && mode.h >= m_ActiveVideoHeight &&
@@ -1689,27 +1920,6 @@ void Session::updateOptimalWindowDisplayMode()
                                       "and never in borderless or windowed");
 
     SDL_SetWindowDisplayMode(m_Window, &bestMode);
-
-    // ⚠️ Here, at the tail of the function, and NOT at the call sites: there are three
-    // of them — the window setup and the two paths that fire when the window lands on
-    // another display mid-session — and a post-pass that only ran on the first would
-    // quietly stop matching the moment the user dragged the stream to another monitor.
-    // Everything above this line is upstream's, untouched.
-    //
-    // Never for an unlock session: that one exists to put a PIN into a logon screen and
-    // is over in seconds, so matching it would only bounce the panel down and back up
-    // before the real session arrives and does it again.
-    //
-    // And only in exclusive fullscreen, which is the only place a display mode recorded
-    // on the window ever reaches the panel. Borderless and windowed sessions keep the
-    // desktop refresh rate no matter what is stored here — the Settings row says as much
-    // — so the match stays quiet there rather than writing a mode and a log line that
-    // nothing will act on.
-    const bool matchRefresh = m_Preferences->matchRefreshRate
-                              && !m_UnlockMode
-                              && m_IsFullScreen
-                              && m_FullScreenFlag == SDL_WINDOW_FULLSCREEN;
-    RefreshRateMatch::apply(m_Window, m_StreamConfig.fps, matchRefresh);
 }
 
 void Session::toggleFullscreen()
@@ -1726,8 +1936,14 @@ void Session::toggleFullscreen()
     // to deadlock when transitioning out of fullscreen. Destroy the decoder before
     // exiting fullscreen as a workaround. See issue #973.
     SDL_LockMutex(m_DecoderLock);
-    delete m_VideoDecoder;
-    m_VideoDecoder = nullptr;
+    // Detached before the delete (6.0.0, §73.19): the destructor tears down D3D11 and
+    // can pump window messages, and a Qt timer running inside that pump must not find
+    // a decoder half-destroyed behind this pointer.
+    {
+        IVideoDecoder* oldDecoder = m_VideoDecoder;
+        m_VideoDecoder = nullptr;
+        delete oldDecoder;
+    }
     SDL_UnlockMutex(m_DecoderLock);
 #endif
 
@@ -1806,11 +2022,26 @@ void Session::revealWindowNow()
     }
     m_Curtain.finish();
 
-    // Showing it applies the full-screen mode recorded at creation time, which resizes the
-    // window; the resulting SDL_WINDOWEVENT_SIZE_CHANGED is handled by the renderer as a
-    // swapchain resize, not a recreation, so the picture already flowing stays flowing.
-    SDL_ShowWindow(m_Window);
-    SDL_RaiseWindow(m_Window);
+    /*
+     * ⚠️ Only for a window that was actually held back. On the default path the window was
+     * created visible and at its final size, so there is nothing here to show and nothing to
+     * resize — and showing and raising it anyway meant grabbing focus at the first decoded
+     * frame, which upstream never does on that path.
+     *
+     * On the path that does hold it back, showing it is what applies the full-screen mode
+     * recorded at creation time, which resizes the window; the resulting
+     * SDL_WINDOWEVENT_SIZE_CHANGED is handled by the renderer as a swapchain resize, not a
+     * recreation, so the picture already flowing stays flowing.
+     *
+     * ⚠️ The rest of this function is NOT conditional, and must not become so: it is also
+     * what tells the GUI the stream is up. streamWindowRevealed() is what makes StreamSegue
+     * pop and what calls window.hideForStream() — so an early return here would leave the
+     * launch screen and the Qt window standing behind the stream on every launch.
+     */
+    if (m_UnlockMode || waitsForGame()) {
+        SDL_ShowWindow(m_Window);
+        SDL_RaiseWindow(m_Window);
+    }
 
     // Reported after the fact, not before: whether the window came up full screen is the
     // one thing about this that can silently be wrong, and "the mode was applied on show"
@@ -1845,6 +2076,7 @@ void Session::notifyMouseEmulationMode(bool enabled)
     SDL_assert(m_MouseEmulationRefCount >= 0);
 
     // We re-use the status update overlay for mouse mode notification
+    m_ClipboardNoticeShown = false;
     if (m_MouseEmulationRefCount > 0) {
         m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate, "Gamepad mouse mode active\nLong press Start to deactivate");
         m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
@@ -1852,6 +2084,22 @@ void Session::notifyMouseEmulationMode(bool enabled)
     else {
         m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
     }
+}
+
+void Session::showClipboardNotice(const QString& text)
+{
+    // The corner is shared: never over gamepad mouse mode or a connection warning.
+    if (m_MouseEmulationRefCount > 0 || m_OverlayManager.isOverlayEnabled(Overlay::OverlayStatusUpdate))
+        return;
+
+    m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate, text.toUtf8().constData());
+    m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
+    m_ClipboardNoticeShown = true;
+    QTimer::singleShot(3000, this, [this]() {
+        // Only if nothing has taken the corner since: a warning that arrived meanwhile stays.
+        if (m_ClipboardNoticeShown.exchange(false))
+            m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
+    });
 }
 
 class AsyncConnectionStartThread : public QThread
@@ -1875,10 +2123,16 @@ public:
 // Called in a non-main thread
 bool Session::startConnectionAsync()
 {
+    // A Vibeshine / Vibepollo 2.0 host control runs beside the game rather than replacing it,
+    // and it is always reached through /launch: the server routes Resume, Remote Monitor and
+    // Terminate itself, and a /resume for one of them would be asking to rejoin the game.
+    const bool hostControl = hostControlKind(m_App.id, m_App.uuid, m_App.name) != HostControl::None;
+
     // The UI should have ensured the old game was already quit
     // if we decide to stream a different game.
     Q_ASSERT(m_Computer->currentGameId == 0 ||
-             m_Computer->currentGameId == m_App.id);
+             m_Computer->currentGameId == m_App.id ||
+             hostControl);
 
     bool enableGameOptimizations;
     if (m_Computer->isNvidiaServerSoftware) {
@@ -1907,7 +2161,7 @@ bool Session::startConnectionAsync()
 
     try {
         NvHTTP http(m_Computer);
-        http.startApp(m_Computer->currentGameId != 0 ? "resume" : "launch",
+        http.startApp((m_Computer->currentGameId != 0 && !hostControl) ? "resume" : "launch",
                       m_Computer->isNvidiaServerSoftware,
                       m_App.id, &m_StreamConfig,
                       enableGameOptimizations,
@@ -1917,6 +2171,17 @@ bool Session::startConnectionAsync()
                       rtspSessionUrl,
                       m_HostVirtualDisplay);
     } catch (const GfeHttpResponseException& e) {
+        // ⚠️ 410 is not an error. Apollo's convention, kept by Vibeshine and Vibepollo 2.0: a
+        // host control that finishes without a stream (Terminate, Disconnect Monitor/Input)
+        // answers 410 with a success message, and an action the server wants confirmed
+        // (Terminate from a secondary client, replacing a running app) answers 410 asking to
+        // launch the same entry again within 60 s. Only that wording tells the two apart —
+        // the status code is the same — so it is matched on the one phrase both prompts share.
+        if (e.getStatusCode() == 410) {
+            const QString message = QString::fromUtf8(e.getStatusMessage());
+            emit launchNotice(message, message.contains(QLatin1String("again within"), Qt::CaseInsensitive));
+            return false;
+        }
         emit displayLaunchError(tr("Host returned error: %1").arg(e.toQString()));
         return false;
     } catch (const QtNetworkReplyException& e) {
@@ -2078,6 +2343,41 @@ bool Session::startConnectionAsync()
         }, Qt::QueuedConnection);
     }
 
+    // The shared clipboard (6.3.0, §79): off unless turned on in Settings → StreamTweak, and
+    // never for the PIN unlock, which is plumbing rather than a session. Created on the main
+    // thread for the same reason as the sampler above — it owns a QTimer and a window. It
+    // rides on the metrics poller, whose STATS carry the host's clipboard sequence number.
+    if (!m_UnlockMode && m_StreamTweakEnabled && m_HostMetricsPoller && m_Preferences->clipboardSync) {
+        QString hostAddr = m_Computer->activeAddress.address();
+        QMetaObject::invokeMethod(this, [this, hostAddr]() {
+            // A stream quit before this ran must not open a clipboard session after finish().
+            if (m_EventLoopDone)
+                return;
+            m_ClipboardSync = new ClipboardSync(hostAddr, this);
+            connect(m_HostMetricsPoller, &HostMetricsPoller::hostClipboardSeq,
+                    m_ClipboardSync, &ClipboardSync::onHostClipboardSeq);
+            connect(m_ClipboardSync, &ClipboardSync::notice, this, &Session::showClipboardNotice);
+            m_ClipboardSync->start();
+        }, Qt::QueuedConnection);
+    }
+
+    // The play-time clock starts here too — same moment, deliberately different conditions.
+    //
+    // ⚠️ NOT gated on m_StreamTweakEnabled, unlike everything above: the hours are the
+    // client's own record and belong to a plain Sunshine host as much as to a StreamTweak
+    // one. It is gated on unlock mode, which is a session in every mechanical sense but was
+    // never you playing anything, and on the app being a game at all.
+    if (!m_UnlockMode && PlaytimeManager::isTracked(m_App.name)) {
+        m_PlaytimeTracking = true;
+        m_PlaytimeFlushedSecs = 0;
+        m_PlaytimeTimer.start();
+        // Queued for the same reason as the sampler's start(): the timer belongs to the Qt
+        // main thread and we are not on it.
+        QMetaObject::invokeMethod(m_PlaytimeFlushTimer, [this]() {
+            m_PlaytimeFlushTimer->start();
+        }, Qt::QueuedConnection);
+    }
+
     return true;
 }
 
@@ -2186,6 +2486,20 @@ void Session::beginLinkMatch()
         // path as the unlock case, because that signal is what releases the launch.
         emit linkMatchFinished(false, QString());
         return;
+    }
+
+    // 5.9.0: nothing worth renegotiating the host's adapter for. Remote Input carries input
+    // only, and Terminate / Disconnect finish with a message instead of a stream — dropping the
+    // link for either would black out whatever else is streaming from that host.
+    switch (hostControlKind(m_App.id, m_App.uuid, m_App.name)) {
+    case HostControl::RemoteInput:
+    case HostControl::Terminate:
+    case HostControl::DisconnectMonitor:
+    case HostControl::DisconnectInput:
+        emit linkMatchFinished(false, QString());
+        return;
+    default:
+        break;
     }
 
     // One matcher per session; a resume builds a new Session and therefore a new matcher.
@@ -2321,7 +2635,13 @@ void Session::exec()
     }
 
     // Launch Hue Sync minimized on the client if the feature is enabled.
-    if (m_Preferences->hueSyncIntegration) {
+    //
+    // Never during an unlock. That session is plumbing for a PIN pad: the window stays hidden,
+    // nobody is watching anything, and it lasts as long as typing four digits — so lighting the
+    // room for it is wrong twice over. The setting, global or per-host, means "a real streaming
+    // session is starting". Guarded here rather than at the setting, which the unlock path
+    // inherits like every other preference.
+    if (m_Preferences->hueSyncIntegration && !m_UnlockMode) {
         QString huePath = HueSyncManager::discoverExecutable();
         if (!huePath.isEmpty()) {
             m_HueSyncManager = new HueSyncManager();
@@ -2365,12 +2685,39 @@ void Session::exec()
 
     // We always want a resizable window with High DPI enabled.
     //
-    // It is born hidden: until the host says the game is on screen there is nothing here
-    // worth showing — the stream carries a desktop still reconfiguring itself — and the
-    // launch curtain in QML is already saying what is happening. Staying hidden means that
-    // curtain is the only one, so there is no second rendition of the same screen to keep
-    // in step with it across resolutions, DPI settings and scaling factors.
-    Uint32 defaultWindowFlags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
+    // It is born hidden ONLY when something is actually going to hold it back: until the host
+    // says the game is on screen there is nothing here worth showing — the stream carries a
+    // desktop still reconfiguring itself — and the launch curtain in QML is already saying
+    // what is happening. Staying hidden means that curtain is the only one, so there is no
+    // second rendition of the same screen to keep in step with it across resolutions, DPI
+    // settings and scaling factors.
+    //
+    // ⚠️ THE CONDITION IS THE POINT, AND IT USED TO BE MISSING. This flag was set on every
+    // launch from 5.0.0 to 5.5.0, including the default path where nothing holds the window
+    // back — the wait is opt-in and off by default. So everyone paid for a feature almost
+    // nobody had switched on, and what they paid is not free:
+    //
+    //   born hidden -> SDL_SetWindowFullscreen only RECORDS the mode (see below)
+    //               -> the decoder is built immediately, on purpose, so frames flow
+    //               -> SDL_ShowWindow at the reveal applies the mode and RESIZES the window
+    //               -> the renderer takes that as a swapchain resize, mid-stream
+    //
+    // A swapchain resized while frames are already being presented is exactly what an
+    // overlay injector hooked into DXGI cannot survive, and ArtMoon is the only client
+    // that does it — upstream Moonlight creates this window visible and at its final size.
+    // Reported by @Soladus on issue #11: freezes about a second into every stream, on two
+    // different handhelds, with Special-K injected; no freeze with Special-K removed; no
+    // freeze on the Moonlight nightly with the same injector; and no freeze on our own
+    // 4.5.1, which is the last release built before this flag existed.
+    //
+    // Created visible, the mode is applied at creation instead — before the decoder exists
+    // and before a single frame has been presented — and there is nothing to resize later.
+    const bool holdWindowBack = m_UnlockMode || waitsForGame();
+
+    Uint32 defaultWindowFlags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
+    if (holdWindowBack) {
+        defaultWindowFlags |= SDL_WINDOW_HIDDEN;
+    }
 
     // If we're starting in windowed mode and the Moonlight GUI is maximized or
     // minimized, match that with the streaming window.
@@ -2435,7 +2782,10 @@ void Session::exec()
     m_InputHandler->setWindow(m_Window);
 
     // Nothing the user does reaches the host until they can see it, and B ends the wait.
-    m_InputHandler->setStreamWindowHidden(true);
+    // Tied to the same condition as the flag above: a window that was never hidden must not
+    // start with its input suppressed, or the default path would swallow everything until
+    // the first frame lands.
+    m_InputHandler->setStreamWindowHidden(holdWindowBack);
 
     // Make up for the arrival events SDL never sent, now that the connection is up and the
     // host can be told what kind of controller it is. A no-op on the ordinary path where SDL
@@ -2476,10 +2826,14 @@ void Session::exec()
 
     // Enter full screen if requested.
     //
-    // On a hidden window SDL only records the flag — the mode set and the resize happen when
-    // the window is shown. That is deliberate: doing it now would light up the display while
-    // the curtain is still up, and doing it later is the same work at the moment it becomes
-    // visible anyway.
+    // On a HIDDEN window SDL only records the flag — the mode set and the resize happen when
+    // the window is shown. That is deliberate on the path that holds the window back: doing
+    // it now would light up the display while the curtain is still up.
+    //
+    // ⚠️ On the default path the window is visible by now, so this applies the mode HERE —
+    // before the decoder is built a few lines down and before any frame has been presented.
+    // That is the whole point of the condition above: the resize happens on an idle
+    // swapchain instead of one mid-stream.
     if (m_IsFullScreen) {
         SDL_SetWindowFullscreen(m_Window, m_FullScreenFlag);
     }
@@ -2500,24 +2854,24 @@ void Session::exec()
     bool needsFirstEnterCapture = false;
     bool needsPostDecoderCreationCapture = false;
 
-    // HACK: For Wayland, we wait until we get the first SDL_WINDOWEVENT_ENTER
-    // event where it seems to work consistently on GNOME. For other platforms,
-    // especially where SDL may call SDL_RecreateWindow(), we must only capture
-    // after the decoder is created.
-    if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0) {
-        // Native Wayland: Capture on SDL_WINDOWEVENT_ENTER
-        needsFirstEnterCapture = true;
+    // Avoid capturing the mouse initially for windowed relative mode.
+    // We still capture in windowed absolute mode because it doesn't
+    // constrain the motion of the cursor. This allows the user to
+    // easily reposition or resize the window.
+    if (m_IsFullScreen || m_Preferences->absoluteMouseMode) {
+        // HACK: For Wayland, we wait until we get the first SDL_WINDOWEVENT_ENTER
+        // event where it seems to work consistently on GNOME. For other platforms,
+        // especially where SDL may call SDL_RecreateWindow(), we must only capture
+        // after the decoder is created.
+        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0) {
+            // Native Wayland: Capture on SDL_WINDOWEVENT_ENTER
+            needsFirstEnterCapture = true;
+        }
+        else {
+            // X11/XWayland: Capture after decoder creation
+            needsPostDecoderCreationCapture = true;
+        }
     }
-    else {
-        // X11/XWayland: Capture after decoder creation
-        needsPostDecoderCreationCapture = true;
-    }
-
-    // Stop text input. SDL enables it by default
-    // when we initialize the video subsystem, but this
-    // causes an IME popup when certain keys are held down
-    // on macOS.
-    SDL_StopTextInput();
 
     // Disable the screen saver if requested
     if (m_Preferences->keepAwake) {
@@ -2561,8 +2915,23 @@ void Session::exec()
     // Hijack this thread to be the SDL main thread. We have to do this
     // because we want to suspend all Qt processing until the stream is over.
     SDL_Event event;
-    Uint32 lastTelemetryTickMs = SDL_GetTicks();
+    auto notifyDecoderWindowState = [this](uint32_t stateChangeFlags) {
+        if (m_VideoDecoder == nullptr) {
+            return;
+        }
+
+        WINDOW_STATE_CHANGE_INFO windowChangeInfo = {};
+        windowChangeInfo.window = m_Window;
+        windowChangeInfo.stateChangeFlags = stateChangeFlags;
+
+        // State-only notifications are advisory.  Legacy renderers may return
+        // false for these new flags, but they must never force a renderer reset.
+        m_VideoDecoder->notifyWindowChanged(&windowChangeInfo);
+    };
+
     for (;;) {
+    Uint32 lastTelemetryTickMs = SDL_GetTicks();
+
         // The Qt event loop is suspended while we own this thread, so the
         // telemetry sampler's QTimer cannot fire during a stream. Drive one
         // sample+send tick per second from this loop instead. Time-based, not
@@ -2575,6 +2944,7 @@ void Session::exec()
             lastTelemetryTickMs = SDL_GetTicks();
             m_TelemetrySampler->tick();
         }
+
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform
         // support to block on events rather than polling on Windows, macOS, X11,
@@ -2586,6 +2956,10 @@ void Session::exec()
         // issues that could cause indefinite timeouts, delayed joystick detection,
         // and other problems.
         if (!SDL_WaitEventTimeout(&event, 1000)) {
+            // The clipboard is read on every wake, the idle one included: on Windows SDL
+            // reports a clipboard change only when the window regains focus (§79.5b).
+            if (m_ClipboardSync)
+                m_ClipboardSync->poll();
             presence.runCallbacks();
             continue;
         }
@@ -2602,15 +2976,28 @@ void Session::exec()
             // ARM core in the Steam Link, so we will wait 10 ms instead.
             SDL_Delay(10);
 #endif
+            if (m_ClipboardSync)
+                m_ClipboardSync->poll();
             presence.runCallbacks();
             continue;
         }
 #endif
+        if (m_ClipboardSync)
+            m_ClipboardSync->poll();
+
         switch (event.type) {
         case SDL_QUIT:
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                         "Quit event received");
             goto DispatchDeferredCleanup;
+
+        case SDL_APP_WILLENTERBACKGROUND:
+            notifyDecoderWindowState(WINDOW_STATE_CHANGE_SUSPENDED);
+            break;
+
+        case SDL_APP_DIDENTERFOREGROUND:
+            notifyDecoderWindowState(WINDOW_STATE_CHANGE_RESTORED);
+            break;
 
         case SDL_USEREVENT:
             switch (event.user.code) {
@@ -2656,6 +3043,17 @@ void Session::exec()
             break;
 
         case SDL_WINDOWEVENT:
+            switch (event.window.event) {
+            case SDL_WINDOWEVENT_MINIMIZED:
+            case SDL_WINDOWEVENT_HIDDEN:
+                notifyDecoderWindowState(WINDOW_STATE_CHANGE_MINIMIZED);
+                break;
+            case SDL_WINDOWEVENT_RESTORED:
+            case SDL_WINDOWEVENT_SHOWN:
+                notifyDecoderWindowState(WINDOW_STATE_CHANGE_RESTORED);
+                break;
+            }
+
             // Early handling of some events
             switch (event.window.event) {
             case SDL_WINDOWEVENT_FOCUS_LOST:
@@ -2663,12 +3061,18 @@ void Session::exec()
                     m_AudioMuted = true;
                 }
                 m_InputHandler->notifyFocusLost();
+                // Leaving the stream: fetch the host's clipboard now, for the Ctrl+V to come.
+                if (m_ClipboardSync)
+                    m_ClipboardSync->onFocusLost();
                 break;
             case SDL_WINDOWEVENT_FOCUS_GAINED:
                 if (m_Preferences->muteOnFocusLoss) {
                     m_AudioMuted = false;
                 }
                 m_InputHandler->notifyFocusGained();
+                // Back in the stream: send what was copied meanwhile before it is pasted.
+                if (m_ClipboardSync)
+                    m_ClipboardSync->onFocusGained();
                 break;
             case SDL_WINDOWEVENT_LEAVE:
                 m_InputHandler->notifyMouseLeave();
@@ -2738,21 +3142,52 @@ void Session::exec()
                 }
 
                 int newDisplayIndex = SDL_GetWindowDisplayIndex(m_Window);
+
+                // A DISPLAY_CHANGED notification can describe a refresh-mode
+                // switch on the same monitor, not just a move to another
+                // display. Some backends report that mode transition as a
+                // size change instead, so cover both before letting an
+                // adapter retain the old immutable timing period.
+                bool refreshMayHaveChanged = newDisplayIndex != currentDisplayIndex ||
+                    event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+                refreshMayHaveChanged = refreshMayHaveChanged ||
+                    event.window.event == SDL_WINDOWEVENT_DISPLAY_CHANGED;
+#endif
+                if (m_PresentationSettings.enableVrr && refreshMayHaveChanged) {
+                    int currentRefreshRate = 0;
+                    if (!StreamUtils::tryGetDisplayRefreshRate(m_Window,
+                                                               currentRefreshRate) ||
+                            currentRefreshRate != m_PresentationSettings.refreshRate) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                                    "VRR disabled for this session after display refresh changed or became unavailable; falling back to fixed pacing");
+                        m_PresentationSettings.enableVrr = false;
+                        m_VrrInactiveReason = "display refresh changed";
+                        forceRecreation = true;
+                    }
+                }
+
                 if (newDisplayIndex != currentDisplayIndex) {
                     windowChangeInfo.stateChangeFlags |= WINDOW_STATE_CHANGE_DISPLAY;
 
                     windowChangeInfo.displayIndex = newDisplayIndex;
 
-                    // If the refresh rates have changed, we will need to go through the full
-                    // decoder recreation path to ensure Pacer is switched to the new display
-                    // and that we apply any V-Sync disablement rules that may be needed for
-                    // this display.
+                    // A VRR session's refresh is intentionally immutable. If
+                    // the window crosses to a display with a different (or
+                    // unreadable) refresh, recreate the decoder on the safe
+                    // legacy path instead of pacing against a stale period.
                     SDL_DisplayMode oldMode, newMode;
                     if (SDL_GetCurrentDisplayMode(currentDisplayIndex, &oldMode) < 0 ||
                             SDL_GetCurrentDisplayMode(newDisplayIndex, &newMode) < 0 ||
                             oldMode.refresh_rate != newMode.refresh_rate) {
                         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                                     "Forcing renderer recreation due to refresh rate change between displays");
+                        if (m_PresentationSettings.enableVrr) {
+                            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                                        "VRR disabled for this session after display refresh changed; falling back to fixed pacing");
+                            m_PresentationSettings.enableVrr = false;
+                            m_VrrInactiveReason = "display refresh changed";
+                        }
                         forceRecreation = true;
                     }
                 }
@@ -2786,8 +3221,27 @@ void Session::exec()
 
             SDL_LockMutex(m_DecoderLock);
 
+            // ⚠️ 6.0.0 (§73.19) — the crash both dumps of 16/09 recorded. From here to the end
+            // of chooseDecoder() this thread pumps window messages more than once
+            // (flushWindowEvents(), the renderer teardown, D3D11 creation), and Qt runs its
+            // timers inside those pumps. SessionTelemetrySampler then took m_DecoderLock — an
+            // SDL mutex is recursive, so on the same thread it succeeds — and ran a
+            // dynamic_cast on the decoder this block had just deleted; on freed memory MSVC
+            // throws std::__non_rtti_object, and nothing catches it. VRR made it frequent,
+            // because a decode-ready fence timeout lands here several times a minute.
+            //
+            // Two guards: the pointer is detached BEFORE the delete, and readers skip while
+            // m_ReplacingVideoDecoder is set — chooseDecoder() assigns the new decoder before
+            // initialising it and deletes it before nulling it on failure, so a null pointer
+            // alone would not cover the whole window.
+            m_ReplacingVideoDecoder = true;
+
             // Destroy the old decoder
-            delete m_VideoDecoder;
+            {
+                IVideoDecoder* oldDecoder = m_VideoDecoder;
+                m_VideoDecoder = nullptr;
+                delete oldDecoder;
+            }
 
             // Insert a barrier to discard any additional window events
             // that could cause the renderer to be and recreated again.
@@ -2830,13 +3284,32 @@ void Session::exec()
                                    false,
                                    s_ActiveSession->m_VideoDecoder,
                                    enableVsync ? (int)m_Preferences->framePacingMode
-                                               : (int)StreamingPreferences::FP_OFF)) {
+                                               : (int)StreamingPreferences::FP_OFF,
+                                   // 5.6.0 + 6.0.0: the cascade is no longer rebuilt here.
+                                   // snapshotPresentationSettings() resolved it once, from
+                                   // the session's cloned preferences, and also settled the
+                                   // mutual exclusion with VRR. Two places deciding this was
+                                   // the shape of the defect §64 warns about.
+                                   m_PresentationSettings.fractionalVsync,
+                                   // VRR (6.0.0): from the session snapshot, never from the live
+                                   // preferences — it is taken once in initialize(), so a decoder
+                                   // reset mid-stream cannot land on a different pacing mode than
+                                   // the one the session was qualified for. effectiveVrr points
+                                   // back at the snapshot: the renderer is allowed to refuse.
+                                   m_PresentationSettings.enableVrr,
+                                   m_PresentationSettings.refreshRate,
+                                   &m_PresentationSettings.enableVrr,
+                                   m_PresentationSettings.smoothVrrFrameTiming,
+                                   m_PresentationSettings.vrrLatencyMode)) {
+                    m_ReplacingVideoDecoder = false;
                     SDL_UnlockMutex(m_DecoderLock);
                     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                                  "Failed to recreate decoder after reset");
                     emit displayLaunchError(tr("Unable to initialize video decoder. Please check your streaming settings and try again."));
                     goto DispatchDeferredCleanup;
                 }
+
+                m_ReplacingVideoDecoder = false;
 
                 // As of SDL 2.0.12, SDL_RecreateWindow() doesn't carry over mouse capture
                 // or mouse hiding state to the new window. By capturing after the decoder
@@ -2932,6 +3405,8 @@ void Session::exec()
     }
 
 DispatchDeferredCleanup:
+    m_EventLoopDone = true;
+
     // Switch back to synchronous logging mode
     StreamUtils::exitAsyncLoggingMode();
 
@@ -2958,12 +3433,27 @@ DispatchDeferredCleanup:
     if (m_TelemetrySampler)
         m_TelemetrySampler->flushAndStop();
 
+    // Same window: a last look at the host's clipboard, any password we hold dropped, the
+    // key let go (CLIPEND). Blocking, like the flush above, and for the same reason.
+    if (m_ClipboardSync)
+        m_ClipboardSync->finish();
+
+    // Same window, and for the same reason: the play-time record keeps how the session went,
+    // and those totals live in the decoder that is about to be deleted three lines below.
+    endPlaytime();
+
     // Destroy the decoder, since this must be done on the main thread
     // NB: This must happen before LiStopConnection() for pull-based
     // decoders.
     SDL_LockMutex(m_DecoderLock);
-    delete m_VideoDecoder;
-    m_VideoDecoder = nullptr;
+    // Detached before the delete (6.0.0, §73.19): the destructor tears down D3D11 and
+    // can pump window messages, and a Qt timer running inside that pump must not find
+    // a decoder half-destroyed behind this pointer.
+    {
+        IVideoDecoder* oldDecoder = m_VideoDecoder;
+        m_VideoDecoder = nullptr;
+        delete oldDecoder;
+    }
     SDL_UnlockMutex(m_DecoderLock);
 
     // Propagate state changes from the SDL window back to the Qt window
@@ -2991,10 +3481,6 @@ DispatchDeferredCleanup:
 #endif
     }
 
-    // Note which display we are on while the window still exists. Records nothing
-    // unless the match actually wrote a mode.
-    RefreshRateMatch::rememberDisplay(m_Window);
-
     // This must be called after the decoder is deleted, because
     // the renderer may want to interact with the window
     SDL_DestroyWindow(m_Window);
@@ -3004,16 +3490,6 @@ DispatchDeferredCleanup:
     }
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
-
-    // Put the panel back if a fullscreen mode change of ours outlived the window.
-    //
-    // ⚠️ Skipped when another session is about to reuse this display: a live settings
-    // change reconnects, and bouncing the mode back and forth between the two halves of
-    // one reconnect would be worse than leaving it where it is. The second half sets the
-    // mode again on its way in, and restores on its own way out.
-    if (!m_HasPendingReconfigure) {
-        RefreshRateMatch::restoreIfChanged();
-    }
 
     // Terminate Hue Sync if it was launched for this session.
     if (m_HueSyncManager) {
@@ -3026,4 +3502,22 @@ DispatchDeferredCleanup:
     // When it is complete, it will release our s_ActiveSessionSemaphore
     // reference.
     QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
+}
+
+QString Session::vrrCalibrationContext() const
+{
+    QStringList networks;
+    for (const auto& iface : QNetworkInterface::allInterfaces()) {
+        if (!(iface.flags() & QNetworkInterface::IsUp) ||
+            !(iface.flags() & QNetworkInterface::IsRunning) ||
+            (iface.flags() & QNetworkInterface::IsLoopBack)) continue;
+        QStringList addresses;
+        for (const auto& entry : iface.addressEntries()) addresses << entry.ip().toString();
+        addresses.sort();
+        networks << iface.hardwareAddress() + ":" + addresses.join(",");
+    }
+    networks.sort();
+    return QString("vrr13-history-1|%1|%2|%3|%4|%5")
+        .arg(m_Computer->uuid).arg(m_App.id).arg(m_StreamConfig.bitrate)
+        .arg(QSysInfo::kernelVersion()).arg(networks.join(";"));
 }

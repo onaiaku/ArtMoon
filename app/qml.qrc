@@ -30,7 +30,6 @@
         <file>gui/NavigableDialog.qml</file>
         <file>gui/CliPair.qml</file>
         <file>gui/SegmentedSelector.qml</file>
-        <file>gui/STSwitch.qml</file>
         <file>gui/PairDialog.qml</file>
         <file>gui/AddHostDialog.qml</file>
         <file>gui/PowerDialog.qml</file>
@@ -46,5 +45,13 @@
         <file>gui/ProfileShoulder.qml</file>
         <file>gui/ShortcutCaptureDialog.qml</file>
         <file>gui/GamepadCaptureDialog.qml</file>
+        <file>gui/AmbientWaves.qml</file>
+        <file>gui/CustomFrameRateDialog.qml</file>
+        <file>gui/GameFacts.qml</file>
+        <file>gui/OnOffSelector.qml</file>
+        <file>gui/ProfileNameDialog.qml</file>
+        <file>gui/SectionTabBar.qml</file>
+        <file>gui/StartupSplash.qml</file>
+        <file>gui/UpdatePromptDialog.qml</file>
     </qresource>
 </RCC>

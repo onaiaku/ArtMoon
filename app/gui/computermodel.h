@@ -10,6 +10,20 @@ class ComputerModel : public QAbstractListModel
 {
     Q_OBJECT
 
+    /*
+     * The range of a host card's opacity, in percent (6.0.0). Here, once, because three
+     * places need it and must agree: the setter clamps to it, data() applies the default to
+     * hosts that never set one, and the slider in StageBackgroundDialog is drawn from it.
+     *
+     * ⚠️ The floor is 70 — Marcello's call after trying it (18/09/2026); it was 60 at first.
+     * The reason for having a floor at all is the text, not the card. The card never
+     * disappears at any value — it keeps its border and its contents — but what the name and
+     * the fields are read against is the card's own SCRIM, and the opacity thins that too:
+     * the lower it goes, the more the moving waves behind cut across the host's name.
+     */
+    Q_PROPERTY(int stageOpacityMin READ stageOpacityMin CONSTANT)
+    Q_PROPERTY(int stageOpacityDefault READ stageOpacityDefault CONSTANT)
+
     enum Roles
     {
         NameRole = Qt::UserRole,
@@ -34,11 +48,20 @@ class ComputerModel : public QAbstractListModel
         StageColorToRole,
         StageImageRole,
         StageSeedRole,
-        StreamTweakEnabledRole
+        StageOpacityRole,
+        StreamTweakEnabledRole,
+        AsleepRole          // put to sleep by this client, not polled until Wake (6.2.0)
     };
 
 public:
     explicit ComputerModel(QObject* object = nullptr);
+
+    static constexpr int StageOpacityMin     = 70;
+    // Where every host starts — an existing one on its first 6.0.0 launch and a new one
+    // alike, because both arrive with stageOpacity 0 (Marcello, 18/09/2026: 88, then 85, then 90).
+    static constexpr int StageOpacityDefault = 90;
+    int stageOpacityMin() const     { return StageOpacityMin; }
+    int stageOpacityDefault() const { return StageOpacityDefault; }
 
     // Must be called before any QAbstractListModel functions
     Q_INVOKABLE void initialize(ComputerManager* computerManager);
@@ -68,6 +91,16 @@ public:
     // approved this client; fire-and-forget over the authenticated bridge.
     // installUpdates: install pending Windows updates before powering off.
     Q_INVOKABLE void shutdownHost(int computerIndex, bool installUpdates = false);
+
+    /**
+     * Host power modes (StreamTweak 8.6.0+). requestPowerCaps answers with
+     * powerCapsReceived(index, supported, modes, wakeLan): `supported` is false for a host
+     * that predates POWERCAPS, whose only mode is the old SHUTDOWN — the dialog shows it as
+     * Shut down and the caller uses shutdownHost(). powerHost sends POWER and reports
+     * powerHostResult(index, mode, ok) once the host has answered.
+     */
+    Q_INVOKABLE void requestPowerCaps(int computerIndex);
+    Q_INVOKABLE void powerHost(int computerIndex, const QString& mode, bool installUpdates);
 
     Q_INVOKABLE void requestStreamTweakStatus(int computerIndex);
 
@@ -157,6 +190,13 @@ public:
                                             const QString& seedColor);
 
     /**
+     * How opaque this host's card is on Home, in percent (6.0.0). Clamped to
+     * [StageOpacityMin, 100] — see the note on the property for why the floor is where it is.
+     * Stored on the host with the rest of its backdrop.
+     */
+    Q_INVOKABLE void setHostStageOpacity(int computerIndex, int percent);
+
+    /**
      * The StreamTweak integration, per host. Everything that talks to the bridge is gated
      * on this: the probes, link matching, remote power and Windows Update, the PIN unlock,
      * the last-session panel, store badges, host metrics, the launch curtain, telemetry.
@@ -167,6 +207,11 @@ public:
      * away now, not on the next visit to the screen.
      */
     Q_INVOKABLE bool streamTweakEnabled(int computerIndex) const;
+
+    // NvComputer::heldAsleep: this client put the host to sleep and has not woken it since.
+    bool heldAsleep(int computerIndex) const;
+    // The gate on every bridge call: the integration is on AND the host is not held asleep.
+    bool bridgeAllowed(int computerIndex) const;
     Q_INVOKABLE void setStreamTweakEnabled(int computerIndex, bool enabled);
 
     /**
@@ -191,12 +236,6 @@ public:
     // the 2 s STATUS poll. Emits hostNetInfoReceived; silently does nothing on hosts older
     // than StreamTweak 8.1.0.
     Q_INVOKABLE void requestHostNetInfo(int computerIndex);
-
-    // The host's last finished session, for the panel on the host card. One-shot, fired when
-    // a host becomes authorized: it describes something that already happened, so polling it
-    // would ask the same question over and over. Emits lastSessionReceived with {has:false}
-    // on hosts older than StreamTweak 8.1.0.
-    Q_INVOKABLE void requestLastSession(int computerIndex);
 
     /// Asks the host to put its link speed back. The host never decides this for itself — it
     /// holds the streaming speed until told — so this is the only thing that ends a switch,
@@ -239,26 +278,64 @@ public:
     // bitrate/hdr/codec/framepacing/audio/hue). Empty when no profile is active.
     Q_INVOKABLE QVariantMap hostActiveOverride(int computerIndex) const;
 
+    // ── Last played (5.7.0) ──────────────────────────────────────────────────────────────
+    /**
+     * What the host card's Last played block is drawn from: the game this client last
+     * streamed on this host, its artwork, and how that session went.
+     *
+     * Everything comes off local disk — the play-time record and the box art cache — so it
+     * answers with a host that has no StreamTweak, and with no host reachable at all.
+     *
+     * Returns an EMPTY map when there is nothing to show, and the card then draws nothing:
+     * no game ever streamed here, the record was reset, or the game is no longer in the
+     * host's app list. That last one is the launchability gate, and it costs nothing extra —
+     * resolving the artwork already needs the app id, and only the app list has it.
+     */
+    Q_INVOKABLE QVariantMap lastPlayedFor(int computerIndex) const;
+
+    // ── Now streaming (6.0.0) ────────────────────────────────────────────────────────────
+    /**
+     * What the host card shows INSTEAD of Last played while the host has a session up: the
+     * running entry's name and artwork, found through `currentGameId` in the app list — the
+     * same source the host page's STREAMING tag reads, so the two screens cannot disagree
+     * about what is running.
+     *
+     * Returns an EMPTY map when the host is not online, has nothing running, or runs an id
+     * its app list does not carry. The card then falls back to Last played, whose button
+     * already opens the host page while the host is busy — never a Resume that could not
+     * find what to resume.
+     */
+    Q_INVOKABLE QVariantMap runningAppFor(int computerIndex) const;
+
+    /// "2 h ago", "yesterday", "3 days ago" — the wording the host used to send with its own
+    /// last-session reply, kept identical now that the client works it out for itself.
+    static QString formatAgo(const QDateTime& utcStamp);
+
 signals:
     void pairingCompleted(QVariant error);
     void connectionTestCompleted(int result, QString blockedPorts);
+    /**
+     * The magic packet is away (or could not be sent at all — no MAC on record, every
+     * send refused). Says nothing about the host: it has not had time to hear it yet.
+     */
+    void wakeCompleted(int computerIndex, bool sent);
     void streamTweakStatusReceived(int computerIndex, QString status);
     void streamTweakAuthReceived(int computerIndex, QString state, QString pin);
 
     // Answer to probeStreamTweakPresence(). `found` is false for a host that is offline,
     // unreachable, or simply not running StreamTweak — the tab says which from what it
     // already knows about the host, so this stays a single bit.
-    void streamTweakPresenceReceived(int computerIndex, bool found);
+    // `clip` is the host's clipboard sharing from the same CAPS reply (6.3.0, §79): "on",
+    // "off", or "" when the host sends no clip= token (and whenever `found` is false).
+    void streamTweakPresenceReceived(int computerIndex, bool found, QString clip);
 
     /** @param info {allowsLinkControl, currentMbps} — empty map on hosts without NETINFO. */
     void hostNetInfoReceived(int computerIndex, QVariantMap info);
 
-    /** @param s {has, ago, duration, grade, gradeColor, rttMs, rttPeakMs, hostLatMs,
-     *            dropsPct, games:[{name, cover}]} — {has:false} when there is nothing to
-     *            show or the host does not know the command. */
-    void lastSessionReceived(int computerIndex, QVariantMap s);
     void appStoresReceived(int computerIndex, QVariantMap stores);
     void updateStateReceived(int computerIndex, bool pending);
+    void powerCapsReceived(int computerIndex, bool supported, QStringList modes, bool wakeLan);
+    void powerHostResult(int computerIndex, QString mode, bool ok);
     /** supported=false means the host does not know LOCKSTATE — not that it is unlocked. */
     void lockStateReceived(int computerIndex, bool supported, bool locked);
     /** detail is the change being made ("2.5 Gbps → 1 Gbps"), empty once finished. */

@@ -82,7 +82,7 @@ FocusScope {
     // must use the same divisor or a host and its games would be drawn at two different
     // sizes, which is the one thing a shared grammar cannot survive.
     readonly property real _u: Math.max(0.62, Math.min(1.60, width / 1330))
-    function _px(n) { return Math.round(n * _u) }
+    function _px(n) { return Math.round(n * _u) | 0 }
 
     // ── The two columns ──────────────────────────────────────────────────────
     /*
@@ -261,12 +261,14 @@ FocusScope {
             appGrid.currentItem.doQuitGame()
         }
     }
-    function openCustomize(idx, name, appId) {
+    function openCustomize(idx, name, appId, art) {
         if (idx === undefined || idx < 0) return
         appSettingsDialog.appModel = appGrid.appModel
         appSettingsDialog.appIndex = idx
         appSettingsDialog.appId = appId !== undefined ? appId : -1
         appSettingsDialog.appName = name ? name : ""
+        // The cover for the dialog's header, from the same row the name came from.
+        appSettingsDialog.boxArt = art ? art : ""
         // So the per-game "inherit" option shows the active profile's name.
         appSettingsDialog.activeProfileName = appsRoot.hostProfileName
         appSettingsDialog.effectiveVsync = appsRoot._effVsync
@@ -274,7 +276,8 @@ FocusScope {
     }
     function openCustomizeForFocused() {
         if (appGrid && appGrid.currentItem) {
-            openCustomize(appGrid.currentIndex, appGrid.currentItem._appName, appGrid.currentItem._appId)
+            openCustomize(appGrid.currentIndex, appGrid.currentItem._appName,
+                          appGrid.currentItem._appId, appGrid.currentItem._boxArt)
         }
     }
 

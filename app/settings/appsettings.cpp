@@ -26,7 +26,6 @@ static AppOverride readOverrideGroup(const QSettings& s)
     if (s.contains("hue"))         { ov.hasHue = true;         ov.hueSync = s.value("hue").toBool(); }
     if (s.contains("matchlink"))   { ov.hasMatchLink = true;   ov.matchLinkSpeed = s.value("matchlink").toBool(); }
     if (s.contains("waitgame"))      { ov.hasWaitForGame = true; ov.waitForGame = s.value("waitgame").toBool(); }
-    if (s.contains("matchrefresh"))  { ov.hasMatchRefreshRate = true; ov.matchRefreshRate = s.value("matchrefresh").toBool(); }
     if (s.contains("displaymode"))   { ov.hasDisplayMode = true; ov.windowMode = s.value("displaymode").toInt(); }
     if (s.contains("vsync"))         { ov.hasVsync = true;       ov.enableVsync = s.value("vsync").toBool(); }
     return ov;
@@ -44,7 +43,6 @@ static void writeOverrideGroup(QSettings& s, const AppOverride& ov)
     if (ov.hasHue)         s.setValue("hue", ov.hueSync);
     if (ov.hasMatchLink)   s.setValue("matchlink", ov.matchLinkSpeed);
     if (ov.hasWaitForGame) s.setValue("waitgame", ov.waitForGame);
-    if (ov.hasMatchRefreshRate) s.setValue("matchrefresh", ov.matchRefreshRate);
     if (ov.hasDisplayMode) s.setValue("displaymode", ov.windowMode);
     if (ov.hasVsync)       s.setValue("vsync", ov.enableVsync);
 }
@@ -62,7 +60,6 @@ QVariantMap appOverrideToMap(const AppOverride& ov)
     if (ov.hasHue)         m["hue"] = ov.hueSync;
     if (ov.hasMatchLink)   m["matchlink"] = ov.matchLinkSpeed;
     if (ov.hasWaitForGame) m["waitgame"] = ov.waitForGame;
-    if (ov.hasMatchRefreshRate) m["matchrefresh"] = ov.matchRefreshRate;
     if (ov.hasDisplayMode) m["displaymode"] = ov.windowMode;
     if (ov.hasVsync)       m["vsync"] = ov.enableVsync;
     return m;
@@ -85,7 +82,6 @@ AppOverride appOverrideFromMap(const QVariantMap& m)
     if (m.contains("hue"))         { ov.hasHue = true;         ov.hueSync = m.value("hue").toBool(); }
     if (m.contains("matchlink"))   { ov.hasMatchLink = true;   ov.matchLinkSpeed = m.value("matchlink").toBool(); }
     if (m.contains("waitgame"))      { ov.hasWaitForGame = true; ov.waitForGame = m.value("waitgame").toBool(); }
-    if (m.contains("matchrefresh"))  { ov.hasMatchRefreshRate = true; ov.matchRefreshRate = m.value("matchrefresh").toBool(); }
     if (m.contains("displaymode"))   { ov.hasDisplayMode = true; ov.windowMode = m.value("displaymode").toInt(); }
     if (m.contains("vsync"))         { ov.hasVsync = true;       ov.enableVsync = m.value("vsync").toBool(); }
     return ov;
@@ -122,7 +118,6 @@ QVariantMap inheritedValueLabels(const StreamingPreferences* p)
     m.insert(QStringLiteral("hue"),          p->hueSyncIntegration ? on : off);
     m.insert(QStringLiteral("matchlink"),    p->matchHostLinkSpeed ? on : off);
     m.insert(QStringLiteral("waitgame"),     p->waitForGameOnScreen ? on : off);
-    m.insert(QStringLiteral("matchrefresh"), p->matchRefreshRate ? on : off);
     m.insert(QStringLiteral("vsync"),        p->enableVsync ? on : off);
     m.insert(QStringLiteral("framepacing"),
              p->framePacingMode == StreamingPreferences::FP_ON ? on : off);
@@ -198,7 +193,6 @@ void applyAppOverride(StreamingPreferences* p, const AppOverride& ov)
     // deliberately does not read the `refreshrate` one that 5.1.0 - 5.1.3 profiles could
     // hold. That was a four-value enum for a setting that no longer exists, and Session
     // decides on its own whether exclusive fullscreen makes this actionable at all.
-    if (ov.hasMatchRefreshRate) p->matchRefreshRate = ov.matchRefreshRate;
     if (ov.hasDisplayMode) p->windowMode = (StreamingPreferences::WindowMode)ov.windowMode;
     if (ov.hasVsync)       p->enableVsync = ov.enableVsync;
 }

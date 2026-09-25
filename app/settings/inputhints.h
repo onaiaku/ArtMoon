@@ -8,7 +8,7 @@
  * Which input device the user is actually holding, so every on-screen prompt can name a
  * button they can press.
  *
- * Before this, every prompt drew a controller glyph unconditionally: starting ArtMoon
+ * Before this, every prompt drew a controller glyph unconditionally: starting StreamLight
  * with a keyboard and never touching a pad still showed "B Back" with an Xbox glyph. The
  * rule here is the one games use — the last device that produced real input wins, and the
  * whole interface follows it at once.
@@ -23,7 +23,10 @@ class InputHints : public QObject
 {
     Q_OBJECT
 
-    /** True when the last real input came from a controller. */
+    /**
+     * True when the prompts should name controller buttons: the last real input came from a
+     * controller, unless Settings pins the prompts one way (StreamingPreferences::inputPrompts).
+     */
     Q_PROPERTY(bool padActive READ padActive NOTIFY padActiveChanged)
 
     /**
@@ -54,6 +57,10 @@ public:
      * Seeds the starting state before anyone has touched anything: a connected controller
      * means prompts start as controller prompts, which is what a handheld user expects to
      * see on the first frame rather than after nudging a stick.
+     *
+     * Ignored once real input has arrived: it is called on every SdlGamepadKeyNavigation
+     * enable(), which also happens on the way back from a stream, and by then the last device
+     * used is a better answer than the devices merely plugged in.
      */
     void seedFromConnectedPads(bool anyConnected);
 
@@ -69,7 +76,14 @@ private:
     void setPadActive(bool padActive);
     void setPointerHidden(bool hidden);
 
+    // Recomputes m_PadActive from the detected device and the Settings choice.
+    void updatePadActive();
+
+    // What the input says — the last real device, the "Auto" answer.
+    bool m_PadDetected = false;
+    // What the prompts show: m_PadDetected, or the side Settings pins them to.
     bool m_PadActive = false;
+    bool m_SeenRealInput = false;
     bool m_PointerHidden = false;
 
     // Where the pointer was when it was hidden. Qt Quick manufactures hover events whenever

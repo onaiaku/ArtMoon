@@ -6,6 +6,8 @@
 
 #include "../bandwidth.h"
 #include "decoder.h"
+#include "settings/playtime.h"
+#include "incomingframetiming.h"
 #include "ffmpeg-renderers/renderer.h"
 #include "ffmpeg-renderers/pacer/pacer.h"
 
@@ -50,6 +52,18 @@ public:
      */
     TelemetryWindowStats getLastWindowStats() const;
 
+    /**
+     * The whole session's totals, not a one-second window — what the play-time record keeps
+     * about how the session went.
+     *
+     * Read once, from the main thread, after the input handler is gone and before the
+     * decoder is destroyed. It touches m_GlobalVideoStats without the spin lock on purpose:
+     * that member is only ever written from the decode path, which has already stopped by
+     * the time this is called. Taking m_LastWndLock here would suggest a protection it does
+     * not give, since the lock guards a different member.
+     */
+    PlaytimeSessionStats getSessionStats() const;
+
 private:
     enum class TestMode {
         // No test frame and prepare for rendering
@@ -75,7 +89,16 @@ private:
 
     void logVideoStats(VIDEO_STATS& stats, const char* title);
 
+    // Writes the renderer's last closed presentation-cadence window to the log, if there
+    // is a new one and it has something to say. Called on the decoder thread on purpose —
+    // see the call site.
+    void logPacingWindow();
+
     void addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst);
+
+    void syncPacerTelemetry();
+
+    void finalizeActiveVideoStats();
 
     bool createFrontendRenderer(PDECODER_PARAMETERS params, bool useAlternateFrontend);
 
@@ -139,12 +162,21 @@ private:
     VIDEO_STATS m_LastWndVideoStats;
     VIDEO_STATS m_GlobalVideoStats;
     mutable SDL_SpinLock m_LastWndLock = 0; // protects m_LastWndVideoStats for cross-thread reads
+    PacerTelemetrySnapshot m_LastPacerTelemetry;
     std::set<IFFmpegRenderer::RendererType> m_FailedRenderers;
+
+    // Emission state for the [pacing] log. The sequence number is what keeps this honest:
+    // the renderer closes a window on its own clock and this runs on another, so without
+    // it a window would be logged twice or skipped roughly at random.
+    unsigned long long m_LastPacingSeq = 0;
+    uint64_t m_LastPacingLogUs = 0;
+    double m_LastPacingLogWaitMs = 0.0;
 
     int m_FramesIn;
     int m_FramesOut;
 
     int m_LastFrameNumber;
+    IncomingFrameTiming m_IncomingFrameTiming;
     int m_StreamFps;
     int m_OriginalVideoWidth;
     int m_OriginalVideoHeight;
@@ -157,6 +189,8 @@ private:
 
     // Data buffers in the queued DU are not valid
     QQueue<DECODE_UNIT> m_FrameInfoQueue;
+    // Parallel to m_FrameInfoQueue: when each packet was handed to the decoder.
+    QQueue<uint64_t> m_FrameSubmitTimeQueue;
 
     static const uint8_t k_H264TestFrame[];
     static const uint8_t k_HEVCMainTestFrame[];

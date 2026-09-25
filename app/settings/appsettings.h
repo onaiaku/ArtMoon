@@ -41,7 +41,6 @@ struct AppOverride
     // Host-profile only, for the same reason as link matching: it describes the
     // situation the device is in — docked to a 120 Hz TV wants a different answer from
     // the same handheld in your hands — and never varies by game.
-    bool hasMatchRefreshRate = false; bool matchRefreshRate = false; // StreamingPreferences::matchRefreshRate
 
     // ⚠️ The two below are dependencies, not features: Match refresh rate only
     // means anything in exclusive fullscreen, and Frame pacing only means anything
@@ -57,7 +56,7 @@ struct AppOverride
     {
         return !(hasResolution || hasFps || hasBitrate || hasHdr ||
                  hasCodec || hasFramePacing || hasAudio || hasHue || hasMatchLink ||
-                 hasWaitForGame || hasMatchRefreshRate || hasDisplayMode || hasVsync);
+                 hasWaitForGame || hasDisplayMode || hasVsync);
     }
 };
 

@@ -21,6 +21,10 @@
 #define SER_AUTOADJUSTBITRATE "autoadjustbitrate"
 #define SER_FULLSCREEN "fullscreen"
 #define SER_VSYNC "vsync"
+#define SER_FRACTIONALVSYNC "fractionalvsync"
+#define SER_ENABLEVRR "enablevrr"
+#define SER_VRRLATENCYMODE "vrrlatencymode"
+#define SER_SMOOTHVRRFRAMETIMING "smoothvrrframetiming"
 #define SER_GAMEOPTS "gameopts"
 #define SER_HOSTAUDIO "hostaudio"
 #define SER_MULTICONT "multicontroller"
@@ -47,8 +51,8 @@
 #define SER_DETECTNETBLOCKING "detectnetblocking"
 #define SER_AUTORECONNECTNOVIDEO "autoreconnectnovideo"
 #define SER_MATCHHOSTLINKSPEED "matchhostlinkspeed"
-#define SER_MATCHREFRESHRATE "matchrefreshrate"
 #define SER_WAITFORGAME "waitforgame"
+#define SER_CLIPBOARDSYNC "clipboardsync"
 #define SER_SHOWPERFOVERLAY "showperfoverlay"
 #define SER_OVERLAYMODE "overlaymode"
 #define SER_OVERLAYPOSITION "overlayposition"
@@ -67,6 +71,7 @@
 #define SER_HIDEHOSTIPS "hidehostips"
 #define SER_TAILSCALE_AUTOSTART "tailscaleautostart"
 #define SER_GLYPHSET "glyphset"
+#define SER_INPUTPROMPTS "inputprompts"
 #define SER_CLOCKFORMAT "clockformat"
 #define SER_DATEFORMAT "dateformat"
 #define CURRENT_DEFAULT_VER 2
@@ -134,6 +139,7 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
     p->unlockBitrate = unlockBitrate;
     p->autoAdjustBitrate = autoAdjustBitrate;
     p->enableVsync = enableVsync;
+    p->fractionalVsync = fractionalVsync;
     p->gameOptimizations = gameOptimizations;
     p->playAudioOnHost = playAudioOnHost;
     p->multiController = multiController;
@@ -149,8 +155,8 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
     p->detectNetworkBlocking = detectNetworkBlocking;
     p->autoReconnectNoVideo = autoReconnectNoVideo;
     p->matchHostLinkSpeed = matchHostLinkSpeed;
-    p->matchRefreshRate = matchRefreshRate;
     p->waitForGameOnScreen = waitForGameOnScreen;
+    p->clipboardSync = clipboardSync;
     p->showPerfOverlay = showPerfOverlay;
     p->overlayPosition = overlayPosition;
     p->overlayTextColor = overlayTextColor;
@@ -177,6 +183,7 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
     p->uiDisplayMode = uiDisplayMode;
     p->captureSysKeysMode = captureSysKeysMode;
     p->glyphSet = glyphSet;
+    p->inputPrompts = inputPrompts;
     p->clockFormat = clockFormat;
     p->dateFormat = dateFormat;
 
@@ -214,6 +221,20 @@ void StreamingPreferences::reload()
     unlockBitrate = settings.value(SER_UNLOCK_BITRATE, false).toBool();
     autoAdjustBitrate = settings.value(SER_AUTOADJUSTBITRATE, true).toBool();
     enableVsync = settings.value(SER_VSYNC, true).toBool();
+    // ⚠️ Defaults OFF and must stay that way while this is an experiment: it changes how
+    // every frame reaches the screen, and the arrangement it resembles cost three
+    // releases the last time it was on by default.
+    fractionalVsync = settings.value(SER_FRACTIONALVSYNC, false).toBool();
+    enableVrr = settings.value(SER_ENABLEVRR, false).toBool();
+    vrrLatencyMode = VLM_BALANCED;
+    if (settings.contains(SER_VRRLATENCYMODE)) {
+        bool validMode = false;
+        const int savedMode = settings.value(SER_VRRLATENCYMODE).toInt(&validMode);
+        if (validMode && savedMode >= VLM_SMOOTH && savedMode <= VLM_LOW_LATENCY) {
+            vrrLatencyMode = savedMode;
+        }
+    }
+    smoothVrrFrameTiming = settings.value(SER_SMOOTHVRRFRAMETIMING, true).toBool();
     gameOptimizations = settings.value(SER_GAMEOPTS, true).toBool();
     playAudioOnHost = settings.value(SER_HOSTAUDIO, false).toBool();
     multiController = settings.value(SER_MULTICONT, true).toBool();
@@ -264,16 +285,17 @@ void StreamingPreferences::reload()
     // handshake is skipped when the host is already at the right speed — which is the
     // common case, and costs nothing.
     matchHostLinkSpeed = settings.value(SER_MATCHHOSTLINKSPEED, true).toBool();
-    // Off by default, and deliberately NOT migrated from the old `refreshratemode` key
-    // that 5.1.0 - 5.1.3 wrote: that setting was removed in 5.2.0, and a stored "match"
-    // resurrecting itself in an upgrade is not something anyone asked for. Whoever wants
-    // it back turns it back on.
-    matchRefreshRate = settings.value(SER_MATCHREFRESHRATE, false).toBool();
+    // ⚠️ `matchrefreshrate` is deliberately NOT read any more, and the key is left in the
+    // store rather than deleted. It backed "Match refresh rate", removed in 5.5.0: putting
+    // the panel on the stream's own rate measured worse than presenting at half rate on a
+    // high-refresh panel, reported by the user it was built for. Leaving the key costs
+    // nothing and keeps storereset.cpp's fingerprint of pre-5.4.0 installs intact.
     // Off by default: without it ArtMoon behaves as it always did, showing the stream as
     // soon as the session is up. Holding the launch screen until the host says the game is on
     // screen is the opt-in, because it is the answer to a problem not everyone has — and a
     // title that opens its own launcher never satisfies it at all.
     waitForGameOnScreen = settings.value(SER_WAITFORGAME, false).toBool();
+    clipboardSync = settings.value(SER_CLIPBOARDSYNC, false).toBool();
     // ── Performance overlay ──────────────────────────────────────────────────
     // On/off migrates through two older shapes: the 4-state profile of 4.x/5.0.0
     // (anything but Off meant on) and, before that, a plain boolean. Neither is
@@ -326,6 +348,8 @@ void StreamingPreferences::reload()
                                                          static_cast<int>(CaptureSysKeysMode::CSK_OFF)).toInt());
     glyphSet = static_cast<GlyphSet>(settings.value(SER_GLYPHSET,
                                                     static_cast<int>(GlyphSet::GS_AUTO)).toInt());
+    inputPrompts = static_cast<InputPrompts>(settings.value(SER_INPUTPROMPTS,
+                                                            static_cast<int>(InputPrompts::IP_AUTO)).toInt());
     clockFormat = static_cast<ClockFormat>(settings.value(SER_CLOCKFORMAT,
                                                     static_cast<int>(ClockFormat::CF_24H)).toInt());
     dateFormat = static_cast<DateFormat>(settings.value(SER_DATEFORMAT,
@@ -381,6 +405,10 @@ void StreamingPreferences::save()
     settings.setValue(SER_UNLOCK_BITRATE, unlockBitrate);
     settings.setValue(SER_AUTOADJUSTBITRATE, autoAdjustBitrate);
     settings.setValue(SER_VSYNC, enableVsync);
+    settings.setValue(SER_FRACTIONALVSYNC, fractionalVsync);
+    settings.setValue(SER_ENABLEVRR, enableVrr);
+    settings.setValue(SER_VRRLATENCYMODE, vrrLatencyMode);
+    settings.setValue(SER_SMOOTHVRRFRAMETIMING, smoothVrrFrameTiming);
     settings.setValue(SER_GAMEOPTS, gameOptimizations);
     settings.setValue(SER_HOSTAUDIO, playAudioOnHost);
     settings.setValue(SER_MULTICONT, multiController);
@@ -397,8 +425,8 @@ void StreamingPreferences::save()
     settings.setValue(SER_DETECTNETBLOCKING, detectNetworkBlocking);
     settings.setValue(SER_AUTORECONNECTNOVIDEO, autoReconnectNoVideo);
     settings.setValue(SER_MATCHHOSTLINKSPEED, matchHostLinkSpeed);
-    settings.setValue(SER_MATCHREFRESHRATE, matchRefreshRate);
     settings.setValue(SER_WAITFORGAME, waitForGameOnScreen);
+    settings.setValue(SER_CLIPBOARDSYNC, clipboardSync);
     settings.setValue(SER_SHOWPERFOVERLAY, showPerfOverlay);
     settings.setValue(SER_OVERLAYPOSITION, static_cast<int>(overlayPosition));
     settings.setValue(SER_OVERLAYTEXTCOLOR, static_cast<int>(overlayTextColor));
@@ -428,6 +456,7 @@ void StreamingPreferences::save()
     settings.setValue(SER_HIDEHOSTIPS, hideHostIps);
     settings.setValue(SER_TAILSCALE_AUTOSTART, tailscaleAutoStart);
     settings.setValue(SER_GLYPHSET, static_cast<int>(glyphSet));
+    settings.setValue(SER_INPUTPROMPTS, static_cast<int>(inputPrompts));
     settings.setValue(SER_CLOCKFORMAT, static_cast<int>(clockFormat));
     settings.setValue(SER_DATEFORMAT, static_cast<int>(dateFormat));
 }

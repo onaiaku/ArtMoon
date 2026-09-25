@@ -60,6 +60,7 @@
 #include "settings/theme.h"
 #include "settings/inputhints.h"
 #include "backend/powerstatus.h"
+#include "backend/windowmove.h"
 #include "backend/gradientimage.h"
 #include "gui/sdlgamepadkeynavigation.h"
 #include "XboxTileArtwork.h"
@@ -1079,6 +1080,13 @@ int main(int argc, char *argv[])
                                           [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
                                               return PowerStatus::get(qmlEngine);
                                           });
+    // Whether the user is dragging or resizing one of our windows right now (6.0.0).
+    // Read by the animated floor, which must not draw while a window moves.
+    qmlRegisterSingletonType<WindowMove>("WindowMove", 1, 0,
+                                         "WindowMove",
+                                         [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
+                                             return WindowMove::get(qmlEngine);
+                                         });
 
     // Create the identity manager on the main thread
     IdentityManager::get();

@@ -3,8 +3,10 @@
 #include "singleinstance.h"
 #include "storereset.h"
 #include "utils.h"
+#include "streaming/vrrratepolicy.h"
 
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QWindow>
 #include <QLibraryInfo>
@@ -12,15 +14,20 @@
 #include <QStringList>
 #include <algorithm>
 
+#include "settings/videooptions.h"
 #include "streaming/session.h"
 #include "streaming/streamutils.h"
 
 #ifdef Q_OS_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <QSettings>
 // Advapi32: OpenProcessToken / LookupPrivilegeValue / AdjustTokenPrivileges /
 // InitiateShutdownW (SeShutdownPrivilege handling in shutdownClient()).
 #pragma comment(lib, "Advapi32.lib")
+// PowrProf: GetPwrCapabilities / SetSuspendState (clientPowerModes(), powerClient()).
+#include <powrprof.h>
+#pragma comment(lib, "PowrProf.lib")
 // InitiateShutdown flags are not always exposed by the SDK headers in scope here.
 #ifndef SHUTDOWN_FORCE_SELF
 #define SHUTDOWN_FORCE_SELF      0x00000002
@@ -31,6 +38,58 @@
 #ifndef SHUTDOWN_INSTALL_UPDATES
 #define SHUTDOWN_INSTALL_UPDATES 0x00000040
 #endif
+#ifndef SHUTDOWN_RESTART
+#define SHUTDOWN_RESTART         0x00000004
+#endif
+#endif
+
+#ifdef Q_OS_WIN32
+namespace
+{
+    /*
+     * Is this machine set up for the Xbox full screen experience? Two independent markers,
+     * either of which is enough: the handheld device form, and a gaming home app pointing at
+     * the Xbox app. Both are what the community tools write to turn the experience on, so a
+     * desktop that has been converted counts too.
+     *
+     * ⚠️ Either, not both: this gate must never say "no" where the grey screen can happen.
+     * An unnecessary window rebuild is a hitch; a skipped necessary one is an app that looks
+     * broken.
+     *
+     * ⚠️ And it says DEVICE, not SESSION, which is what the data allows and not a shortcut.
+     * Measured 01/09/2026 across four cases: an Ally in the Xbox experience and an ordinary
+     * desktop are indistinguishable from inside the process — explorer.exe is the shell in
+     * both, and GetShellWindow, the taskbar, Progman and the Winlogon shell value all read
+     * the same. The one signal that moved with the shell was Progman's visibility, and only
+     * when the device had BOOTED into the experience; entering it from the desktop looked
+     * exactly like a desktop — and that is the case where the grey screen was observed. A
+     * session detector would therefore have skipped the fix precisely where it is needed.
+     *
+     * Measured values. Ally: DeviceForm 46 (0x2E), GamingHomeApp set. Desktop PC: neither.
+     */
+    bool detectGamingPostureDevice()
+    {
+        const QSettings oem(QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\OEM"),
+                            QSettings::NativeFormat);
+        const QString deviceForm = oem.value(QStringLiteral("DeviceForm")).toString();
+
+        const QSettings gaming(QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\GamingConfiguration"),
+                               QSettings::NativeFormat);
+        const QString gamingHomeApp = gaming.value(QStringLiteral("GamingHomeApp")).toString();
+
+        // 0x2E is the handheld device form. Stored as a number, read back as text.
+        const bool handheld = (deviceForm.toInt() == 0x2E);
+        const bool gamingHome = !gamingHomeApp.isEmpty();
+        const bool result = handheld || gamingHome;
+
+        qInfo() << "[gaming posture] DeviceForm:" << deviceForm
+                << " GamingHomeApp:" << (gamingHome ? gamingHomeApp : QStringLiteral("<none>"))
+                << " => window rebuild after a full-screen stream:"
+                << (result ? "ON" : "off");
+
+        return result;
+    }
+}
 #endif
 
 class SystemPropertyQueryThread : public QThread
@@ -68,6 +127,14 @@ private:
 SystemProperties::SystemProperties()
 {
     versionString = QString(VERSION_STR);
+
+#ifdef Q_OS_WIN32
+    // Read once: it describes the machine, and the machine does not change under us.
+    isGamingPostureDevice = detectGamingPostureDevice();
+#else
+    isGamingPostureDevice = false;
+#endif
+
     hasDesktopEnvironment = WMUtils::isRunningDesktopEnvironment();
     isRunningWayland = WMUtils::isRunningWayland();
     isRunningXWayland = isRunningWayland && QGuiApplication::platformName() == "xcb";
@@ -163,21 +230,18 @@ void SystemProperties::updateDecoderProperties(bool hasHardwareAcceleration, boo
 QRect SystemProperties::getNativeResolution(int displayIndex)
 {
     // Returns default constructed QRect if out of bounds
-    Q_ASSERT(!monitorNativeResolutions.isEmpty());
     return monitorNativeResolutions.value(displayIndex);
 }
 
 QRect SystemProperties::getSafeAreaResolution(int displayIndex)
 {
     // Returns default constructed QRect if out of bounds
-    Q_ASSERT(!monitorSafeAreaResolutions.isEmpty());
     return monitorSafeAreaResolutions.value(displayIndex);
 }
 
 int SystemProperties::getRefreshRate(int displayIndex)
 {
     // Returns 0 if out of bounds
-    Q_ASSERT(!monitorRefreshRates.isEmpty());
     return monitorRefreshRates.value(displayIndex);
 }
 
@@ -247,25 +311,21 @@ void SystemProperties::startAsyncLoad()
         return;
     }
 
-    // Update display related attributes (max FPS, native resolution, etc).
-    refreshDisplays();
-
-    testWindow = SDL_CreateWindow("", 0, 0, 1280, 720,
-                                  SDL_WINDOW_HIDDEN | StreamUtils::getPlatformWindowFlags());
+    testWindow = StreamUtils::createTestWindow();
     if (!testWindow) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Failed to create test window with platform flags: %s",
-                    SDL_GetError());
-
-        testWindow = SDL_CreateWindow("", 0, 0, 1280, 720, SDL_WINDOW_HIDDEN);
-        if (!testWindow) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                         "Failed to create window for hardware decode test: %s",
-                         SDL_GetError());
-            SDL_QuitSubSystem(SDL_INIT_VIDEO);
-            return;
-        }
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Failed to create window for hardware decode test: %s",
+                     SDL_GetError());
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        return;
     }
+
+    // Update display related attributes (max FPS, native resolution, etc).
+    //
+    // NB: SDL3 will forcefully refresh displays when a window is created,
+    // so we place this after the window creation to ensure we don't pay
+    // the penalty for mode enumeration twice.
+    refreshDisplays();
 
     systemPropertyQueryThread = new SystemPropertyQueryThread(this);
     systemPropertyQueryThread->start();
@@ -291,6 +351,8 @@ void SystemProperties::refreshDisplays()
     monitorRefreshRates.clear();
     monitorDisplayBounds.clear();
     monitorRatesByDisplay.clear();
+    monitorSafeAreaResolutions.clear();
+    monitorRefreshRates.clear();
 
     QList<int> allRates;
     SDL_Rect desktopBounds;
@@ -301,8 +363,11 @@ void SystemProperties::refreshDisplays()
 
         if (StreamUtils::getNativeDesktopMode(displayIndex, &desktopMode, &safeArea)) {
             if (desktopMode.w <= 8192 && desktopMode.h <= 8192) {
-                monitorNativeResolutions.insert(displayIndex, QRect(0, 0, desktopMode.w, desktopMode.h));
-                monitorSafeAreaResolutions.insert(displayIndex, QRect(0, 0, safeArea.w, safeArea.h));
+                // Keep these lists compact because their QML consumers iterate until
+                // the first empty entry. Inserting by SDL display index is invalid if
+                // an earlier display was skipped (for example, a >8K virtual display).
+                monitorNativeResolutions.append(QRect(0, 0, desktopMode.w, desktopMode.h));
+                monitorSafeAreaResolutions.append(QRect(0, 0, safeArea.w, safeArea.h));
             }
             else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -345,7 +410,8 @@ void SystemProperties::refreshDisplays()
 
             // Start at desktop mode and work our way up
             bestMode = desktopMode;
-            for (int i = 0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
+            int numDisplayModes = SDL_GetNumDisplayModes(displayIndex);
+            for (int i = 0; i < numDisplayModes; i++) {
                 SDL_DisplayMode mode;
                 if (SDL_GetDisplayMode(displayIndex, i, &mode) == 0) {
                     if (mode.w == desktopMode.w && mode.h == desktopMode.h) {
@@ -392,8 +458,87 @@ void SystemProperties::refreshDisplays()
         availableRefreshRates = allRates;
         emit availableRefreshRatesChanged();
     }
+    // Hand the pickers what the displays reported (5.5.0). Here rather than at each call
+    // site so there is exactly one moment where "what this machine can do" is decided, and
+    // it is the moment the numbers are read.
+    QList<QSize> nativeSizes;
+    for (const QRect& r : monitorNativeResolutions) {
+        nativeSizes.append(r.size());
+    }
+    VideoOptions::setNativeDisplays(nativeSizes, monitorRefreshRates);
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+QVariantMap SystemProperties::vrrRecommendation()
+{
+    if (VideoOptions::displayCount() == 0) {
+        refreshDisplays();
+    }
+
+    // The highest usable refresh among the client displays: on a two-screen desk the
+    // recommendation that matters is the one the stream can actually reach.
+    int bestRefresh = 0;
+    for (int hz : monitorRefreshRates) {
+        if (hz > bestRefresh) {
+            bestRefresh = hz;
+        }
+    }
+
+    const int fps = VrrRatePolicy::vrrRateForRefresh(bestRefresh);
+    QVariantMap map;
+    if (fps > 0) {
+        map.insert(QStringLiteral("fps"), fps);
+        map.insert(QStringLiteral("refreshHz"), bestRefresh);
+    }
+    return map;
+}
+
+QVariantMap SystemProperties::videoOptions()
+{
+    /*
+     * Normally the snapshot is already there: startAsyncLoad() takes it during startup.
+     * It is not on the paths where that never runs — a launch straight into a stream, where
+     * runConfigChecks is false — and a picker built then would silently offer the presets
+     * alone, which is precisely the bug this feature exists to end.
+     *
+     * ⚠️ Only when it is empty. refreshDisplays() clears monitorNativeResolutions but
+     * APPENDS to monitorRefreshRates (upstream's asymmetry, untouched here), so calling it
+     * a second time over a populated list would duplicate every rate.
+     */
+    if (VideoOptions::displayCount() == 0) {
+        refreshDisplays();
+    }
+
+    QVariantMap map;
+
+    QVariantList frameRates;
+    for (int fps : VideoOptions::frameRates()) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("value"), fps);
+        entry.insert(QStringLiteral("label"), VideoOptions::frameRateLabel(fps));
+        // isNative, not native: the latter is a reserved word in some ECMAScript editions
+        // and this map is read from QML.
+        entry.insert(QStringLiteral("isNative"), VideoOptions::isNativeFrameRate(fps));
+        frameRates.append(entry);
+    }
+
+    QVariantList resolutions;
+    for (const QSize& size : VideoOptions::resolutions()) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("width"), size.width());
+        entry.insert(QStringLiteral("height"), size.height());
+        entry.insert(QStringLiteral("label"), VideoOptions::resolutionLabel(size));
+        entry.insert(QStringLiteral("isNative"), VideoOptions::isNativeResolution(size));
+        resolutions.append(entry);
+    }
+
+    map.insert(QStringLiteral("fps"), frameRates);
+    map.insert(QStringLiteral("res"), resolutions);
+    map.insert(QStringLiteral("fpsHint"), VideoOptions::nativeRefreshHint());
+    map.insert(QStringLiteral("resHint"), VideoOptions::nativeResolutionHint());
+    map.insert(QStringLiteral("displays"), VideoOptions::displayCount());
+    return map;
 }
 
 void SystemProperties::restartApplication()
@@ -542,6 +687,120 @@ QVariantMap SystemProperties::localLinkInfo()
     out[QStringLiteral("reason")]  = info.reason;
     out[QStringLiteral("usable")]  = info.usable();
     return out;
+}
+
+#ifdef Q_OS_WIN32
+namespace
+{
+    // Enables SeShutdownPrivilege on our token; false when the account does not hold it.
+    bool enableShutdownPrivilege()
+    {
+        HANDLE token = nullptr;
+        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token))
+            return false;
+        TOKEN_PRIVILEGES tp;
+        tp.PrivilegeCount = 1;
+        tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+        bool ok = LookupPrivilegeValue(nullptr, SE_SHUTDOWN_NAME, &tp.Privileges[0].Luid)
+                  && AdjustTokenPrivileges(token, FALSE, &tp, 0, nullptr, nullptr)
+                  // TRUE even when nothing was assigned: ERROR_NOT_ALL_ASSIGNED says it wasn't.
+                  && GetLastError() == ERROR_SUCCESS;
+        CloseHandle(token);
+        return ok;
+    }
+}
+#endif
+
+QStringList SystemProperties::clientPowerModes()
+{
+    QStringList modes;
+#ifdef Q_OS_WIN32
+    if (!enableShutdownPrivilege())
+        return modes;
+
+    SYSTEM_POWER_CAPABILITIES caps = {};
+    if (GetPwrCapabilities(&caps)) {
+        if (caps.SystemS1 || caps.SystemS2 || caps.SystemS3 || caps.AoAc)
+            modes << QStringLiteral("sleep");
+        // No "hibernate" (decision of 19/09/2026): a host in hibernation woke by itself ~30 s
+        // after this client, holding it asleep, had stopped talking to it (§77). StreamTweak
+        // still reports and carries it out; the Power dialog does not offer it on either row.
+    }
+    modes << QStringLiteral("restart") << QStringLiteral("shutdown");
+#endif
+    return modes;
+}
+
+QString SystemProperties::clientName()
+{
+    return QSysInfo::machineHostName();
+}
+
+void SystemProperties::powerClient(const QString& mode, bool installUpdates)
+{
+    if (mode == QLatin1String("shutdown")) {
+        shutdownClient(installUpdates);
+        return;
+    }
+
+#ifdef Q_OS_WIN32
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "SystemProperties: client power action '%s'%s",
+                qPrintable(mode), installUpdates ? " (installing pending updates first)" : "");
+    enableShutdownPrivilege();
+
+    if (mode == QLatin1String("restart")) {
+        DWORD rc = InitiateShutdownW(nullptr, nullptr, 0,
+                                     SHUTDOWN_RESTART | SHUTDOWN_FORCE_SELF
+                                     | (installUpdates ? SHUTDOWN_INSTALL_UPDATES : 0),
+                                     SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_FLAG_PLANNED);
+        if (rc == ERROR_SUCCESS)
+            return;
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "SystemProperties: InitiateShutdown(restart) failed (rc %lu); trying ExitWindowsEx", rc);
+        if (ExitWindowsEx(EWX_REBOOT, SHTDN_REASON_MAJOR_OTHER))
+            return;
+        const QString shutdownExe = qEnvironmentVariable("SystemRoot", QStringLiteral("C:\\Windows"))
+                                    + QStringLiteral("\\System32\\shutdown.exe");
+        QProcess::startDetached(shutdownExe, { QStringLiteral("/r"), QStringLiteral("/t"), QStringLiteral("0") });
+        return;
+    }
+
+    if (mode == QLatin1String("sleep")) {
+        SYSTEM_POWER_CAPABILITIES caps = {};
+        GetPwrCapabilities(&caps);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "SystemProperties: S1 %d S2 %d S3 %d S4 %d hiberfile %d AoAc %d",
+                    caps.SystemS1, caps.SystemS2, caps.SystemS3, caps.SystemS4,
+                    caps.HiberFilePresent, caps.AoAc);
+
+        // Classic suspend (S1-S3): SetSuspendState, wake events left on.
+        if (caps.SystemS1 || caps.SystemS2 || caps.SystemS3) {
+            if (SetSuspendState(FALSE, FALSE, FALSE))
+                return;   // returns after the machine has resumed
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "SystemProperties: SetSuspendState(sleep) failed (err %lu)", GetLastError());
+            if (!caps.AoAc)
+                return;
+        }
+
+        // Modern Standby (S0 low-power idle) has no suspend call: Windows enters it when the
+        // display goes off, so that is what we ask for. ⚠️ Not verifiable on the dev machine
+        // (it has S3) — this is the path the Ally takes, and it is to be confirmed there.
+        if (caps.AoAc) {
+            DWORD_PTR result = 0;
+            SendMessageTimeoutW(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, 2,
+                                SMTO_ABORTIFHUNG, 2000, &result);
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "SystemProperties: Modern Standby, display turned off");
+        }
+        return;
+    }
+
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "SystemProperties: unknown power mode '%s'", qPrintable(mode));
+#else
+    Q_UNUSED(installUpdates);
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "SystemProperties: powerClient is only supported on Windows");
+#endif
 }
 
 bool SystemProperties::updatesPending()
