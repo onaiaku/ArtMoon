@@ -37,26 +37,54 @@ struct AppOverride
     // inherit the level below.
     bool hasWaitForGame = false;  bool waitForGame = false; // StreamingPreferences::waitForGameOnScreen
 
-    // Whether to run the panel at the stream's own frame rate in exclusive fullscreen.
-    // Host-profile only, for the same reason as link matching: it describes the
-    // situation the device is in — docked to a 120 Hz TV wants a different answer from
-    // the same handheld in your hands — and never varies by game.
-
-    // ⚠️ The two below are dependencies, not features: Match refresh rate only
-    // means anything in exclusive fullscreen, and Frame pacing only means anything
-    // with V-Sync on. Both dependents were already overridable per profile while
-    // these were global-only, so a profile could hold a setting whose condition it
-    // had no way to express — and nothing said so. They are host-profile only, like
-    // the settings that need them: a window mode and a V-Sync choice describe the
-    // device and the situation, never a particular game.
+    // ⚠️ The two below are dependencies, not features: Frame pacing only means anything
+    // with V-Sync on, and a window mode decides whether a session is in exclusive
+    // fullscreen at all. The dependent was already overridable per profile while these
+    // were global-only, so a profile could hold a setting whose condition it had no way
+    // to express — and nothing said so. They are host-profile only, like the settings
+    // that need them: a window mode and a V-Sync choice describe the device and the
+    // situation, never a particular game.
+    //
+    // ⚠️ Display mode arrived here as Match refresh rate's condition, and that setting is
+    // gone as of 5.5.0. It stays because it is a useful override in its own right — but if
+    // it is ever reviewed, this is why it exists and V-Sync is the one with a live
+    // dependent.
     bool hasDisplayMode = false;  int windowMode = 0;       // StreamingPreferences::WindowMode
     bool hasVsync = false;        bool enableVsync = false; // StreamingPreferences::enableVsync
+
+    // Fractional V-Sync (5.6.0). Host-profile only, and for two reasons that point the
+    // same way.
+    //
+    // ⚠️ It is a *dependent* of the two above — V-Sync, and Frame pacing — and both of
+    // those can be expressed at this level. A per-game copy could not express either, so
+    // a game could carry "on" under a profile whose V-Sync is off: the same defect the
+    // note above describes, built the other way round. It is deliberately absent from the
+    // per-game panel and must stay absent.
+    //
+    // ⚠️ What makes it a profile setting rather than a global one is VRR: a sync interval
+    // above 1 turns variable refresh off, so a handheld profile on a VRR panel and a
+    // docked profile on a fixed-refresh screen want opposite answers at the same frame
+    // rate. Everything else that varies by situation — a panel that is not a whole
+    // multiple of the stream, a profile that streams at 120 instead of 60 — the renderer
+    // already decides on its own, and needs no knob to do it.
+    bool hasFractionalVsync = false; bool fractionalVsync = false; // StreamingPreferences::fractionalVsync
+
+    // VRR (6.0.0). Host-profile only, for the same reason and with the same shape as
+    // Fractional V-Sync above: it is a dependent of V-Sync, and the situation it
+    // describes is the panel — a handheld profile on a VRR display and a docked one on
+    // a fixed-refresh screen want opposite answers at the same frame rate.
+    //
+    // ⚠️ VRR and Fractional V-Sync are mutually exclusive and VRR wins; the resolution
+    // lives in Session::snapshotPresentationSettings(), NOT here. A profile may hold
+    // both switched on, and keeps both: the session decides, and says so in the log.
+    bool hasVrr = false;          bool enableVrr = false;    // StreamingPreferences::enableVrr
 
     bool isEmpty() const
     {
         return !(hasResolution || hasFps || hasBitrate || hasHdr ||
                  hasCodec || hasFramePacing || hasAudio || hasHue || hasMatchLink ||
-                 hasWaitForGame || hasDisplayMode || hasVsync);
+                 hasWaitForGame || hasDisplayMode || hasVsync || hasFractionalVsync ||
+                 hasVrr);
     }
 };
 

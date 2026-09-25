@@ -1,18 +1,8 @@
 #include "appmodel.h"
 
-#include "settings/appliststate.h"
 #include "settings/appsettings.h"
+#include "settings/playtime.h"
 #include "settings/streamingpreferences.h"
-
-#include <QTimer>
-
-#include <algorithm>
-
-// How many titles the "Recently played" shelf holds. Five is short enough that the shelf is
-// still a shortcut rather than a second library: the whole point is to save a walk down the
-// list, and a shelf you have to scroll past has spent the walk it was meant to save. It is
-// a ceiling, not a target — a host with two played games shows two.
-static const int kRecentShelfMax = 5;
 
 AppModel::AppModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -39,6 +29,7 @@ void AppModel::initialize(ComputerManager* computerManager, int computerIndex, b
     m_Computer = m_ComputerManager->getComputers().at(computerIndex);
     m_CurrentGameId = m_Computer->currentGameId;
     m_ShowHiddenGames = showHiddenGames;
+    m_CategoryOverrides = PlaytimeManager::get()->categoryOverridesOn(m_Computer->uuid);
 
     updateAppList(m_Computer->appList);
 }
@@ -88,7 +79,23 @@ int AppModel::indexOfAppNamed(const QString& name) const
     return -1;
 }
 
-int AppModel::indexOfApp(int appId) const
+int AppModel::indexOfDesktop() const
+{
+    // "Desktop" first: a host whose apps.json lists it and also shows a fallback copy should
+    // unlock through the real one.
+    const int i = indexOfAppNamed(QStringLiteral("Desktop"));
+    if (i >= 0) {
+        return i;
+    }
+    for (int j = 0; j < m_VisibleApps.count(); j++) {
+        if (isDesktopName(m_VisibleApps.at(j).name)) {
+            return j;
+        }
+    }
+    return -1;
+}
+
+int AppModel::indexOfAppId(int appId) const
 {
     for (int i = 0; i < m_VisibleApps.count(); i++) {
         if (m_VisibleApps.at(i).id == appId) {
@@ -98,21 +105,125 @@ int AppModel::indexOfApp(int appId) const
     return -1;
 }
 
+void AppModel::setCategory(const QString& category)
+{
+    if (category == m_Category) {
+        return;
+    }
+    m_Category = category;
+    rebuildVisibleApps();
+    emit categoryChanged();
+}
+
+void AppModel::rebuildVisibleApps()
+{
+    // A reset, and the visible list rebuilt from scratch: switching tabs replaces every row,
+    // and getVisibleApps() keeps a hidden app only while it is already on screen, which after
+    // a switch it never is.
+    const QString lastPlayed = lastPlayedForSort();
+    reloadPinned();
+    const QSet<QString>& pinned = m_Pinned;
+    beginResetModel();
+    m_VisibleApps.clear();
+    QVector<NvApp> visible = getVisibleApps(m_AllApps);
+    std::stable_sort(visible.begin(), visible.end(), [&lastPlayed, &pinned](const NvApp& a, const NvApp& b) {
+        int oa = appSortOrder(a.name, lastPlayed, pinned), ob = appSortOrder(b.name, lastPlayed, pinned);
+        if (oa != ob) return oa < ob;
+        return a.name.toLower() < b.name.toLower();
+    });
+    m_VisibleApps = visible;
+    m_PlaytimeLabels.clear();
+    endResetModel();
+}
+
+bool AppModel::matchesCategory(const NvApp& app) const
+{
+    if (m_Category.isEmpty()) {
+        return true;
+    }
+    if (m_Category == QLatin1String("all")) {
+        return isAllCategory(app);
+    }
+    return isApp(app) == (m_Category == QLatin1String("apps"));
+}
+
+bool AppModel::isApp(const NvApp& app) const
+{
+    // The host controls never leave APPS, whatever a stale entry in the store says.
+    if (!m_CategoryOverrides.isEmpty() && !isHostControlEntry(app)) {
+        auto it = m_CategoryOverrides.constFind(normaliseGameName(app.name));
+        if (it != m_CategoryOverrides.constEnd())
+            return *it;
+    }
+    return isAppsCategory(app);
+}
+
+QString AppModel::lastPlayedForSort() const
+{
+    if (m_Computer == nullptr || m_Category == QLatin1String("apps")) {
+        return QString();
+    }
+    return PlaytimeManager::get()->lastPlayedOn(m_Computer->uuid).name;
+}
+
+void AppModel::reloadPinned()
+{
+    // Pins exist for games only, so the APPS tab sorts and draws as if there were none —
+    // including a stale pin whose name the running-game copy of a 2.0 server happens to carry.
+    if (m_Computer == nullptr || m_Category == QLatin1String("apps")) {
+        m_Pinned.clear();
+        return;
+    }
+    m_Pinned = PlaytimeManager::get()->pinnedOn(m_Computer->uuid);
+
+    // A pin on something that now counts as an app — a game moved to APPS by hand (6.1.0) —
+    // stays in the store, so moving it back brings the pin back, but it must not reach the
+    // sort: on ALL it would be ordered with the pinned games while its row says it is not
+    // one, and the PINNED heading would break in two.
+    if (!m_Pinned.isEmpty()) {
+        for (const NvApp& app : std::as_const(m_AllApps)) {
+            if (isApp(app))
+                m_Pinned.remove(normaliseGameName(app.name));
+        }
+    }
+}
+
+bool AppModel::isPinnedApp(const NvApp& app) const
+{
+    return !m_Pinned.isEmpty() && !isApp(app)
+           && m_Pinned.contains(normaliseGameName(app.name));
+}
+
+void AppModel::updateCounts()
+{
+    int games = 0, apps = 0, all = 0;
+    bool monitor = false;
+    for (const NvApp& app : std::as_const(m_AllApps)) {
+        if (hostControlKind(app.id, app.uuid, app.name) == HostControl::DisconnectMonitor) {
+            monitor = true;
+        }
+        if (!m_ShowHiddenGames && app.hidden) {
+            continue;
+        }
+        if (isApp(app))          apps++;
+        else                     games++;
+        if (isAllCategory(app))  all++;
+    }
+
+    if (games != m_GamesCount || apps != m_AppsCount || all != m_AllCount
+            || monitor != m_RemoteMonitorActive) {
+        m_GamesCount = games;
+        m_AppsCount = apps;
+        m_AllCount = all;
+        m_RemoteMonitorActive = monitor;
+        emit countsChanged();
+    }
+}
+
 Session* AppModel::createSessionForApp(int appIndex)
 {
     Q_ASSERT(appIndex < m_VisibleApps.count());
     NvApp app = m_VisibleApps.at(appIndex);
-
-    // Note the launch, which is what the "Recently played" shelf reads. Recorded here rather
-    // than when the stream is confirmed up: picking a game is the event — a host that takes
-    // six seconds to answer, or refuses, has still been asked for that game now.
-    AppListStateManager::get()->recordLaunch(m_Computer->uuid, app.id);
-
-    // ⚠️ Deferred by one event-loop turn, not done inline. This call comes from the focused
-    // row's own handler, so re-shelving inside it would move the rows out from under the
-    // delegate that is still executing — the same class of re-entrancy that turned the
-    // 12/08 host-offline case into a hang. The order is only ever read off a later frame.
-    QTimer::singleShot(0, this, [this]() { updateAppList(m_AllApps); });
 
     // Apply this game's per-app overrides on top of a clone of the global
     // preferences (the global object is never mutated). The clone is owned by
@@ -122,44 +233,6 @@ Session* AppModel::createSessionForApp(int appIndex)
     Session* session = new Session(m_Computer, app, prefs);
     prefs->setParent(session);
     return session;
-}
-
-bool AppModel::isAppFavorite(int appIndex) const
-{
-    if (appIndex < 0 || appIndex >= m_VisibleApps.count()) {
-        return false;
-    }
-
-    return AppListStateManager::get()->isFavorite(m_Computer->uuid, m_VisibleApps.at(appIndex).id);
-}
-
-void AppModel::setAppFavorite(int appIndex, bool favorite)
-{
-    if (appIndex < 0 || appIndex >= m_VisibleApps.count()) {
-        return;
-    }
-
-    const int appId = m_VisibleApps.at(appIndex).id;
-    AppListStateManager::get()->setFavorite(m_Computer->uuid, appId, favorite);
-
-    // The row itself is told now, so the pin marker and the section it reports are current
-    // the moment the toggle moves. What is NOT done here is the reorder — see
-    // applyShelfOrder(): the dialog that calls this addresses the model by index, and moving
-    // rows underneath it would point it at a different game.
-    m_FavoriteIds.clear();
-    for (const NvApp& app : std::as_const(m_VisibleApps)) {
-        if (AppListStateManager::get()->isFavorite(m_Computer->uuid, app.id)) {
-            m_FavoriteIds.insert(app.id);
-        }
-    }
-
-    emit dataChanged(createIndex(appIndex, 0), createIndex(appIndex, 0),
-                     QVector<int>() << FavoriteRole << SectionRole);
-}
-
-void AppModel::applyShelfOrder()
-{
-    updateAppList(m_AllApps);
 }
 
 QVariantMap AppModel::getAppOverride(int appIndex)
@@ -271,25 +344,204 @@ QVariant AppModel::data(const QModelIndex &index, int role) const
         return app.isAppCollectorGame;
     case OverriddenRole:
         return AppSettingsManager::get()->hasOverride(m_Computer->uuid, app.id);
-    case FavoriteRole:
-        return m_FavoriteIds.contains(app.id);
-    case SectionRole:
-        // Every part of the list gets a caption, because a caption is the only thing that
-        // tells the eye where a shelf ends and the library begins. The shelves are "recent"
-        // and "favorites"; the tail of the list is "all", and it is captioned AS such —
-        // without it the library reads as a continuous run under the last shelf above it
-        // (the 21/09 report: "it's put every app under recently played" — the shelf held
-        // one app; the tail simply had no caption left to say otherwise).
-        if (m_RecentShelfIds.contains(app.id)) {
-            return QStringLiteral("recent");
+    case PlaytimeRole: {
+        // Empty string, not "0 m", when there is nothing to say: the row's subtitle appends
+        // this after the store name, and a game never streamed should read "Steam", not
+        // "Steam · 0 m". Desktop and Steam Big Picture never get one at all.
+        auto it = m_PlaytimeLabels.constFind(app.id);
+        if (it != m_PlaytimeLabels.constEnd())
+            return *it;
+
+        QString label;
+        if (PlaytimeManager::isTracked(app.name)) {
+            PlaytimeRecord rec = PlaytimeManager::get()->recordFor(m_Computer->uuid, app.name);
+            if (rec.valid && rec.totalSeconds > 0)
+                label = PlaytimeManager::formatDuration(rec.totalSeconds);
         }
-        if (m_FavoriteIds.contains(app.id)) {
-            return QStringLiteral("favorites");
+        m_PlaytimeLabels.insert(app.id, label);
+        return label;
+    }
+    case SectionRole: {
+        // What the ListView groups on. Three values, and the sort order guarantees each is one
+        // contiguous run: "continue" is a single row at the top, "pinned" follows it (6.0.0),
+        // "all" is the rest — so every header is a caption that cannot repeat further down.
+        //
+        // Only row 0 can be "continue", which is what keeps this cheap: every other row
+        // answers from the pinned cache, where finding the last played game per row
+        // would be a settings read and a list scan on every repaint.
+        if (m_Computer == nullptr)
+            return QStringLiteral("all");
+
+        if (index.row() == 0) {
+            const QString lastPlayed = lastPlayedForSort();
+            if (!lastPlayed.isEmpty() && app.name.compare(lastPlayed, Qt::CaseInsensitive) == 0)
+                return QStringLiteral("continue");
         }
-        return QStringLiteral("all");
+        return isPinnedApp(app) ? QStringLiteral("pinned") : QStringLiteral("all");
+    }
+    case PinnedRole:
+        return isPinnedApp(app);
+    case IsAppRole:
+        return isApp(app);
+    case MovableRole:
+        return !isHostControlEntry(app);
+    case ControlRole:
+        return hostControlName(hostControlKind(app.id, app.uuid, app.name));
     default:
         return QVariant();
     }
+}
+
+QVariantMap AppModel::playtimeFor(int appIndex) const
+{
+    QVariantMap out;
+    if (appIndex < 0 || appIndex >= m_VisibleApps.count())
+        return out;
+
+    const NvApp& app = m_VisibleApps.at(appIndex);
+    if (!PlaytimeManager::isTracked(app.name))
+        return out;
+
+    PlaytimeRecord rec = PlaytimeManager::get()->recordFor(m_Computer->uuid, app.name);
+    if (!rec.valid)
+        return out;
+
+    out[QStringLiteral("totalSeconds")]  = (qint64)rec.totalSeconds;
+    out[QStringLiteral("total")]         = PlaytimeManager::formatDuration(rec.totalSeconds);
+    out[QStringLiteral("sessions")]      = rec.sessionCount;
+    out[QStringLiteral("lastSeconds")]   = (qint64)rec.lastSessionSeconds;
+    out[QStringLiteral("lastSession")]   = rec.lastSessionSeconds > 0
+                                           ? PlaytimeManager::formatDuration(rec.lastSessionSeconds)
+                                           : QString();
+    // Handed over as a local-time ISO string: QML formats it, because the date format is a
+    // user setting and this file has no business knowing which one is picked.
+    out[QStringLiteral("lastPlayed")]    = rec.lastPlayed.isValid()
+                                           ? rec.lastPlayed.toLocalTime().toString(Qt::ISODate)
+                                           : QString();
+
+    // Metrics stay raw, -1 included: QML draws a dash for those, and rounding a "never
+    // measured" into a number here would throw the distinction away at the only point that
+    // still has it.
+    out[QStringLiteral("fpsAvg")]        = rec.lastFpsAvg;
+    out[QStringLiteral("targetFps")]     = rec.lastTargetFps;
+    out[QStringLiteral("dropsPct")]      = rec.lastDropsPct;
+    out[QStringLiteral("jitterDropsPct")]= rec.lastJitterDropsPct;
+    out[QStringLiteral("rttMs")]         = rec.lastRttMs;
+    out[QStringLiteral("hostLatencyMs")] = rec.lastHostLatencyMs;
+    out[QStringLiteral("decodeMs")]      = rec.lastDecodeMs;
+    out[QStringLiteral("bitrateMbps")]   = rec.lastBitrateMbps;
+
+    return out;
+}
+
+void AppModel::resetPlaytime(int appIndex)
+{
+    if (appIndex < 0 || appIndex >= m_VisibleApps.count())
+        return;
+
+    const NvApp& app = m_VisibleApps.at(appIndex);
+    PlaytimeManager::get()->reset(m_Computer->uuid, app.name);
+
+    /*
+     * ⚠️ Clears the labels but does NOT re-sort, and that is deliberate.
+     *
+     * Clearing a game can also clear the host's "last played" pointer, which changes the
+     * order — and the only caller is the per-game panel, which is open on THIS appIndex while
+     * this runs. Re-sorting under it would leave the dialog holding an index that now points
+     * at a different game, and every setting it wrote afterwards would land on the wrong one.
+     *
+     * The order is put right when the panel closes, which is the first moment the index stops
+     * mattering: AppsScreen calls refreshPlaytime() from onClosedByUser.
+     */
+    m_PlaytimeLabels.clear();
+    if (!m_VisibleApps.isEmpty()) {
+        emit dataChanged(createIndex(0, 0), createIndex(m_VisibleApps.count() - 1, 0),
+                         { PlaytimeRole, SectionRole });
+    }
+}
+
+void AppModel::refreshPlaytime()
+{
+    m_PlaytimeLabels.clear();
+    if (m_VisibleApps.isEmpty() || m_Computer == nullptr)
+        return;
+
+    /*
+     * ⚠️ A full reset, not a dataChanged() over the play-time role, because the ORDER can
+     * have moved: the game that just ended is now the one at the top, under Continue.
+     *
+     * This is the moment that needs it. A session does not rebuild the host page — it stays
+     * alive behind the stream and comes back with the same model — so nothing else would ever
+     * re-sort, and the row would go on sitting wherever it was alphabetically while the
+     * Continue section named it.
+     */
+    if (sortVisibleApps())
+        return;   // the reset already redrew every row, labels included
+
+    emit dataChanged(createIndex(0, 0), createIndex(m_VisibleApps.count() - 1, 0),
+                     { PlaytimeRole, SectionRole });
+}
+
+bool AppModel::togglePinned(int appIndex)
+{
+    if (m_Computer == nullptr || m_Category == QLatin1String("apps")
+            || appIndex < 0 || appIndex >= m_VisibleApps.count())
+        return false;
+
+    const NvApp app = m_VisibleApps.at(appIndex);
+    if (isApp(app))
+        return false;
+
+    const bool pinned = !isPinnedApp(app);
+    PlaytimeManager::get()->setPinned(m_Computer->uuid, app.name, pinned);
+
+    // sortVisibleApps() reloads the pins and resets the model when the order moved. When it
+    // did not — pinning the first game under ALL GAMES, which stays where it is — the rows
+    // still have to redraw their mark and their section.
+    if (!sortVisibleApps() && !m_VisibleApps.isEmpty()) {
+        emit dataChanged(createIndex(0, 0), createIndex(m_VisibleApps.count() - 1, 0),
+                         { PinnedRole, SectionRole });
+    }
+    return pinned;
+}
+
+bool AppModel::moveToOtherTab(int appIndex)
+{
+    if (m_Computer == nullptr || appIndex < 0 || appIndex >= m_VisibleApps.count())
+        return false;
+
+    const NvApp app = m_VisibleApps.at(appIndex);
+    if (isHostControlEntry(app))
+        return false;
+
+    const bool toApps = !isApp(app);
+    PlaytimeManager::get()->setCategoryOverride(m_Computer->uuid, app.name, toApps,
+                                                isAppsCategory(app));
+    m_CategoryOverrides = PlaytimeManager::get()->categoryOverridesOn(m_Computer->uuid);
+
+    // The row leaves GAMES or APPS, and on ALL it can change section (a pinned game moved to
+    // APPS drops out of PINNED) — every tab needs the list rebuilt and sorted again.
+    rebuildVisibleApps();
+    updateCounts();
+    return toApps;
+}
+
+QString AppModel::savedTab() const
+{
+    return m_Computer ? PlaytimeManager::get()->lastTabOn(m_Computer->uuid) : QString();
+}
+
+void AppModel::saveTab(const QString& tab)
+{
+    if (m_Computer)
+        PlaytimeManager::get()->setLastTab(m_Computer->uuid, tab);
+}
+
+QString AppModel::sectionAt(int row) const
+{
+    if (row < 0 || row >= m_VisibleApps.count())
+        return QString();
+    return data(createIndex(row, 0), SectionRole).toString();
 }
 
 QHash<int, QByteArray> AppModel::roleNames() const
@@ -304,8 +556,12 @@ QHash<int, QByteArray> AppModel::roleNames() const
     names[DirectLaunchRole] = "directLaunch";
     names[AppCollectorGameRole] = "appCollectorGame";
     names[OverriddenRole] = "overridden";
-    names[FavoriteRole] = "favorite";
+    names[PlaytimeRole] = "playtime";
     names[SectionRole] = "section";
+    names[PinnedRole] = "pinned";
+    names[IsAppRole] = "isApp";
+    names[ControlRole] = "control";
+    names[MovableRole] = "movable";
 
     return names;
 }
@@ -334,6 +590,9 @@ QVector<NvApp> AppModel::getVisibleApps(const QVector<NvApp>& appList)
         // Don't immediately hide games that were previously visible. This
         // allows users to easily uncheck the "Hide App" checkbox if they
         // check it by mistake.
+        if (!matchesCategory(app)) {
+            continue;
+        }
         if (m_ShowHiddenGames || !app.hidden || isAppCurrentlyVisible(app)) {
             visibleApps.append(app);
         }
@@ -342,85 +601,25 @@ QVector<NvApp> AppModel::getVisibleApps(const QVector<NvApp>& appList)
     return visibleApps;
 }
 
-QVector<NvApp> AppModel::orderForDisplay(const QVector<NvApp>& appList)
-{
-    m_RecentShelfIds.clear();
-    m_FavoriteIds.clear();
-
-    // ── Who is pinned ───────────────────────────────────────────────────────
-    // Read once for the whole list rather than per comparison. Each lookup is a QSettings
-    // read, and the "everything else" pass below would otherwise ask the same question about
-    // the same app a second time.
-    for (const NvApp& app : appList) {
-        if (AppListStateManager::get()->isFavorite(m_Computer->uuid, app.id)) {
-            m_FavoriteIds.insert(app.id);
-        }
-    }
-
-    // ── Shelf 1: recently played, most recent first ─────────────────────────
-    QVector<QPair<qint64, NvApp>> played;
-    for (const NvApp& app : appList) {
-        const QDateTime when = AppListStateManager::get()->lastLaunched(m_Computer->uuid, app.id);
-        if (when.isValid()) {
-            played.append(QPair<qint64, NvApp>(when.toMSecsSinceEpoch(), app));
-        }
-    }
-
-    // Ties broken by name so the order cannot depend on the order the host happened to send
-    // its list in — two apps played in the same millisecond is unlikely and
-    // non-deterministic-looking is worse than arbitrary.
-    std::sort(played.begin(), played.end(), [](const QPair<qint64, NvApp>& a,
-                                              const QPair<qint64, NvApp>& b) {
-        if (a.first != b.first) {
-            return a.first > b.first;
-        }
-        return a.second.name.toLower() < b.second.name.toLower();
-    });
-
-    QVector<NvApp> ordered;
-    for (int i = 0; i < played.count() && i < kRecentShelfMax; i++) {
-        ordered.append(played.at(i).second);
-        m_RecentShelfIds.insert(played.at(i).second.id);
-    }
-
-    // ── Shelf 2: pinned favourites, in the host's own order ─────────────────
-    // Deliberately not also sorted by recency: these were placed by hand, and the only order
-    // a hand-placed list reads as is the one the rest of the library uses. An app that is a
-    // favourite *and* recently played is already above, on the recent shelf, and is not
-    // repeated here.
-    for (const NvApp& app : appList) {
-        if (m_FavoriteIds.contains(app.id) && !m_RecentShelfIds.contains(app.id)) {
-            ordered.append(app);
-        }
-    }
-
-    // ── The library proper ──────────────────────────────────────────────────
-    // Whatever is left, still in the order the host sorted it (Desktop, Steam Big Picture,
-    // then A–Z) — so with no favourites and nothing played, this is the list as it was.
-    for (const NvApp& app : appList) {
-        if (!m_RecentShelfIds.contains(app.id) && !m_FavoriteIds.contains(app.id)) {
-            ordered.append(app);
-        }
-    }
-
-    Q_ASSERT(ordered.count() == appList.count());
-    return ordered;
-}
-
 void AppModel::updateAppList(QVector<NvApp> newList)
 {
     m_AllApps = newList;
 
-    // Ask once, and make the model match. Every ordering decision lives in orderForDisplay();
-    // this function only moves rows until the two agree, and the assert at the end is the
-    // proof that it did.
-    QVector<NvApp> newVisibleList = orderForDisplay(getVisibleApps(newList));
+    QVector<NvApp> newVisibleList = getVisibleApps(newList);
 
-    // Rows for apps the host no longer offers.
+    // Process removals and updates first
     for (int i = 0; i < m_VisibleApps.count(); i++) {
+        const NvApp& existingApp = m_VisibleApps.at(i);
+
         bool found = false;
         for (const NvApp& newApp : std::as_const(newVisibleList)) {
-            if (m_VisibleApps.at(i).id == newApp.id) {
+            if (existingApp.id == newApp.id) {
+                // If the data changed, update it in our list
+                if (existingApp != newApp) {
+                    m_VisibleApps.replace(i, newApp);
+                    emit dataChanged(createIndex(i, 0), createIndex(i, 0));
+                }
+
                 found = true;
                 break;
             }
@@ -434,51 +633,87 @@ void AppModel::updateAppList(QVector<NvApp> newList)
         }
     }
 
-    /*
-     * Then walk the wanted order and make the two lists agree, position by position. One
-     * loop covers all three cases — a row that is new, a row that has moved, and a row that
-     * is already where it belongs — because every step leaves the prefix correct, so the
-     * index in the wanted list is always the index to fix up next.
-     *
-     * ⚠️ A row that only changed shelf is MOVED, not removed and re-inserted. Re-inserting
-     * would destroy and rebuild the delegate: the focused row would lose its focus, the
-     * cover its loaded artwork, and the row its position on screen — for pinning a game,
-     * which is meant to be a one-press toggle on a list the user is looking at.
-     */
-    for (int i = 0; i < newVisibleList.count(); i++) {
-        const NvApp& wanted = newVisibleList.at(i);
+    // Read once for the whole pass, exactly as sortAppList() does — same value, same reason.
+    const QString lastPlayed = lastPlayedForSort();
+    reloadPinned();
 
-        if (i < m_VisibleApps.count() && m_VisibleApps.at(i).id == wanted.id) {
-            // Already in place. Only the row's own data can still be stale: a rename, a new
-            // cover, a favourite toggled by another screen.
-            if (m_VisibleApps.at(i) != wanted) {
-                m_VisibleApps.replace(i, wanted);
-                emit dataChanged(createIndex(i, 0), createIndex(i, 0));
-            }
-            continue;
-        }
+    // Process additions now
+    for (const NvApp& newApp : std::as_const(newVisibleList)) {
+        int insertionIndex = m_VisibleApps.size();
+        bool found = false;
+        // ⚠️ Shared with NvComputer::sortAppList() — see nvapp.h. The two must produce the
+        // same order or the assert at the end of this function fires in a debug build.
+        int ob = appSortOrder(newApp.name, lastPlayed, m_Pinned);
 
-        int from = -1;
-        for (int j = i + 1; j < m_VisibleApps.count(); j++) {
-            if (m_VisibleApps.at(j).id == wanted.id) {
-                from = j;
+        for (int i = 0; i < m_VisibleApps.count(); i++) {
+            const NvApp& existingApp = m_VisibleApps.at(i);
+
+            if (existingApp.id == newApp.id) {
+                found = true;
                 break;
             }
+            else {
+                int oa = appSortOrder(existingApp.name, lastPlayed, m_Pinned);
+                if (oa != ob ? ob < oa : existingApp.name.toLower() > newApp.name.toLower()) {
+                    insertionIndex = i;
+                    break;
+                }
+            }
         }
 
-        if (from >= 0) {
-            beginMoveRows(QModelIndex(), from, from, QModelIndex(), i);
-            m_VisibleApps.move(from, i);
-            endMoveRows();
-        }
-        else {
-            beginInsertRows(QModelIndex(), i, i);
-            m_VisibleApps.insert(i, wanted);
+        if (!found) {
+            beginInsertRows(QModelIndex(), insertionIndex, insertionIndex);
+            m_VisibleApps.insert(insertionIndex, newApp);
             endInsertRows();
         }
     }
 
-    Q_ASSERT(newVisibleList == m_VisibleApps);
+    /*
+     * ⚠️ This replaces a `Q_ASSERT(newVisibleList == m_VisibleApps)`, and the change is
+     * deliberate rather than a way of silencing it.
+     *
+     * The assert held because the incoming list was already sorted the same way this loop
+     * inserts. That stopped being guaranteed the moment the order started depending on which
+     * game was played last: NvComputer::sortAppList() only runs when the app list itself
+     * changes, so after a session ends the model has re-sorted (refreshPlaytime) while the
+     * host's copy still carries the old order — and the next poll would hand it back that way.
+     *
+     * Reconciling is strictly better than asserting: it fixes the order instead of complaining
+     * about it in debug builds and doing nothing in release ones. And it costs nothing in the
+     * ordinary case, where the list is already in order and sortVisibleApps() returns false
+     * without touching the model.
+     */
+    sortVisibleApps();
+
+    updateCounts();
+}
+
+bool AppModel::sortVisibleApps()
+{
+    if (m_VisibleApps.isEmpty() || m_Computer == nullptr)
+        return false;
+
+    const QString lastPlayed = lastPlayedForSort();
+    reloadPinned();
+    const QSet<QString>& pinned = m_Pinned;
+
+    QVector<NvApp> sorted = m_VisibleApps;
+    std::stable_sort(sorted.begin(), sorted.end(),
+                     [&lastPlayed, &pinned](const NvApp& a, const NvApp& b) {
+        int oa = appSortOrder(a.name, lastPlayed, pinned), ob = appSortOrder(b.name, lastPlayed, pinned);
+        if (oa != ob) return oa < ob;
+        return a.name.toLower() < b.name.toLower();
+    });
+
+    if (sorted == m_VisibleApps)
+        return false;
+
+    // A reset rather than moveRows: the only time this fires is a session ending, which is
+    // also the moment the page is being rebuilt around the user anyway.
+    beginResetModel();
+    m_VisibleApps = sorted;
+    endResetModel();
+    return true;
 }
 
 void AppModel::setAppHidden(int appIndex, bool hidden)

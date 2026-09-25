@@ -1,6 +1,5 @@
 import Theme 1.0
 import QtQuick 2.9
-import QtQuick.Controls 2.2
 
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
@@ -33,26 +32,32 @@ FocusScope {
     onWidthChanged: Theme.uiScale = width / 1330
     Component.onCompleted: {
         Theme.uiScale = width / 1330
+        // The opening animation (6.0.0) — decided here, once. See StartupSplash.
+        _splashOnLaunch = Theme.startupAnimation && !Theme.reduceAnimations
+                          && !(typeof initialView !== "undefined" && initialView && initialView.length > 0)
+        if (_splashOnLaunch)
+            startupSplash.start()
         // The release lookup behind the startup update prompt (see _maybePromptUpdate at the
         // bottom). Settings runs the same lookup again when it opens.
         AppUpdate.checkLatest()
     }
 
-    // Design tokens (mirrored from main.qml — id scopes are per-document).
-    readonly property color _bg1:      "#151515"
-    readonly property color _border:   "#2a2a2a"
-    readonly property color _borderS:  "#404040"
-    readonly property color _bgHov:    "#262626"
-    readonly property color _bg2:      "#1a1a1a"
-    readonly property color _text:     "#f0f0f0"
-    readonly property color _textDim:  "#a0a0a0"
+    // (Seven local colour tokens used to sit here, "mirrored from main.qml". Five of them —
+    //  _bg1, _bg2, _border, _borderS, _bgHov — were never read by anything in this file, and
+    //  the two that were are Theme.text and Theme.text2 under other names. The mirror is what
+    //  let this shell drift a shade away from the pages it frames, so there is no mirror now.)
+
     // ⚠️ Read from the binary, never written here. This was a literal from 4.3.0 to
     // 5.2.0 and was bumped by hand at every release — until 5.2.1, where the bump was
     // missed and the app spent a release telling users it was the previous version.
     // SystemProperties.versionString is VERSION_STR, which qmake takes from
     // app/version.txt, so the label and the installer can no longer disagree.
     readonly property string _version: SystemProperties.versionString
-    readonly property string _mono:    "DM Sans"
+
+    // Set once in Component.onCompleted and never again: it is "this launch opens with the
+    // splash", not a mirror of the setting: turning the setting on in Settings changes the
+    // next launch, never this one.
+    property bool _splashOnLaunch: false
 
     // 0 = Home, 1 = Apps, 2 = Settings
     property int currentPage: 0
@@ -274,6 +279,12 @@ FocusScope {
         case "change":
             SdlGamepadKeyNavigation.simulateKey(Qt.Key_Space)
             break
+        case "move":
+            if (appsLoader.item && appsLoader.item.moveFocused) appsLoader.item.moveFocused()
+            break
+        case "pin":
+            if (appsLoader.item && appsLoader.item.togglePinFocused) appsLoader.item.togglePinFocused()
+            break
         case "prevTab":
             SdlGamepadKeyNavigation.simulateKey(Qt.Key_PageUp)
             break
@@ -326,6 +337,13 @@ FocusScope {
     AmbientBackground {
         id: ambientBackground
         z: -1
+        // Waves on Home and Settings (6.1.0): the host page stands on the bare wash.
+        waves: currentPage === 0 || currentPage === 2
+        // The waves run twice as fast while a host is streaming (6.0.0).
+        streaming: homeLoader.item ? homeLoader.item.anyStreaming : false
+        // The waves rise from the bottom only as the first act of the opening animation, on its
+        // clock. With it off (splash never running) this is 1: Home opens on waves in place.
+        rise: startupSplash.rise
     }
 
     FocusScope {
@@ -335,6 +353,9 @@ FocusScope {
         anchors.top: parent.top
         anchors.bottom: statusBar.top
         focus: true
+        // Invisible and deaf while the opening animation runs; see StartupSplash.
+        opacity: startupSplash.homeOpacity
+        enabled: !startupSplash.blocking
 
         // Home stays always-active so ComputerModel survives Apps/Settings.
         Loader {
@@ -401,19 +422,30 @@ FocusScope {
      * object, so it hopped a few pixels on every page change. Declared once in the shell it
      * cannot drift again, whatever the pages do to their headers.
      *
-     * Fixed pixels, not the pages' `_u` scale: this is chrome, like the status bar's own
-     * 44px height and 16px gutter, and it belongs to the window rather than to the content.
-     * The margins put its centre on the wordmark's, which is the one header it has to agree
-     * with — the other two are close enough that no one reading them will see a difference.
+     * ⚠️ It used to be in FIXED pixels, on the argument that chrome belongs to the window
+     * rather than to the content. That argument holds on a desktop and fails on a handheld:
+     * the content scales to 1.60 while this stayed at 1.00, so on the Ally the clock and the
+     * battery were drawn at roughly two thirds the size of everything they sat beside — the
+     * one place on the screen where you have to squint, on the device most likely to be at
+     * arm's length.
+     *
+     * Scaled as a whole rather than number by number: this is a small illustration with a
+     * battery drawn in tenths of a pixel (2.1, 5.2, 1.3), and rounding each of those
+     * independently is how a drawing stops lining up with itself. TopRight origin so it
+     * grows down and inward from the corner it is anchored to, which keeps the margin the
+     * margin at every scale.
      *
      * Declared after contentArea so it draws over the pages; popups have their own overlay
      * layer above both.
      */
     StatusCluster {
         anchors.top: parent.top
-        anchors.topMargin: 22
+        anchors.topMargin: Math.round(22 * Theme.uiScale)
         anchors.right: parent.right
-        anchors.rightMargin: 44
+        anchors.rightMargin: Math.round(44 * Theme.uiScale)
+        transformOrigin: Item.TopRight
+        scale: Theme.uiScale
+        opacity: startupSplash.homeOpacity
     }
 
     // Status bar — gamepad prompts + version. Glyphs swap by controller type.
@@ -422,7 +454,7 @@ FocusScope {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 44
+        height: Math.round(44 * Theme.uiScale)
         // Normally transparent, so the page's own ambient gradient runs behind it unbroken.
         //
         // A page that paints its own floor has to say so, though: the host page ends in
@@ -430,6 +462,8 @@ FocusScope {
         // and where the two met there was a visible step across the foot of the screen. So
         // the page sets this to whatever it ends in and the bar borrows it.
         color: appShell.statusBarFloor
+        opacity: startupSplash.homeOpacity
+        enabled: !startupSplash.blocking
 
         // No rule along the top. There was one, and once the ambient gradient ran the full
         // height behind it the line was the only thing left drawing a border where there is
@@ -439,15 +473,9 @@ FocusScope {
         readonly property bool _padIsPs: SdlGamepadKeyNavigation.controllerType === "ps"
         readonly property bool _padIsSwitch: SdlGamepadKeyNavigation.controllerType === "switch"
 
-        // Glyphs are chosen by SDL button POSITION. Nintendo swaps A/B and X/Y
-        // relative to Xbox, so the Switch glyph for the south button (_iconA)
-        // is the one labeled "B", the east button (_iconB) is labeled "A", etc.
-        readonly property string _iconA: _padIsPs ? "qrc:/res/pad_ps_cross.svg"    : _padIsSwitch ? "qrc:/res/pad_switch_b.svg" : "qrc:/res/pad_xbox_a.svg"
-        readonly property string _iconB: _padIsPs ? "qrc:/res/pad_ps_circle.svg"   : _padIsSwitch ? "qrc:/res/pad_switch_a.svg" : "qrc:/res/pad_xbox_b.svg"
-        readonly property string _iconX: _padIsPs ? "qrc:/res/pad_ps_square.svg"   : _padIsSwitch ? "qrc:/res/pad_switch_y.svg" : "qrc:/res/pad_xbox_x.svg"
-        readonly property string _iconY: _padIsPs ? "qrc:/res/pad_ps_triangle.svg" : _padIsSwitch ? "qrc:/res/pad_switch_x.svg" : "qrc:/res/pad_xbox_y.svg"
-        readonly property string _iconL: _padIsPs ? "qrc:/res/pad_ps_l1.svg"       : _padIsSwitch ? "qrc:/res/pad_switch_l.svg" : "qrc:/res/pad_xbox_lb.svg"
-        readonly property string _iconR: _padIsPs ? "qrc:/res/pad_ps_r1.svg"       : _padIsSwitch ? "qrc:/res/pad_switch_r.svg" : "qrc:/res/pad_xbox_rb.svg"
+        // (Six more glyphs used to be resolved here — A, B, X, Y and the shoulders — and none of
+        //  them was read by anything any more: the prompts draw their own. Removed in 6.0.0.
+        //  Only Select is still used, by the prompt below.)
         // Select / Back / View / Create / − button.
         readonly property string _iconSelect: _padIsPs ? "qrc:/res/pad_ps_create.svg" : _padIsSwitch ? "qrc:/res/pad_switch_minus.svg" : "qrc:/res/pad_xbox_view.svg"
         // (The trigger glyphs used to be resolved here too, for the "Prev/Next host" prompts.
@@ -471,7 +499,7 @@ FocusScope {
         // btn = the controller button, key = the keyboard equivalent. Both travel together and
         // ActionHint picks; a prompt with no key stays on the glyph.
         readonly property var _hintsHome: [
-            { btn: "X", key: "P",   act: qsTr("Shutdown"), kind: "shutdownHost" },
+            { btn: "X", key: "P",   act: qsTr("Power"),    kind: "shutdownHost" },
             { btn: "Y", key: "S",   act: qsTr("Settings"), kind: "settings" },
             { btn: "B", key: "Esc", act: qsTr("Exit"),     kind: "back" }
         ]
@@ -484,10 +512,29 @@ FocusScope {
         // page, and B leaves it. "Hosts", not "Back" — B always lands in the same place from
         // here, and naming the destination is the one thing the removed corner button did
         // that the bar could not. "Back" says you are leaving, "Hosts" says where you arrive.
-        readonly property var _hintsApps: [
-            { btn: "Y", key: "S",   act: qsTr("Settings"), kind: "settings" },
-            { btn: "B", key: "Esc", act: qsTr("Hosts"),    kind: "back" }
-        ]
+        // 5.9.0: LT/RT switched the host page between GAMES and APPS, from here. 6.1.0: the
+        // tabs are on LB/RB, drawn at the ends of the strip, and LT/RT on the profile badge.
+        // 6.0.0: Start / P pins the selected game. In the bar rather than on the spotlight's
+        // buttons, by decision, and only while a game is selected — the APPS tab has nothing to
+        // pin, so there the prompt is not drawn at all. The word follows the row: Unpin on a
+        // pinned game.
+        readonly property var _hintsApps: {
+            var h = [
+                { btn: "Y",  key: "S",    act: qsTr("Settings"), kind: "settings" },
+                { btn: "B",  key: "Esc",  act: qsTr("Hosts"),    kind: "back" }
+            ]
+            var page = appsLoader.item
+            if (page && page.focusedPinnable === true)
+                h.push({ btn: "START", key: "P",
+                         act: page.focusedPinned === true ? qsTr("Unpin") : qsTr("Pin"),
+                         kind: "pin" })
+            // 6.1.0: the tabs moved to LB/RB, drawn at the ends of the tab strip, so the bar
+            // no longer carries them. It carries the right stick instead, on GAMES and APPS:
+            // it moves the selected entry to the other one, and the word says which way.
+            if (page && page.focusedMoveLabel)
+                h.push({ btn: "RS", key: "M", act: page.focusedMoveLabel, kind: "move" })
+            return h
+        }
         // Settings prompts add "X · Default" when the bitrate differs from recommended.
         readonly property bool _showDefaultHint:
             currentPage === 2
@@ -515,21 +562,21 @@ FocusScope {
         Row {
             id: hintRow
             anchors.left: parent.left
-            anchors.leftMargin: 20
+            anchors.leftMargin: Math.round(20 * Theme.uiScale)
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 20
+            spacing: Math.round(20 * Theme.uiScale)
 
             Repeater {
                 model: statusBar._hints
                 delegate: Item {
                     anchors.verticalCenter: parent.verticalCenter
-                    implicitWidth:  promptRow.implicitWidth + 8
-                    implicitHeight: 30
+                    implicitWidth:  promptRow.implicitWidth + Math.round(8 * Theme.uiScale)
+                    implicitHeight: Math.round(30 * Theme.uiScale)
 
                     Row {
                         id: promptRow
                         anchors.centerIn: parent
-                        spacing: 9
+                        spacing: Math.round(9 * Theme.uiScale)
 
                         // ABXY circle 26×26, LB/RB rounded rect 40×24 — the sizes ActionHint
                         // and PadGlyph now share, so a prompt here and a combo in Settings are
@@ -538,15 +585,15 @@ FocusScope {
                             anchors.verticalCenter: parent.verticalCenter
                             buttonKey: modelData.btn
                             keyLabel:  modelData.key
-                            size: 26
+                            size: Math.round(26 * Theme.uiScale)
                         }
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData.act
-                            color: appShell._text
-                            font.pixelSize: 15
-                            font.family: "DM Sans"
+                            color: Theme.text
+                            font.pixelSize: Math.round(Theme.fontBody * Theme.uiScale)
+                            font.family: Theme.family
                         }
                     }
 
@@ -572,9 +619,9 @@ FocusScope {
         Row {
             id: rightCluster
             anchors.right: parent.right
-            anchors.rightMargin: 16
+            anchors.rightMargin: Math.round(16 * Theme.uiScale)
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 22
+            spacing: Math.round(22 * Theme.uiScale)
 
             // (The host-link chip used to live here. It was in the status bar because there was
             //  nowhere else to put it; now the host card says it on Home and the header says it
@@ -594,25 +641,25 @@ FocusScope {
                 Row {
                     id: chipContent
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    spacing: Math.round(10 * Theme.uiScale)
 
                     Image {
                         anchors.verticalCenter: parent.verticalCenter
                         source: statusBar._iconSelect
-                        width: 40; height: 24
+                        width: Math.round(40 * Theme.uiScale); height: Math.round(24 * Theme.uiScale)
                         sourceSize.width: 80; sourceSize.height: 48
                         fillMode: Image.PreserveAspectFit; smooth: true
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 3
+                        spacing: Math.round(3 * Theme.uiScale)
                         Text {
-                            width: Math.min(implicitWidth, 260)
+                            width: Math.min(implicitWidth, Math.round(260 * Theme.uiScale))
                             elide: Text.ElideRight
                             text: qsTr("Update")
                                   + (appShell._updateHost.length ? " · " + appShell._updateHost : "")
                                   + "   " + appShell._updatePhaseLabel(appShell._updatePhase)
-                            color: appShell._text; font.pixelSize: 13; font.family: "DM Sans"
+                            color: Theme.text; font.pixelSize: Math.round(Theme.fontSmall * Theme.uiScale); font.family: Theme.family
                         }
                         // (A mini progress bar and a percentage used to sit here. The figure
                         //  behind them only moves between files and stands still through the
@@ -632,9 +679,9 @@ FocusScope {
                 id: versionLabel
                 anchors.verticalCenter: parent.verticalCenter
                 text: "v" + appShell._version
-                color: appShell._textDim
-                font.family: appShell._mono
-                font.pixelSize: 13
+                color: Theme.text2
+                font.family: Theme.family
+                font.pixelSize: Math.round(Theme.fontSmall * Theme.uiScale)
                 font.letterSpacing: 1
             }
         }
@@ -643,18 +690,15 @@ FocusScope {
     // ── Startup update prompt ─────────────────────────────────────────────────
     // Offered once per launch when AppUpdate finds a newer release it can update to and the
     // user has not asked not to be reminded of it (AppUpdate::shouldPrompt). The lookup is
-    // started in main.qml; the answer arrives as latestChanged.
+    // started in Component.onCompleted above; the answer arrives as latestChanged.
     //
     // Yes only opens Settings → About, where Update now is — nothing is downloaded from here.
-    //
-    // ⚠️ StartupSplash is not wired in this tree yet (its own open item), so the "not over the
-    // opening animation" guard his version carries is deliberately absent here. Add
-    // `if (startupSplash.running) return` — and the `onFinished: _maybePromptUpdate()` — when
-    // the opening animation lands, or the prompt can appear over it.
     property bool _updatePrompted: false
 
     function _maybePromptUpdate() {
         if (_updatePrompted || !AppUpdate.shouldPrompt()) return
+        // Not over the opening animation: asked again when it ends (startupSplash.onFinished).
+        if (startupSplash.running) return
         // Never over a stream or its launch screen: both are pushed on the global stackView
         // above this shell. Not marked as prompted, so a later lookup (Settings runs one) can
         // still offer it this launch.
@@ -667,6 +711,23 @@ FocusScope {
     Connections {
         target: AppUpdate
         function onLatestChanged() { appShell._maybePromptUpdate() }
+    }
+
+    /*
+     * The opening animation (6.0.0). Above the pages, the clock and the status bar, which it
+     * keeps at opacity 0 and without input until its fade (see contentArea). Popups have their
+     * own overlay above this.
+     */
+    StartupSplash {
+        id: startupSplash
+        anchors.fill: parent
+        // Input returns to Home when the fade starts, not when it ends: by then Home is
+        // visible, and a press during the last 0.4 s should do what it looks like it does.
+        onBlockingChanged: {
+            if (!blocking && appShell.currentPage === 0 && homeLoader.item)
+                homeLoader.item.forceActiveFocus()
+        }
+        onFinished: appShell._maybePromptUpdate()
     }
 
     UpdatePromptDialog {

@@ -6,6 +6,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.5
 import QtQuick.Window 2.2
 
+import Theme 1.0
 import SdlGamepadKeyNavigation 1.0
 import Session 1.0
 import ShortcutManager 1.0
@@ -41,8 +42,8 @@ Item {
     property string appName
     property url boxArt
     property string stageText : unlockMode ? qsTr("Connecting…") :
-                                isResume   ? qsTr("Resuming %1...").arg(appName) :
-                                             qsTr("Starting %1...").arg(appName)
+                                isResume   ? qsTr("Resuming %1…").arg(appName) :
+                                             qsTr("Starting %1…").arg(appName)
     property bool isResume : false
     property bool quitAfter : false
 
@@ -138,6 +139,24 @@ Item {
     // case where the host restores its link with nothing on the client to say so.
     property var onSessionEndedFn : null
 
+    // 5.9.0. A launch the host answered with 410 — a finished host action, or a request to
+    // confirm by launching again (see Session::launchNotice). Handed to the caller after this
+    // screen pops, because only the host page can relaunch the same entry; without a caller the
+    // message is shown plainly, never as an error.
+    property var onLaunchNoticeFn : null
+    property string _noticeText : ""
+    property bool _noticeConfirm : false
+
+    function launchNotice(text, needsConfirmation)
+    {
+        hostSlowTimer.stop()
+        _endLaunchWait()
+        if (_cancelRequested) return
+        _noticeText = text
+        _noticeConfirm = needsConfirmation
+        streamSegueErrorDialog.text = ""
+    }
+
     // Resume session captured during sessionFinished (while `session` is still
     // valid) and consumed by the delayed retry. `session` is nulled by
     // readyForDeletion before the retry timer fires, so we can't build it later.
@@ -146,7 +165,7 @@ Item {
     function stageStarting(stage)
     {
         // Update the spinner text
-        stageText = qsTr("Starting %1...").arg(stage)
+        stageText = qsTr("Starting %1…").arg(stage)
 
         // Something moved, so the host is alive: give it another full window before
         // complaining. A slow-but-progressing connection must never be called stalled.
@@ -399,6 +418,11 @@ Item {
             // recreates the native window — a visible flicker for no reason.
             if (!unlockMode) window.restoreAfterStream()
 
+            if (_noticeText) {
+                if (onLaunchNoticeFn) onLaunchNoticeFn(_noticeText, _noticeConfirm)
+                else                  streamSegueErrorDialog.text = _noticeText
+            }
+
             // Display any launch errors. We do this after
             // the Qt UI is visible again to prevent losing
             // focus on the dialog which would impact gamepad
@@ -513,6 +537,7 @@ Item {
         session.connectionStarted.connect(connectionStarted)
         session.streamWindowRevealed.connect(streamWindowRevealed)
         session.displayLaunchError.connect(displayLaunchError)
+        session.launchNotice.connect(launchNotice)
         session.quitStarting.connect(quitStarting)
         session.sessionFinished.connect(sessionFinished)
         session.readyForDeletion.connect(sessionReadyForDeletion)
@@ -806,8 +831,14 @@ Item {
      * With no artwork (a CLI launch, the PIN pad, a game with no cover) CoverAmbient draws
      * nothing and the floor below is what shows — which is also what the PIN pad wanted
      * anyway: it should look like part of the app, not like a launch that lost its picture.
+     *
+     * 6.1.0: the waves only on the PIN pad, never on a game's launch screen. At normal
+     * speed: Home does not count the unlock's own session as a stream either
+     * (HomeScreen._runningFor), and the two must agree.
      */
-    AmbientBackground {}
+    AmbientBackground {
+        waves: streamSegue.unlockMode
+    }
 
     CoverAmbient {
         source: streamSegue.unlockMode ? "" : streamSegue.boxArt
@@ -854,7 +885,7 @@ Item {
             text: _c ? _c.gameName : streamSegue.appName
             font.pointSize: Math.max(18, Math.round(_h * 0.042))
             font.bold: true
-            color: "#f2f2f4"
+            color: Theme.text
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             width: parent.width
@@ -882,7 +913,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: _c && _c.title !== "" ? _c.title : stageText
                 font.pointSize: Math.max(13, Math.round(_h * 0.026))
-                color: "#f2f2f4"
+                color: Theme.text
                 verticalAlignment: Text.AlignVCenter
                 wrapMode: Text.Wrap
             }
@@ -893,7 +924,7 @@ Item {
             text: _c ? _c.detail : ""
             visible: text !== ""
             font.pointSize: Math.max(10, Math.round(_h * 0.018))
-            color: "#8f8f9c"
+            color: Theme.text2
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             width: parent.width
@@ -906,7 +937,7 @@ Item {
             text: _c && _c.warning !== "" ? "⚠ " + _c.warning : streamSegue.linkWarning
             visible: text !== "" && text !== "⚠ "
             font.pointSize: Math.max(10, Math.round(_h * 0.017))
-            color: "#f5a623"
+            color: Theme.warning
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             width: parent.width
@@ -933,7 +964,7 @@ Item {
         text: qsTr("Taking longer than usual")
         visible: streamSegue._launchSlow && !streamSegue.unlockMode
         font.pointSize: Math.max(10, Math.round(streamSegue._h * 0.016))
-        color: "#f5a623"
+        color: Theme.warning
     }
 
     // One row for both prompts and both devices. ActionHint draws the vendor glyph or the
@@ -950,7 +981,7 @@ Item {
 
         readonly property int  _glyph: Math.max(22, Math.round(streamSegue._h * 0.028))
         readonly property int  _font:  Math.max(10, Math.round(streamSegue._h * 0.016))
-        readonly property color _dim:  "#8f8f9c"
+        readonly property color _dim:  Theme.text2
 
         // "B" as the app means it, which is what the user's controller calls B on every
         // vendor — the glyph resolver handles that, including Nintendo's swapped faces.
@@ -1013,7 +1044,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("Connecting…")
             font.pointSize: Math.max(13, Math.round(streamSegue._h * 0.026))
-            color: "#f2f2f4"
+            color: Theme.text
         }
     }
 

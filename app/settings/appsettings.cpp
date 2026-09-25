@@ -1,7 +1,9 @@
 #include "appsettings.h"
+#include "videooptions.h"
 
 #include <QCoreApplication>
 #include <QSettings>
+#include <QSize>
 #include <QVector>
 #include <algorithm>
 
@@ -28,6 +30,8 @@ static AppOverride readOverrideGroup(const QSettings& s)
     if (s.contains("waitgame"))      { ov.hasWaitForGame = true; ov.waitForGame = s.value("waitgame").toBool(); }
     if (s.contains("displaymode"))   { ov.hasDisplayMode = true; ov.windowMode = s.value("displaymode").toInt(); }
     if (s.contains("vsync"))         { ov.hasVsync = true;       ov.enableVsync = s.value("vsync").toBool(); }
+    if (s.contains("fractionalvsync")) { ov.hasFractionalVsync = true; ov.fractionalVsync = s.value("fractionalvsync").toBool(); }
+    if (s.contains("vrr"))          { ov.hasVrr = true;         ov.enableVrr = s.value("vrr").toBool(); }
     return ov;
 }
 
@@ -45,6 +49,8 @@ static void writeOverrideGroup(QSettings& s, const AppOverride& ov)
     if (ov.hasWaitForGame) s.setValue("waitgame", ov.waitForGame);
     if (ov.hasDisplayMode) s.setValue("displaymode", ov.windowMode);
     if (ov.hasVsync)       s.setValue("vsync", ov.enableVsync);
+    if (ov.hasFractionalVsync) s.setValue("fractionalvsync", ov.fractionalVsync);
+    if (ov.hasVrr)         s.setValue("vrr", ov.enableVrr);
 }
 
 QVariantMap appOverrideToMap(const AppOverride& ov)
@@ -62,6 +68,8 @@ QVariantMap appOverrideToMap(const AppOverride& ov)
     if (ov.hasWaitForGame) m["waitgame"] = ov.waitForGame;
     if (ov.hasDisplayMode) m["displaymode"] = ov.windowMode;
     if (ov.hasVsync)       m["vsync"] = ov.enableVsync;
+    if (ov.hasFractionalVsync) m["fractionalvsync"] = ov.fractionalVsync;
+    if (ov.hasVrr)         m["vrr"] = ov.enableVrr;
     return m;
 }
 
@@ -84,6 +92,8 @@ AppOverride appOverrideFromMap(const QVariantMap& m)
     if (m.contains("waitgame"))      { ov.hasWaitForGame = true; ov.waitForGame = m.value("waitgame").toBool(); }
     if (m.contains("displaymode"))   { ov.hasDisplayMode = true; ov.windowMode = m.value("displaymode").toInt(); }
     if (m.contains("vsync"))         { ov.hasVsync = true;       ov.enableVsync = m.value("vsync").toBool(); }
+    if (m.contains("fractionalvsync")) { ov.hasFractionalVsync = true; ov.fractionalVsync = m.value("fractionalvsync").toBool(); }
+    if (m.contains("vrr"))          { ov.hasVrr = true;         ov.enableVrr = m.value("vrr").toBool(); }
     return ov;
 }
 
@@ -94,16 +104,15 @@ QVariantMap inheritedValueLabels(const StreamingPreferences* p)
         return m;
     }
 
-    // Resolution reads back as the preset name when it is one, because that is what the
-    // pill next to it says. Anything else — a custom resolution, or a preset we do not
-    // offer — is printed as itself rather than rounded to the nearest label.
-    QString res;
-    if      (p->width == 1280 && p->height == 720)  res = QStringLiteral("720p");
-    else if (p->width == 1920 && p->height == 1080) res = QStringLiteral("1080p");
-    else if (p->width == 2560 && p->height == 1440) res = QStringLiteral("1440p");
-    else if (p->width == 3840 && p->height == 2160) res = QStringLiteral("4K");
-    else res = QString::number(p->width) + QChar(0x00D7) + QString::number(p->height);
-    m.insert(QStringLiteral("resolution"), res);
+    // Resolution reads back as the name on the pill next to it — a preset's, or a native
+    // display's "1600p". Anything else is printed as itself rather than rounded to the
+    // nearest label.
+    //
+    // ⚠️ It has to be VideoOptions and not a copy of its table: _dupIndices() in the two
+    // override panels hides the duplicate pill by comparing this string to the pill's own
+    // label, so the day the two spellings differ the duplicate silently comes back.
+    m.insert(QStringLiteral("resolution"),
+             VideoOptions::resolutionLabel(QSize(p->width, p->height)));
 
     m.insert(QStringLiteral("fps"), QString::number(p->fps));
 
@@ -121,6 +130,12 @@ QVariantMap inheritedValueLabels(const StreamingPreferences* p)
     m.insert(QStringLiteral("vsync"),        p->enableVsync ? on : off);
     m.insert(QStringLiteral("framepacing"),
              p->framePacingMode == StreamingPreferences::FP_ON ? on : off);
+    // ⚠️ The global value as stored, not "what it would do here". Whether the sync interval
+    // actually applies depends on the panel and the stream's frame rate, which this function
+    // knows nothing about — and the Global pill has to say what it inherits, not predict an
+    // outcome. The renderer logs the resolved answer at the start of every stream.
+    m.insert(QStringLiteral("fractionalvsync"), p->fractionalVsync ? on : off);
+    m.insert(QStringLiteral("vrr"), p->enableVrr ? on : off);
 
     QString codec;
     switch (p->videoCodecConfig) {
@@ -195,6 +210,13 @@ void applyAppOverride(StreamingPreferences* p, const AppOverride& ov)
     // decides on its own whether exclusive fullscreen makes this actionable at all.
     if (ov.hasDisplayMode) p->windowMode = (StreamingPreferences::WindowMode)ov.windowMode;
     if (ov.hasVsync)       p->enableVsync = ov.enableVsync;
+    // No condition applied here on purpose, in step with frame pacing above: the profile
+    // keeps the choice it was given, and the renderer is the one place that decides whether
+    // it is actionable — it re-gates on V-Sync, frame pacing, tearing and the refresh ratio
+    // before it will use a sync interval at all. Collapsing it here would only mean two
+    // places had to agree.
+    if (ov.hasFractionalVsync) p->fractionalVsync = ov.fractionalVsync;
+    if (ov.hasVrr) p->enableVrr = ov.enableVrr;
 }
 
 // ── AppSettingsManager (per-game) ────────────────────────────────────────────

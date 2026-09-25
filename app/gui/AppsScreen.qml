@@ -2,13 +2,13 @@ import QtQuick 2.12
 import QtQuick.Controls 2.2
 import QtQuick.Controls.Material 2.2
 import QtQuick.Window 2.2
-import QtQuick.Effects
 
 import AppModel 1.0
 import Theme 1.0
 import ComputerManager 1.0
 import StreamingPreferences 1.0
 import SdlGamepadKeyNavigation 1.0
+import WindowMove 1.0
 
 /*
  * The host page — the showcase.
@@ -82,7 +82,7 @@ FocusScope {
     // must use the same divisor or a host and its games would be drawn at two different
     // sizes, which is the one thing a shared grammar cannot survive.
     readonly property real _u: Math.max(0.62, Math.min(1.60, width / 1330))
-    function _px(n) { return Math.round(n * _u) | 0 }
+    function _px(n) { return Math.round(n * _u) }
 
     // ── The two columns ──────────────────────────────────────────────────────
     /*
@@ -125,6 +125,34 @@ FocusScope {
             if (stackView.depth === 1 && appsRoot.goHomeWhenIdle) {
                 appsRoot.goHomeWhenIdle = false
                 if (appsRoot.appShell) appsRoot.appShell.showHome()
+                return
+            }
+
+            /*
+             * Back from a session, onto a page that never went away.
+             *
+             * ⚠️ This is the one moment the play time on screen is certainly stale: the record
+             * was written as the stream tore down, and this page kept its model the whole
+             * time. Without this the row would still show the total from before the session
+             * that just ended — and the game would still be sitting where it was
+             * alphabetically, while Continue named it.
+             */
+            if (stackView.depth === 1 && appGrid && appGrid.appModel) {
+                appGrid.appModel.refreshPlaytime()
+                appGrid.updateContinue()
+                // Makes the spotlight's figures re-read — see focusedPlaytimeRec.
+                appsRoot._playtimeEpoch++
+
+                // Put the cursor back on what was just played, wherever the re-sort moved it.
+                if (appsRoot._resumeCursorTo.length > 0) {
+                    var i = appGrid.appModel.indexOfAppNamed(appsRoot._resumeCursorTo)
+                    if (i >= 0) {
+                        appGrid.currentIndex = i
+                        appGrid.positionViewAtIndex(i, ListView.Contain)
+                    }
+                    appsRoot._resumeCursorTo = ""
+                }
+                appGrid.forceActiveFocus()
             }
         }
     }
@@ -143,7 +171,22 @@ FocusScope {
      * arrived at a dead object, leaving the launch screen up forever with no error and no way
      * out. The delegate passes plain values; the object belongs to the page.
      */
-    function launchSegue(name, art, session, resume) {
+    /*
+     * What was launched, so the cursor can be put back on it when the stream ends.
+     *
+     * ⚠️ A NAME and not an index. The row moves the moment the session finishes — the game
+     * that just closed is sorted to the top, under Last played — so an index kept across the
+     * stream points at whatever slid into that place instead. That is exactly the fault this
+     * fixes: come back from a game halfway down the library and the cursor was left sitting
+     * on a stranger.
+     *
+     * It works for Desktop and Steam Big Picture too, which never move: neither counts as a
+     * last played game, so nothing re-sorts and the name simply finds the row where it was.
+     */
+    property string _resumeCursorTo: ""
+
+    function launchSegue(name, art, session, resume, appId) {
+        appsRoot._resumeCursorTo = name
         var component = Qt.createComponent("StreamSegue.qml")
         if (component.status !== Component.Ready) {
             console.warn("StreamSegue.qml not ready:", component.errorString())
@@ -154,6 +197,12 @@ FocusScope {
             "boxArt":           art,
             "session":          session,
             "isResume":         resume,
+            // Built here for the same reason as onSessionEndedFn below: it outlives the
+            // delegate. A host that answers 410 is handed back to this page, the only place
+            // that can launch the same entry again.
+            "onLaunchNoticeFn": function(text, confirm) {
+                appsRoot.showHostNotice(text, confirm, appId, name)
+            },
             // ⚠️ Built here and not passed in. A closure carries the context it was written
             // in, so one written in the delegate would die with the delegate exactly like the
             // segue used to — and this is the callback that records the session ending, which
@@ -186,17 +235,216 @@ FocusScope {
         (appGrid && appGrid.storeMap && focusedAppName.length > 0)
             ? (appGrid.storeMap[focusedAppName] || "") : ""
 
+    // ── Play time for the game in the spotlight (5.7.0) ──────────────────────
+    /*
+     * Read through the model rather than off the row, unlike everything above it: the row
+     * carries the formatted total for its subtitle, but not the session count, and adding a
+     * second role for a figure only one place shows would put it in every delegate.
+     *
+     * ⚠️ Depends on `_playtimeEpoch` so it re-reads after a session. A Q_INVOKABLE has no
+     * NOTIFY behind it, so a binding on the call alone would never re-evaluate and the
+     * spotlight would go on showing the totals from before the stream that just ended — the
+     * same trap the Continue caption fell into.
+     */
+    property int _playtimeEpoch: 0
+    readonly property var focusedPlaytimeRec: {
+        var e = _playtimeEpoch    // dependency, deliberately
+        if (!appGrid || !appGrid.appModel || appGrid.currentIndex < 0) return ({})
+        return appGrid.appModel.playtimeFor(appGrid.currentIndex)
+    }
+    // Nothing on the APPS tab carries hours or sessions (5.9.0). Most of it is never tracked
+    // anyway, but the running-game copy a 2.0 server sends has the game's own title, and its
+    // figures would otherwise turn up against an entry that is not the game.
+    readonly property string focusedPlaytime:
+        (!focusedIsApp && focusedPlaytimeRec && focusedPlaytimeRec.total !== undefined)
+            ? focusedPlaytimeRec.total : ""
+    readonly property int focusedSessions:
+        (!focusedIsApp && focusedPlaytimeRec && focusedPlaytimeRec.sessions !== undefined)
+            ? focusedPlaytimeRec.sessions : 0
+
     // Bound to delegate._running (a property — reactive) so the status-bar prompts and the
     // hero's verb update when the host-side session ends.
     property bool focusedAppIsRunning:
         (appGrid && appGrid.currentItem) ? appGrid.currentItem._running === true : false
 
-    // "Desktop" is not a game and "Play Desktop" reads wrong; it is the one entry where the
-    // honest verb is Open.
+    readonly property bool focusedIsApp:
+        (appGrid && appGrid.currentItem) ? appGrid.currentItem._isApp === true : false
+
+    // ── Pinned (6.0.0) ───────────────────────────────────────────────────────
+    // Read by the status bar, which draws "Pin" / "Unpin" for the selected row. Only games can
+    // be pinned: on the APPS tab the prompt is not drawn and the key does nothing.
+    readonly property bool focusedPinnable:
+        (appGrid && appGrid.currentItem) ? appGrid.currentItem._isApp !== true : false
+    readonly property bool focusedPinned:
+        (appGrid && appGrid.currentItem) ? appGrid.currentItem._pinned === true : false
+
+    // Nothing on the APPS tab is a game, and "Play Desktop" or "Play Remote Monitor" reads
+    // wrong: the honest verb for all of them is Open (5.9.0 — it used to be Desktop alone).
     readonly property string focusedVerb:
         focusedAppIsRunning ? qsTr("Resume")
-      : focusedAppName === "Desktop" ? qsTr("Open")
+      : focusedIsApp ? qsTr("Open")
       : qsTr("Play")
+
+    // ── GAMES / APPS (5.9.0) ─────────────────────────────────────────────────
+    /*
+     * The host's list split in two: the games, and everything that is not one — Desktop,
+     * Steam Big Picture, and the host controls Vibeshine and Vibepollo 2.0 add (Remote Input,
+     * Remote Monitor, Resume, Terminate, Disconnect). LT/RT on the pad, PgUp/PgDn on the
+     * keyboard; the triggers only cycle hosts on Home, so here they are free.
+     *
+     * 6.1.0 (issue #22): ALL in front of the two — the games plus Desktop, Virtual Display and
+     * Steam Big Picture (isAllCategory() in nvapp.h). The 2.0 host controls stay on APPS only.
+     *
+     * Opens on ALL, or on APPS when ALL would be empty or when this client still holds a
+     * Remote Monitor, because the server then lists only Resume and Disconnect Monitor.
+     *
+     * 6.3.0: or on the tab the user last chose on this host, kept across Home and across a
+     * restart (AppModel.savedTab). Only a choice made by hand is saved — the fallbacks below
+     * move the page, never the memory — and a saved tab counts as chosen by the user, so the
+     * same two exceptions still apply to it.
+     */
+    readonly property var _tabs: ["all", "games", "apps"]
+    property string libraryTab: "all"
+    property bool _tabChosenByUser: false
+
+    function _countFor(m, tab) {
+        return tab === "all" ? m.allCount : tab === "games" ? m.gamesCount : m.appsCount
+    }
+
+    function _defaultTabFor(m) {
+        return (m.remoteMonitorActive || m.allCount === 0) ? "apps" : "all"
+    }
+
+    // The tab the page opens on. An empty list is one not fetched yet, so the saved tab is
+    // taken on trust and onCountsChanged corrects it if it turns out empty.
+    //
+    // ⚠️ Sets _tabChosenByUser both ways. The page is built with computerIndex 0 and only then
+    // told its real host (AppShell's onLoaded), so this runs once for host 0 first: setting the
+    // flag only to true would carry host 0's saved choice onto a host that has none.
+    function _openingTabFor(m) {
+        var saved = m.savedTab()
+        _tabChosenByUser = _tabs.indexOf(saved) >= 0
+        if (!_tabChosenByUser) return _defaultTabFor(m)
+        if (m.remoteMonitorActive) return "apps"
+        var listed = m.allCount + m.appsCount > 0
+        return (!listed || _countFor(m, saved) > 0) ? saved : _defaultTabFor(m)
+    }
+
+    function setLibraryTab(tab, byUser) {
+        if (!appGrid || !appGrid.appModel) return
+        if (byUser) {
+            _tabChosenByUser = true
+            appGrid.appModel.saveTab(tab)
+        }
+        if (tab === libraryTab && appGrid.appModel.category === tab) return
+        libraryTab = tab
+        appGrid.appModel.category = tab
+        appGrid.currentIndex = 0
+        appGrid.positionViewAtBeginning()
+        appGrid.updateContinue()
+        appsRoot._playtimeEpoch++
+    }
+
+    // LB/RB, one step left or right. The ring wraps, like the tabs of Settings (SectionTabBar).
+    function switchLibraryTab(dir) {
+        var n = _tabs.length
+        var i = (_tabs.indexOf(libraryTab) + (dir < 0 ? -1 : 1) + n) % n
+        setLibraryTab(_tabs[i], true)
+    }
+
+    // ── GAMES / APPS by hand (6.1.0) ─────────────────────────────────────────
+    /*
+     * The right stick click (M on the keyboard) moves the selected entry to the other of
+     * GAMES and APPS; the model stores it per host (AppModel.moveToOtherTab). Not on ALL,
+     * where both halves are shown together and "the other tab" means nothing, and never for
+     * a host control — those are not applications and stay on APPS.
+     */
+    readonly property bool focusedMovable:
+        libraryTab !== "all" && appGrid && appGrid.currentItem
+        ? appGrid.currentItem._movable === true : false
+    // Read by the status bar, beside the right-stick prompt.
+    readonly property string focusedMoveLabel:
+        !focusedMovable ? "" : focusedIsApp ? qsTr("Move to GAMES") : qsTr("Move to APPS")
+
+    /*
+     * The page follows the entry to the tab it was moved to, and the cursor stays on it.
+     *
+     * ⚠️ _tabChosenByUser is set BEFORE the move. The move changes the counts, and
+     * onCountsChanged runs inside moveToOtherTab(): on a page whose tab was never chosen by
+     * hand it would pick the default tab — ALL — before this function got to say where to go.
+     */
+    function moveFocused() {
+        if (!focusedMovable) return
+        var appId = appGrid.currentItem._appId
+        _tabChosenByUser = true
+        var toApps = appGrid.appModel.moveToOtherTab(appGrid.currentIndex)
+        setLibraryTab(toApps ? "apps" : "games", true)
+
+        var i = appGrid.appModel.indexOfAppId(appId)
+        if (i >= 0) {
+            appGrid.currentIndex = i
+            appGrid.positionViewAtIndex(i, ListView.Contain)
+        }
+        appGrid.updateContinue()
+        appsRoot._playtimeEpoch++
+    }
+
+    // ⚠️ The opening tab, never the bare default: this runs from the list's onCompleted, after
+    // createModel() has already opened on the saved tab, and until 6.3.0 it put ALL back on top
+    // of it. On the first host (index 0) nothing re-created the model afterwards, so ALL stuck.
+    function _pickOpeningTab() {
+        if (!appGrid || !appGrid.appModel) return
+        setLibraryTab(_openingTabFor(appGrid.appModel), false)
+    }
+
+    /// Selects the entry with this id on whichever tab has it, the current one first. False
+    /// when no tab does.
+    function _selectAppIdAnyTab(appId) {
+        var order = [libraryTab].concat(_tabs.filter(function(t) { return t !== libraryTab }))
+        for (var k = 0; k < order.length; ++k) {
+            setLibraryTab(order[k], false)
+            var i = appGrid.appModel.indexOfAppId(appId)
+            if (i >= 0) {
+                appGrid.currentIndex = i
+                return true
+            }
+        }
+        setLibraryTab(order[0], false)
+        return false
+    }
+
+    // The list can change under an open page — a poll brings the app list, a Remote Monitor is
+    // kept after its stream. A choice the user made stands, except for the two cases where the
+    // tab they are on would be empty or would hide the controls that are now the whole list.
+    Connections {
+        target: (appGrid && appGrid.appModel) ? appGrid.appModel : null
+        function onCountsChanged() {
+            var m = appGrid.appModel
+            if (!appsRoot._tabChosenByUser) {
+                appsRoot._pickOpeningTab()
+            } else if (m.remoteMonitorActive && appsRoot.libraryTab !== "apps") {
+                appsRoot.setLibraryTab("apps", false)
+            } else if (appsRoot.libraryTab !== "apps"
+                       && appsRoot._countFor(m, appsRoot.libraryTab) === 0 && m.appsCount > 0) {
+                appsRoot.setLibraryTab("apps", false)
+            }
+        }
+    }
+
+    // ── Host notices (5.9.0) ─────────────────────────────────────────────────
+    /*
+     * A launch the host answered with 410. Either a host action that finished (Terminate,
+     * Disconnect Monitor, Disconnect Input) — shown as what it is, not as an error — or a
+     * request to confirm by launching the same entry again within 60 seconds, which this page
+     * turns into a question and answers itself on Yes.
+     */
+    function showHostNotice(text, confirm, appId, name) {
+        hostNoticeDialog.text = text
+        hostNoticeDialog.confirm = confirm
+        hostNoticeDialog.appId = appId
+        hostNoticeDialog.appName = name
+        hostNoticeDialog.open()
+    }
 
     // No `focusedActionLabel` exported any more: the status bar no longer prints A on this
     // page, because the verb is written on the button that carries the A glyph. The bar
@@ -234,18 +482,37 @@ FocusScope {
             event.accepted = true
         }
         /*
-         * Profile cycling, the same pair as Home: LB/RB on the pad, Q/E on the keyboard.
-         *
-         * ⚠️ Handled here and not in AppShell even though the shell already owns F16/F17.
-         * Its handler returns early on any page but Home, and a key travels up the focus
-         * chain, so this page sees them first — which is where they belong, next to the
-         * badge they move. The shoulders carry inert keys of their own precisely so they
-         * cannot be confused with the host cycling on PgUp/PgDn.
+         * ⚠️ The shoulders and the triggers are handled here and not in AppShell even though
+         * the shell owns them on Home (LB/RB the profile, LT/RT the host). Its handler returns
+         * early on any page but Home, and a key travels up the focus chain, so this page sees
+         * them first. Since 6.1.0 the pairs mean something else here than on Home — LB/RB the
+         * tabs, LT/RT the profile — by decision: each is drawn beside what it moves.
          */
-        else if (event.key === Qt.Key_F16 || event.key === Qt.Key_Q) {
+        // ALL / GAMES / APPS: LB/RB on the pad (Key_F16/F17), PgUp/PgDn on the keyboard —
+        // 6.1.0, it was LT/RT. The shoulders are drawn at the two ends of the tabs.
+        else if (event.key === Qt.Key_F16 || event.key === Qt.Key_PageUp) {
+            switchLibraryTab(-1)
+            event.accepted = true
+        } else if (event.key === Qt.Key_F17 || event.key === Qt.Key_PageDown) {
+            switchLibraryTab(1)
+            event.accepted = true
+        }
+        // Pin / Unpin (6.0.0): Start on the pad (Key_F18), P on the keyboard.
+        else if (event.key === Qt.Key_F18 || event.key === Qt.Key_P) {
+            togglePinFocused()
+            event.accepted = true
+        }
+        // Move to GAMES / APPS (6.1.0): right stick click (Key_F19), M on the keyboard.
+        else if (event.key === Qt.Key_F19 || event.key === Qt.Key_M) {
+            moveFocused()
+            event.accepted = true
+        }
+        // The profile: LT/RT on the pad (Key_F14/F15) since 6.1.0 — the shoulders went to the
+        // tabs — and still Q/E on the keyboard.
+        else if (event.key === Qt.Key_F14 || event.key === Qt.Key_Q) {
             cycleProfile(-1)
             event.accepted = true
-        } else if (event.key === Qt.Key_F17 || event.key === Qt.Key_E) {
+        } else if (event.key === Qt.Key_F15 || event.key === Qt.Key_E) {
             cycleProfile(1)
             event.accepted = true
         }
@@ -256,19 +523,42 @@ FocusScope {
             appGrid.currentItem.launchOrResumeSelectedApp(true)
         }
     }
+    /*
+     * Pins or unpins the selected game and keeps the selection on it.
+     *
+     * ⚠️ By app id, after the call. Pinning moves the game — up under PINNED, or back down into
+     * ALL GAMES — and the model reorders with a reset, so the index the list held now points at
+     * whatever slid into that place. Same fault, same cure, as _resumeCursorTo.
+     */
+    function togglePinFocused() {
+        if (!appGrid || !appGrid.appModel || !appGrid.currentItem) return
+        if (appGrid.currentItem._isApp === true) return
+
+        var appId = appGrid.currentItem._appId
+        appGrid.appModel.togglePinned(appGrid.currentIndex)
+
+        var i = appGrid.appModel.indexOfAppId(appId)
+        if (i >= 0) {
+            appGrid.currentIndex = i
+            appGrid.positionViewAtIndex(i, ListView.Contain)
+        }
+        appGrid.updateContinue()
+    }
+
     function stopFocusedApp() {
         if (appGrid && appGrid.currentItem && appGrid.currentItem.doQuitGame) {
             appGrid.currentItem.doQuitGame()
         }
     }
-    function openCustomize(idx, name, appId, art) {
+    function openCustomize(idx, name) {
         if (idx === undefined || idx < 0) return
         appSettingsDialog.appModel = appGrid.appModel
         appSettingsDialog.appIndex = idx
-        appSettingsDialog.appId = appId !== undefined ? appId : -1
         appSettingsDialog.appName = name ? name : ""
-        // The cover for the dialog's header, from the same row the name came from.
-        appSettingsDialog.boxArt = art ? art : ""
+        // The header's cover (6.0.0). The focused app's, because that is the only one this is
+        // ever called for — see the single caller below. If a second caller ever opens the
+        // panel for another index, it has to pass that app's box art instead.
+        appSettingsDialog.cover = appsRoot.focusedBoxArt
         // So the per-game "inherit" option shows the active profile's name.
         appSettingsDialog.activeProfileName = appsRoot.hostProfileName
         appSettingsDialog.effectiveVsync = appsRoot._effVsync
@@ -276,8 +566,7 @@ FocusScope {
     }
     function openCustomizeForFocused() {
         if (appGrid && appGrid.currentItem) {
-            openCustomize(appGrid.currentIndex, appGrid.currentItem._appName,
-                          appGrid.currentItem._appId, appGrid.currentItem._boxArt)
+            openCustomize(appGrid.currentIndex, appGrid.currentItem._appName)
         }
     }
 
@@ -286,16 +575,8 @@ FocusScope {
     // cover tiles, which went away when the library became a list of titles, and the function
     // sat here unused ever since. Empty string for a store we have no artwork for — and for
     // Desktop and Steam Big Picture, which have no store at all.
-    function storeIconSource(store) {
-        if (store === "Steam")           return "qrc:/res/store_steam.svg"
-        if (store === "Epic Games")      return "qrc:/res/store_epic.svg"
-        if (store === "GOG")             return "qrc:/res/store_gog.svg"
-        if (store === "Ubisoft Connect") return "qrc:/res/store_ubisoft.svg"
-        if (store === "Xbox")            return "qrc:/res/store_xbox.svg"
-        if (store === "Battle.net")      return "qrc:/res/store_battlenet.svg"
-        if (store === "EA App")          return "qrc:/res/store_ea.svg"
-        return ""
-    }
+    // (The store → SVG map lived here and is now in GameFacts, which is the only thing that
+    //  draws one. Two screens show the badge; one table answers for both.)
 
     function _formatNicSpeed(raw) {
         if (raw === "" || raw === null) return qsTr("N/A")
@@ -398,7 +679,7 @@ FocusScope {
         hostOverride    = hostComputerModel.hostActiveOverride(computerIndex)
     }
 
-    // LB/RB and Q/E. The cycle includes Global at -1, so one profile is still two positions
+    // LT/RT and Q/E. The cycle includes Global at -1, so one profile is still two positions
     // to move between — hence `< 1` and not `< 2`.
     function cycleProfile(dir) {
         if (!hostComputerModel || computerIndex < 0 || hostProfileCount < 1) return
@@ -481,8 +762,7 @@ FocusScope {
 
             Image {
                 anchors.verticalCenter: parent.verticalCenter
-                // PNG, not the .ico — see the note on HomeScreen's brandIcon.
-                source: "qrc:/res/artmoon-brand.png"
+                source: "qrc:/streamlight.ico"
                 width: appsRoot._px(40); height: width
                 sourceSize.width:  40 * Screen.devicePixelRatio
                 sourceSize.height: 40 * Screen.devicePixelRatio
@@ -496,7 +776,7 @@ FocusScope {
                 text: appsRoot.hostName
                 color: Theme.text
                 font.family: Theme.family
-                font.pixelSize: appsRoot._px(30)
+                font.pixelSize: appsRoot._px(Theme.fontH1)
                 font.bold: true
                 font.letterSpacing: -appsRoot._u * 0.45
                 elide: Label.ElideRight
@@ -521,7 +801,8 @@ FocusScope {
                     var c = [{ text: qsTr("Online"), dot: Theme.online }]
                     /*
                      * The profile, with its shoulders on either side — the same arrangement
-                     * as the host card on Home, and for the same reason: LB/RB attached to
+                     * as the host card on Home, and for the same reason: LT/RT (LB/RB on Home,
+                     * where the shoulders are free) attached to
                      * the thing they move need no caption, because the badge between them
                      * says what they change.
                      *
@@ -569,7 +850,7 @@ FocusScope {
                     ProfileShoulder {
                         visible: modelData.kind === "profile"
                         anchors.verticalCenter: parent.verticalCenter
-                        buttonKey: "LB"; keyLabel: "Q"
+                        buttonKey: "LT"; keyLabel: "Q"
                         onTriggered: appsRoot.cycleProfile(-1)
                     }
 
@@ -597,7 +878,7 @@ FocusScope {
                                 text: modelData.text.toUpperCase()
                                 color: modelData.fg !== undefined ? modelData.fg : Theme.text2
                                 font.family: Theme.family
-                                font.pixelSize: appsRoot._px(13)
+                                font.pixelSize: appsRoot._px(Theme.fontSmall)
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: appsRoot._u
                             }
@@ -607,7 +888,7 @@ FocusScope {
                     ProfileShoulder {
                         visible: modelData.kind === "profile"
                         anchors.verticalCenter: parent.verticalCenter
-                        buttonKey: "RB"; keyLabel: "E"
+                        buttonKey: "RT"; keyLabel: "E"
                         onTriggered: appsRoot.cycleProfile(1)
                     }
                 }
@@ -707,7 +988,7 @@ FocusScope {
                     text: cfgChip._isGrp ? String(modelData.text).toUpperCase() : String(modelData.text)
                     color: cfgChip._isGrp ? Theme.text3 : Theme.text
                     font.family: Theme.family
-                    font.pixelSize: appsRoot._px(13)
+                    font.pixelSize: appsRoot._px(Theme.fontSmall)
                     font.weight: cfgChip._isGrp ? Font.Normal : Font.DemiBold
                     font.letterSpacing: cfgChip._isGrp ? appsRoot._u * 1.2 : 0
                 }
@@ -741,141 +1022,60 @@ FocusScope {
                - appsRoot._colGap - appsRoot._libraryWidth
         visible: appGrid.count > 0
 
-        // Cover, name, meta and actions as one centred stack. The column is what the
-        // library leaves, so everything in it is laid out from the centre outwards.
+        // Cover, name, meta, figures and actions as one centred stack. The column is what
+        // the library leaves, so everything in it is laid out from the centre outwards.
         Column {
             id: heroStack
             anchors.centerIn: parent
             width: parent.width
             spacing: 0
 
-        // ── The big cover ────────────────────────────────────────────────────
-        HeroCover {
-            id: heroArtHolder
-            anchors.horizontalCenter: parent.horizontalCenter
-
             /*
-             * ⚠️ 340 is a ceiling as much as a size: the covers themselves top out at
-             * 600x900 (Steam's library capsule, and there is no larger portrait asset),
-             * and on a 4K panel at 200% scaling — where _u is back at 1.32 while the
-             * device pixel ratio is 2 — a design height of 340 asks for exactly 900
-             * physical pixels. Larger than this and the biggest cover on the screen
-             * starts being the softest.
+             * ── The game ─────────────────────────────────────────────────────────
              *
-             * The width, the 2:3 box, the crop, the rounded corners and the shadow all
-             * live in HeroCover now, shared with the launch curtain so the two screens
-             * cannot drift apart.
+             * ⚠️ GameFacts, the same component the host card on Home uses. The cover, the
+             * title's never-cut behaviour, the meta line and the two figures were all written
+             * out here by hand and again over there, in two different arrangements, for one
+             * idea. Do not put them back: a change made here and not there is how the two
+             * screens came to disagree in the first place.
+             *
+             * No badge above the cover: the library beside it already says this is the
+             * selected game, and a
+             * label repeating that would be the third thing on the screen saying it.
              */
-            height: Math.min(appsRoot._px(340), hero.height - appsRoot._px(150))
-            source: appsRoot.focusedBoxArt
-            radius: appsRoot._px(8)
-            shadow: !Theme.reduceAnimations
-            shadowOffset: appsRoot._px(8)
+            GameFacts {
+                id: heroFacts
+                anchors.horizontalCenter: parent.horizontalCenter
+                u: appsRoot._u
+                width: parent.width
 
-            // Placeholder box art carries no title, so the name has to be drawn over it or
-            // the spotlight shows an anonymous rectangle.
-            Label {
-                anchors.fill: parent
-                anchors.margins: appsRoot._px(10)
-                visible: appsRoot.focusedBoxArt === "" || heroArtHolder.status === Image.Error
-                text: appsRoot.focusedAppName
-                color: Theme.text2
-                font.family: Theme.family
-                font.pixelSize: appsRoot._px(16)
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                wrapMode: Text.Wrap
-                elide: Text.ElideRight
+                // What the column has, minus the action row underneath. The 340 ceiling is the
+                // one this spotlight always had — see the note that came with it: the covers
+                // top out at 600x900, and on a 4K panel at 200% a design height of 340 already
+                // asks for exactly 900 physical pixels.
+                availableHeight: hero.height - appsRoot._px(70)
+                maxCoverHeight: appsRoot._px(340)
+
+                title: appsRoot.focusedAppName
+                cover: appsRoot.focusedBoxArt
+                store: appsRoot.focusedStore
+                metaExtra: {
+                    var parts = []
+                    if (appsRoot.focusedAppIsRunning) parts.push(qsTr("running now"))
+                    if (appsRoot.focusedOverridden)   parts.push(qsTr("custom settings"))
+                    return parts.join("  ·  ")
+                }
+                metaColor: appsRoot.focusedAppIsRunning ? Theme.online : Theme.text2
+                played: appsRoot.focusedPlaytime
+                sessions: appsRoot.focusedSessions
             }
-        }
 
-        // ── Name, meta, actions ──────────────────────────────────────────────
-        // Under the cover now rather than beside it, and centred on it: the column is
-        // narrower than the old full-width band, so a name set against its left edge would
-        // sit off to one side of the artwork it belongs to.
-        Item { width: 1; height: appsRoot._px(20) }
+            Item { width: 1; height: appsRoot._px(18) }
 
             Column {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: parent.width
                 spacing: 0
-
-                /*
-                 * The name in full, always — a long title gets smaller, never cut.
-                 *
-                 * It used to elide on one line, which is how "Torment: Tides of Numenera"
-                 * became "Torment: Tides of Numene…" — the one thing on the page whose whole
-                 * job is to say which game this is, saying most of it.
-                 *
-                 * fontSizeMode does the work: Fit shrinks the text until it fits the box, and
-                 * minimumPixelSize is the floor. Two lines are allowed so that past the floor
-                 * it wraps rather than carrying on shrinking — below about 26 the title stops
-                 * reading as the title, and a name long enough to need that has room to wrap.
-                 * Only past both does it finally elide, which no name in a real library reaches.
-                 */
-                Label {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: appsRoot.focusedAppName
-                    color: Theme.text
-                    font.family: Theme.family
-                    // Down from 54 while everything around it went up — the host name from
-                    // 24 to 30, the setting values from 14 to 16, the list rows from 76 to
-                    // 84. It was never too small: it was out of proportion with the rest,
-                    // and shrinking the one that was shouting was half of fixing that.
-                    font.pixelSize: appsRoot._px(40)
-                    fontSizeMode: Text.Fit
-                    minimumPixelSize: appsRoot._px(26)
-                    font.bold: true
-                    font.letterSpacing: -appsRoot._u * 0.9
-                    wrapMode: Text.Wrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
-                }
-
-                Item { width: 1; height: appsRoot._px(4) }
-
-                // The store — its mark and its name — whether the game is running, and whether
-                // it carries settings of its own: three facts the cover grid had no room for.
-                // The mark earns its place by being recognisable before the word is read, which
-                // is the whole reason storefronts have one.
-                Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: appsRoot._px(8)
-
-                    Image {
-                        id: heroStoreIcon
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: source != ""
-                        source: appsRoot.storeIconSource(appsRoot.focusedStore)
-                        width: appsRoot._px(19); height: width
-                        sourceSize.width: 38; sourceSize.height: 38
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                    }
-
-                    Label {
-                        anchors.verticalCenter: parent.verticalCenter
-                        // Its natural width, capped by what the column leaves once the mark has
-                        // taken its share — so the row stays centred on short text and still
-                        // elides instead of running past the column on long text.
-                        width: Math.min(implicitWidth,
-                                        hero.width - (heroStoreIcon.visible
-                                                      ? heroStoreIcon.width + parent.spacing : 0))
-                        text: {
-                            var parts = []
-                            if (appsRoot.focusedStore.length > 0) parts.push(appsRoot.focusedStore)
-                            if (appsRoot.focusedAppIsRunning)     parts.push(qsTr("running now"))
-                            if (appsRoot.focusedOverridden)       parts.push(qsTr("custom settings"))
-                            return parts.join(" · ")
-                        }
-                        color: appsRoot.focusedAppIsRunning ? Theme.online : Theme.text2
-                        font.family: Theme.family
-                        font.pixelSize: appsRoot._px(16)
-                        elide: Text.ElideRight
-                        maximumLineCount: 1
-                    }
-                }
 
                 Item { width: 1; height: appsRoot._px(14) }
 
@@ -938,7 +1138,11 @@ FocusScope {
 
                             Behavior on color {
                                 enabled: !Theme.reduceAnimations
-                                ColorAnimation { duration: 110 }
+                                ColorAnimation { duration: 140 }
+                            }
+                            Behavior on border.color {
+                                enabled: !Theme.reduceAnimations
+                                ColorAnimation { duration: 140 }
                             }
 
                             Row {
@@ -961,7 +1165,7 @@ FocusScope {
                                     text: modelData.label
                                     color: modelData.danger ? Theme.danger : Theme.text
                                     font.family: Theme.family
-                                    font.pixelSize: appsRoot._px(15)
+                                    font.pixelSize: appsRoot._px(Theme.fontBody)
                                     // The launch verb carries a shade more weight — it is the
                                     // primary action — without an accent fill, which would
                                     // read as focus on a button the pad cannot reach.
@@ -983,13 +1187,6 @@ FocusScope {
         }
     }
 
-    // ── Rail caption ──────────────────────────────────────────────────────────
-    // There is no static "ALL APPS" label here any more: the library's caption moved
-    // into the list's section system, where it sits directly above the library rows.
-    // A static label above the ListView sat above the shelves too, so the screen read
-    // "ALL APPS … (nothing) … RECENTLY PLAYED … everything" — the 21/09 report.
-    //
-
     // ═════════════════════════════════════════════════════════════════════════
     // The library — the only zone
     // ═════════════════════════════════════════════════════════════════════════
@@ -1002,12 +1199,97 @@ FocusScope {
      * axis to move along instead of two: on a pad that is the difference between arriving at
      * a game and hunting for it.
      */
-    ListView {
-        id: appGrid
+    // The tabs over the library (5.9.0; ALL since 6.1.0). Clickable for the mouse. LB/RB sit at
+    // the two ends (6.1.0 — they were LT/RT, named in the status bar), the way the dialogs'
+    // SectionTabBar draws them: the prompt beside the thing it moves needs no caption.
+    Row {
+        id: libraryTabs
         anchors.top: cfgLine.bottom
         anchors.left: parent.left
+        anchors.topMargin: appsRoot._px(16)
+        anchors.leftMargin: appsRoot._sideMargin
+        spacing: appsRoot._px(14)
+
+        ProfileShoulder {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: -appsRoot._px(5)   // centred on the labels, not the underline
+            size: appsRoot._px(26)
+            buttonKey: "LB"; keyLabel: "PgUp"
+            onTriggered: { appsRoot.switchLibraryTab(-1); appsRoot.focusLibrary() }
+        }
+
+        Row {
+        spacing: appsRoot._px(26)
+
+        Repeater {
+            model: [
+                { tab: "all",   label: qsTr("ALL") },
+                { tab: "games", label: qsTr("GAMES") },
+                { tab: "apps",  label: qsTr("APPS") }
+            ]
+
+            delegate: Item {
+                id: tabItem
+                readonly property bool _on: appsRoot.libraryTab === modelData.tab
+                implicitWidth: tabRow.implicitWidth
+                implicitHeight: tabRow.implicitHeight + appsRoot._px(10)
+
+                Row {
+                    id: tabRow
+                    spacing: appsRoot._px(8)
+
+                    Label {
+                        text: modelData.label
+                        color: tabItem._on ? Theme.text : Theme.text3
+                        font.family: Theme.family
+                        font.pixelSize: appsRoot._px(Theme.fontBody)
+                        font.weight: tabItem._on ? Font.DemiBold : Font.Normal
+                        font.letterSpacing: appsRoot._u * 1.6
+                    }
+                    // No count beside the label (6.1.0): ALL leaves out the host controls, so
+                    // the three numbers never added up, and they said little anyway. The
+                    // counts still exist in the model — they choose the tab the page opens on.
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: appsRoot._px(2)
+                    radius: height / 2
+                    color: Theme.accent
+                    visible: tabItem._on
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        appsRoot.setLibraryTab(modelData.tab, true)
+                        appsRoot.focusLibrary()
+                    }
+                }
+            }
+        }
+        }
+
+        ProfileShoulder {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: -appsRoot._px(5)
+            size: appsRoot._px(26)
+            buttonKey: "RB"; keyLabel: "PgDn"
+            onTriggered: { appsRoot.switchLibraryTab(1); appsRoot.focusLibrary() }
+        }
+    }
+
+    ListView {
+        id: appGrid
+        // Straight under the tabs: the column's caption is the list's own first section
+        // header, which scrolls away with the rows it names.
+        anchors.top: libraryTabs.bottom
+        anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.topMargin: appsRoot._px(6)
+        anchors.topMargin: appsRoot._px(8)
         anchors.leftMargin: appsRoot._sideMargin
         anchors.bottomMargin: appsRoot._px(58)
         width: appsRoot._libraryWidth
@@ -1018,7 +1300,12 @@ FocusScope {
         boundsBehavior: Flickable.OvershootBounds
         // Keeps the focused row off the edges while walking with the pad, so the next title
         // is always already visible rather than appearing as you reach it.
-        highlightRangeMode: ListView.ApplyRange
+        // ⚠️ Only while driving with the pad or the keyboard. With the mouse the row under the
+        // pointer becomes current (see onHoveredChanged in the delegate), and a range that
+        // scrolled to keep it off the edges would slide the next row under a pointer that has
+        // not moved — which would make that one current, and so on down the list.
+        highlightRangeMode: SdlGamepadKeyNavigation.inputMode === "key"
+                            ? ListView.ApplyRange : ListView.NoHighlightRange
         preferredHighlightBegin: appsRoot._px(60)
         preferredHighlightEnd: height - appsRoot._px(60)
         highlightMoveDuration: Theme.reduceAnimations ? 0 : 160
@@ -1028,6 +1315,81 @@ FocusScope {
         property bool showGames
         property var storeMap: ({})
 
+        // ── Continue (5.7.0) ─────────────────────────────────────────────────
+        /*
+         * The last game this client streamed on this host sits at the top of the list, under
+         * a caption of its own, and the rest follows under "All apps". The order is the
+         * model's — appSortOrder() in nvapp.h — so this file only draws the boundary.
+         *
+         * ⚠️ There is no gate to write here. A game removed from the host is not in the app
+         * list at all, so it cannot be row 0 and the section never appears; the model answers
+         * "all" and the caption above says "ALL APPS", exactly as before the feature existed.
+         */
+        /*
+         * The section of row 0: whichever heading comes first — LAST PLAYED, PINNED (6.0.0) or
+         * ALL — sits tight under the tabs, and every later one gets the gap and the rule. It
+         * replaced `hasContinue`, which could only tell whether LAST PLAYED came first.
+         *
+         * ⚠️ Refreshed by hand rather than bound. A binding on sectionAt(0) would look right and
+         * be wrong: it is a plain Q_INVOKABLE with no NOTIFY behind it, so QML has nothing to
+         * re-evaluate on, and after a session or a pin — the moments this changes — the headings
+         * would still be spaced for the order before. Every place that can move it calls
+         * updateContinue().
+         */
+        property string firstSection: ""
+        function updateContinue() {
+            firstSection = count > 0 ? appModel.sectionAt(0) : ""
+        }
+        onCountChanged: updateContinue()
+
+        section.property: "section"
+        section.criteria: ViewSection.FullString
+        /*
+         * ⚠️ BOTH headings live in here, and that is the fix rather than a tidy-up.
+         *
+         * "LAST PLAYED" was drawn outside the list, anchored above it, so it stayed pinned at
+         * the top of the column while the row it named scrolled away — after a few titles the
+         * screen claimed the game at the top of the view was the last played one, and it was
+         * whatever you had scrolled to.
+         *
+         * A section delegate scrolls with its section (labelPositioning is InlineLabels by
+         * default), so each heading now leaves the screen when its rows do.
+         */
+        section.delegate: Item {
+            width: appGrid.width
+            readonly property bool _isContinue: section === "continue"
+            readonly property bool _isFirst: section === appGrid.firstSection
+            // The first heading needs no room above it — the caption line already sits there.
+            height: _isFirst ? appsRoot._px(24) : appsRoot._px(46)
+
+            Label {
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: appsRoot._px(8)
+                text: parent._isContinue ? qsTr("LAST PLAYED")
+                    : section === "pinned" ? qsTr("PINNED")
+                    : appsRoot.libraryTab === "apps" ? qsTr("ALL APPS")
+                    : appsRoot.libraryTab === "games" ? qsTr("ALL GAMES") : qsTr("ALL")
+                color: parent._isContinue ? Theme.accent : Theme.text3
+                font.family: Theme.family
+                font.pixelSize: appsRoot._px(Theme.fontSmall)
+                font.letterSpacing: appsRoot._u * 1.6
+            }
+
+            // The rule runs beside every heading but the first: it marks a boundary between two
+            // groups, and above the first there is nothing to divide from.
+            Rectangle {
+                visible: !parent._isFirst
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: appsRoot._px(3)
+                anchors.leftMargin: appsRoot._px(96)
+                height: 1
+                color: Theme.line
+            }
+        }
+
         focus: true
         activeFocusOnTab: true
 
@@ -1035,12 +1397,27 @@ FocusScope {
         readonly property int _gap:  appsRoot._px(6)
 
         Component.onCompleted: {
+            // The tab first: it decides which rows exist. Then row 0 is the game you last
+            // played whenever there is one — the model sorts it there — so opening the page
+            // already has A pointed at it.
+            appsRoot._pickOpeningTab()
             currentIndex = 0
+            updateContinue()
             appModel.computerLost.connect(computerLost)
             activated = true
 
             if (!showGames && !appsRoot.showHiddenGames) {
+                // The direct-launch entry can sit on any tab, so look on the others too.
                 var directLaunchAppIndex = model.getDirectLaunchAppIndex()
+                if (directLaunchAppIndex < 0) {
+                    var startTab = appsRoot.libraryTab
+                    for (var t = 0; t < appsRoot._tabs.length && directLaunchAppIndex < 0; ++t) {
+                        if (appsRoot._tabs[t] === startTab) continue
+                        appsRoot.setLibraryTab(appsRoot._tabs[t], false)
+                        directLaunchAppIndex = model.getDirectLaunchAppIndex()
+                    }
+                    if (directLaunchAppIndex < 0) appsRoot.setLibraryTab(startTab, false)
+                }
                 if (directLaunchAppIndex >= 0) {
                     currentIndex = directLaunchAppIndex
                     currentItem.launchOrResumeSelectedApp(false)
@@ -1080,45 +1457,17 @@ FocusScope {
         function createModel() {
             var model = Qt.createQmlObject('import AppModel 1.0; AppModel {}', parent, '')
             model.initialize(ComputerManager, appsRoot.computerIndex, appsRoot.showHiddenGames)
+            // The tab is decided here, before the list sees a single row, rather than by
+            // resetting a model that has already filled it: that reset left the spotlight with no
+            // focused item for an instant, and everything bound to it — the blurred backdrop
+            // above all — had to recover from a flicker nobody asked for.
+            var tab = appsRoot._openingTabFor(model)
+            model.category = tab
+            appsRoot.libraryTab = tab
             return model
         }
 
         model: appModel
-
-        /*
-         * ── The shelves (5.5.0) ──────────────────────────────────────────────
-         *
-         * The list arrives already ordered by AppModel: recently played at the top, then what
-         * the user pinned by hand, then the library itself. Those captions are section
-         * headers and not rows of the model, because a header is not a game — there is
-         * nothing to do to it, and it must never be somewhere the pad can stop. ListView
-         * keeps section delegates outside the model's index range, so Up/Down walk straight
-         * past them: no extra handling in the key code, which is why it is done this way.
-         */
-        section.property: "section"
-        // The default criteria (ViewSection.FullString) is the one wanted — any change of
-        // section string is a new shelf — and is left unset rather than spelled out, because
-        // a misspelled enum in a delegate is a whole screen that fails to load.
-        section.delegate: Label {
-            // Every part of the list carries its own caption — RECENTLY PLAYED, FAVORITES,
-            // ALL APPS — so where one shelf ends and the next begins is visible at a glance.
-            // ⚠️ The height still collapses when the text is empty: no known section produces
-            // that, but a stray header between shelves would open a gap mid-list.
-            width: appGrid.width
-            height: text.length > 0 ? appsRoot._px(34) : 0
-            text: section === "recent"    ? qsTr("RECENTLY PLAYED")
-                : section === "favorites" ? qsTr("FAVORITES")
-                : section === "all"       ? qsTr("ALL APPS")
-                : ""
-
-            // The page's rail caption, in miniature: same size, same tracking.
-            color: Theme.text3
-            font.family: Theme.family
-            font.pixelSize: appsRoot._px(13)
-            font.letterSpacing: appsRoot._u * 1.6
-            verticalAlignment: Text.AlignBottom
-            bottomPadding: appsRoot._px(8)
-        }
 
         delegate: NavigableItemDelegate {
             id: appDelegate
@@ -1132,6 +1481,9 @@ FocusScope {
             property bool   _running:    model.running
             property string _boxArt:     model.boxart
             property bool   _overridden: model.overridden
+            property bool   _isApp:      model.isApp
+            property bool   _movable:    model.movable
+            property bool   _pinned:     model.pinned
 
             opacity: model.hidden ? 0.45 : 1.0
 
@@ -1145,12 +1497,6 @@ FocusScope {
             // Disable Material's default focus highlight; the row draws its own.
             background: Item { anchors.fill: parent }
 
-            // One horizontal stop inside the focused row: Right parks the pad on the
-            // favourite star, Left comes back to the row. There is no stop past the star —
-            // it is the far right edge of the tile. (This list has no other use for
-            // Left/Right; Up/Down walk the games.)
-            KeyNavigation.right: favStar
-
             Rectangle {
                 id: row
                 anchors.fill: parent
@@ -1163,7 +1509,10 @@ FocusScope {
                 border.width: appDelegate._lit ? 2 : (appDelegate._selected ? 1 : 0)
                 border.color: appDelegate._lit ? Theme.accent : Theme.line
 
-                Behavior on color { enabled: !Theme.reduceAnimations; ColorAnimation { duration: 120 } }
+                // Both, not just the fill: the border used to snap to the accent while the
+                // fill faded in behind it, so the outline arrived before the light did.
+                Behavior on color { enabled: !Theme.reduceAnimations; ColorAnimation { duration: 140 } }
+                Behavior on border.color { enabled: !Theme.reduceAnimations; ColorAnimation { duration: 140 } }
 
                 // ── Thumbnail ────────────────────────────────────────────────
                 // Fixed box, PreserveAspectFit, no cropping. Box art is not one shape:
@@ -1200,9 +1549,29 @@ FocusScope {
                 }
 
                 // ── Title, and the store under it ────────────────────────────
+                // ── Pinned mark (6.0.0) ──────────────────────────────────────
+                // On the row itself and not only by the PINNED heading, because a pinned game
+                // that is also the last one played sits under LAST PLAYED — and unpinning it
+                // should not need remembering that it was pinned.
+                Image {
+                    id: pinMark
+                    visible: appDelegate._pinned
+                    anchors.right: runTag.visible ? runTag.left : parent.right
+                    anchors.rightMargin: appsRoot._px(16)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: appsRoot._px(18)
+                    height: width
+                    source: "qrc:/res/pin.svg"
+                    sourceSize.width: width * Screen.devicePixelRatio
+                    sourceSize.height: height * Screen.devicePixelRatio
+                    smooth: true
+                    opacity: appDelegate._lit ? 0.95 : 0.6
+                }
+
                 Column {
                     anchors.left: thumbBox.right
-                    anchors.right: runTag.visible ? runTag.left : favStar.left
+                    anchors.right: pinMark.visible ? pinMark.left
+                                 : runTag.visible ? runTag.left : parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: appsRoot._px(16)
                     anchors.rightMargin: appsRoot._px(16)
@@ -1213,7 +1582,7 @@ FocusScope {
                         text: model.name
                         color: Theme.text
                         font.family: Theme.family
-                        font.pixelSize: appsRoot._px(22)
+                        font.pixelSize: appsRoot._px(Theme.fontH2)
                         font.weight: appDelegate._lit ? Font.DemiBold : Font.Normal
                         elide: Text.ElideRight
                         maximumLineCount: 1
@@ -1221,25 +1590,25 @@ FocusScope {
 
                     Label {
                         property string store: appGrid.storeMap[model.name] || ""
-                        // "pinned" is shown only where the pin is the reason for the row being
-                        // this high up: inside the FAVORITES shelf every row is pinned by
-                        // definition, so repeating it there says nothing. Above the shelf —
-                        // an app that is both pinned and recently played — it is the only
-                        // thing explaining why a game that was not just played sits that high.
-                        property bool showPin: model.favorite && model.section !== "favorites"
                         width: parent.width
-                        visible: store.length > 0 || model.overridden || showPin
+                        visible: store.length > 0 || model.overridden
+                                 || (!model.isApp && model.playtime && model.playtime.length > 0)
                         text: {
                             var parts = []
                             if (store.length > 0)   parts.push(store)
+                            // Empty for a game never streamed, and for Desktop and Steam Big
+                            // Picture, which never accumulate any — the model decides, this
+                            // line just appends what it is given.
+                            // Never on an app — see focusedPlaytime.
+                            if (!model.isApp && model.playtime && model.playtime.length > 0)
+                                parts.push(model.playtime)
                             if (model.overridden)   parts.push(qsTr("custom settings"))
-                            if (showPin)            parts.push(qsTr("pinned"))
                             return parts.join("  ·  ")
                         }
                         color: Theme.text3
                         // The same body as the store line in the spotlight: one size for the
                         // page's secondary text instead of a 15 here and a 17 there.
-                        font.pixelSize: appsRoot._px(16)
+                        font.pixelSize: appsRoot._px(Theme.fontBody)
                         font.family: Theme.family
                         elide: Text.ElideRight
                         maximumLineCount: 1
@@ -1253,10 +1622,8 @@ FocusScope {
                 Rectangle {
                     id: runTag
                     visible: appDelegate._running
-                    // Left of the favourite star, so the running badge and the pin live
-                    // side by side at the tile's far edge instead of colliding for it.
-                    anchors.right: favStar.left
-                    anchors.rightMargin: appsRoot._px(10)
+                    anchors.right: parent.right
+                    anchors.rightMargin: appsRoot._px(16)
                     anchors.verticalCenter: parent.verticalCenter
                     width: runTagLabel.implicitWidth + appsRoot._px(22)
                     height: appsRoot._px(26)
@@ -1265,6 +1632,8 @@ FocusScope {
 
                     SequentialAnimation on opacity {
                         running: runTag.visible && !Theme.reduceAnimations
+                        // Held while the window is dragged — see WindowMove / AmbientWaves.
+                        paused: running && WindowMove.moving
                         loops: Animation.Infinite
                         alwaysRunToEnd: true
                         NumberAnimation { to: 0.45; duration: 900; easing.type: Easing.InOutSine }
@@ -1277,77 +1646,9 @@ FocusScope {
                         text: qsTr("STREAMING")
                         color: Theme.onAccent
                         font.family: Theme.family
-                        font.pixelSize: appsRoot._px(13)
+                        font.pixelSize: appsRoot._px(Theme.fontSmall)
                         font.bold: true
                         font.letterSpacing: appsRoot._u
-                    }
-                }
-
-                // ── The favourite star ────────────────────────────────────────
-                // Far right of the tile, one press away: Right puts the pad on it, A
-                // toggles. Hollow ☆ = not pinned, filled ★ = pinned — the state doubles as
-                // the marker, so every row shows its star and no key legend is needed.
-                // Toggling moves the row (it belongs to a shelf now), so the reorder is
-                // deferred one turn and the current index re-snapped to the SAME app — by
-                // id, never by position: the shelves move positions.
-                FocusScope {
-                    id: favStar
-                    anchors.right: parent.right
-                    anchors.rightMargin: appsRoot._px(10)
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: appsRoot._px(44)
-                    height: parent.height
-
-                    KeyNavigation.left: appDelegate
-
-                    Keys.onReturnPressed: toggleFav()
-                    Keys.onEnterPressed:  toggleFav()
-                    Keys.onSpacePressed:  toggleFav()
-
-                    // The star's "you are HERE": the row's own highlight already lights
-                    // while the star holds focus (the list still owns the focus), and this
-                    // small box says the press will land on the star, not on the launch.
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: appsRoot._px(6)
-                        visible: favStar.activeFocus
-                        color: appDelegate._lit
-                               ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
-                               : "transparent"
-                        border.width: 1
-                        border.color: Theme.accent
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        // ★ U+2605 / ☆ U+2606 — glyphs the shipped fonts all carry
-                        // (DejaVu on desktop, Roboto on Android); a vector would need a
-                        // recolor per state, a glyph is one colour change.
-                        text: model.favorite ? "\u2605" : "\u2606"
-                        color: model.favorite ? Theme.accent
-                             : appDelegate._lit  ? Theme.text2
-                             :                     Theme.text3
-                        font.family: Theme.family
-                        font.pixelSize: appsRoot._px(24)
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: toggleFav()
-                    }
-
-                    function toggleFav() {
-                        appGrid.currentIndex = index
-                        appGrid.appModel.setAppFavorite(index, !model.favorite)
-                        // One turn later: setAppFavorite's own dataChanged has already
-                        // restyled this star; the shelf move must not happen in the middle
-                        // of the press, or the delegate moves out from under the input.
-                        Qt.callLater(function() {
-                            appGrid.appModel.applyShelfOrder()
-                            var i = appGrid.appModel.indexOfApp(appDelegate._appId)
-                            if (i >= 0) appGrid.currentIndex = i
-                        })
                     }
                 }
 
@@ -1372,7 +1673,10 @@ FocusScope {
                 // Must use appGrid.appModel — bare appModel is not in scope.
                 var m = appGrid.appModel
                 var runningId = m.getRunningAppId()
-                if (runningId !== 0 && runningId !== model.appid) {
+                // A host control runs beside the game rather than replacing it (Remote Input
+                // and Remote Monitor exist precisely to be used while one is running), so it
+                // never asks to quit first — the server decides, and says so if it refuses.
+                if (runningId !== 0 && runningId !== model.appid && model.control === "") {
                     if (quitExistingApp) {
                         quitAppDialog.appName = m.getRunningAppName()
                         quitAppDialog.boxArt = m.getRunningAppBoxArt()
@@ -1394,7 +1698,27 @@ FocusScope {
                 appsRoot.launchSegue(model.name,
                                      model.boxart,
                                      m.createSessionForApp(index),
-                                     runningId === model.appid)
+                                     runningId === model.appid,
+                                     model.appid)
+            }
+
+            /*
+             * With the mouse the row under the pointer is the selected one (5.9.0). The light
+             * on the row already followed the pointer, but the spotlight reads the list's
+             * current item, so the cover beside it stayed on whatever the pad had left there.
+             *
+             * ⚠️ Only for a row fully in view. Selecting a row cut by the edge scrolls it in,
+             * which slides the next row under a pointer that has not moved — and that one would
+             * be selected in turn. The mouse mode also drops the highlight range for the same
+             * reason (see highlightRangeMode).
+             */
+            onHoveredChanged: {
+                if (!hovered || SdlGamepadKeyNavigation.inputMode === "key"
+                        || appGrid.currentIndex === index)
+                    return
+                var top = appDelegate.mapToItem(appGrid, 0, 0).y
+                if (top >= 0 && top + appDelegate.height <= appGrid.height)
+                    appGrid.currentIndex = index
             }
 
             onClicked: {
@@ -1440,10 +1764,14 @@ FocusScope {
         anchors.centerIn: parent
         width: parent.width * 0.6
         visible: appGrid.count === 0
-        text: qsTr("This computer doesn't seem to have any applications or some applications are hidden")
+        text: appsRoot.libraryTab === "games"
+              ? qsTr("No games to show — some may be hidden on the host")
+              : appsRoot.libraryTab === "apps"
+              ? qsTr("No apps to show — some may be hidden on the host")
+              : qsTr("Nothing to show — some entries may be hidden on the host")
         color: Theme.text2
         font.family: Theme.family
-        font.pixelSize: appsRoot._px(20)
+        font.pixelSize: appsRoot._px(Theme.fontTitle)
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
     }
@@ -1496,18 +1824,37 @@ FocusScope {
         onClosed: appsRoot.focusLibrary()
     }
 
+    // A 410 from the host — see showHostNotice(). Yes relaunches the same entry, found again by
+    // id: the running-game copy a 2.0 server sends shares its name with the game itself.
+    NavigableMessageDialog {
+        id: hostNoticeDialog
+        property bool confirm: false
+        property int appId: 0
+        property string appName: ""
+        standardButtons: confirm ? (Dialog.Yes | Dialog.No) : Dialog.Ok
+
+        onAccepted: {
+            if (!confirm || !appGrid.appModel) return
+            // The confirmation can be for an entry on another tab (a normal app replacing a
+            // running one); look there before giving up.
+            if (!appsRoot._selectAppIdAnyTab(appId)) return
+            if (appGrid.currentItem) appGrid.currentItem.launchOrResumeSelectedApp(true)
+        }
+        onClosed: appsRoot.focusLibrary()
+    }
+
     AppSettingsDialog {
         id: appSettingsDialog
-        // The shelf reorder waits for the dialog to close: it addresses the model by index,
-        // so rows must not move under it. This is where nothing is addressing it by position
-        // any more.
         onClosedByUser: {
+            // The panel can have reset this game's play time, which changes both the label on
+            // its row and — if it was the last played one — the order and the section heading.
+            // Done here rather than on the reset itself: while the panel is open its appIndex
+            // has to stay valid, and re-sorting under it would point that index at another
+            // game. See AppModel::resetPlaytime().
             if (appGrid && appGrid.appModel) {
-                appGrid.appModel.applyShelfOrder()
-                // The dialog can pin or unpin, and that moves rows under the paused pad —
-                // put it back on the SAME game, found by id (positions moved).
-                var i = appGrid.appModel.indexOfApp(appSettingsDialog.appId)
-                if (i >= 0) appGrid.currentIndex = i
+                appGrid.appModel.refreshPlaytime()
+                appGrid.updateContinue()
+                appsRoot._playtimeEpoch++
             }
             appsRoot.focusLibrary()
         }

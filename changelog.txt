@@ -4,6 +4,267 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 
 https://github.com/onaiaku/ArtMoon
 
+----------------------------------------------
+Version 6.3.0 - Where You Left It (22/09/2026)
+----------------------------------------------
+
+StreamTweak 8.7.0 is needed on the host for the shared clipboard — everything else in 6.3.0 is client-side and works with any host. Text copied on one side now pastes on the other, a resumed game appears straight away, the host page remembers its tab, and the button prompts can be pinned to the controller.
+
+✨ NEW FEATURES:
+• Shared clipboard — text copied on the host pastes on this device and the other way round while you stream, up to 32 KB, encrypted with a key that lasts one stream. Off until you turn it on in Settings → StreamTweak; the host can refuse from its own switch
+• Passwords don't linger — text marked by a password manager (KeePass, KeePassXC, Bitwarden, Proton Pass, Chrome, Firefox) stays out of Win+V history on the other side and is cleared there when the original is, within 60 seconds anyway
+• Button prompts: Auto, Controller or Keyboard & mouse — in Settings → Session, beside the button icon set. Pin them to the controller when Steam Input or a Steam Deck sends mouse clicks and keys from the same pad, and the prompts stop switching back and forth
+
+🎨 UI:
+• Settings → StreamTweak gets a Clipboard section under Hosts, and a host's row says when its StreamTweak is too old for it or has it switched off
+• The button icon set moves from Settings → Shortcuts to Settings → Session, under Interface after GUI mode
+• Settings → Input starts with Controller, then Mouse & Keyboard
+
+🐛 FIXES:
+• Prompts return to the controller's icons as soon as the stick or a trigger is used, not only on a button press
+• Prompts show the controller's icons from the first screen when a controller is connected, instead of the keyboard's until the first press
+• Resume no longer waits behind the launch screen — with Wait for the game to appear on, rejoining a game or app the host is already running could hold the launch screen up over a picture that was ready. A resume, from Home or from the host page, now shows the stream on its first frame
+• The host page reopens on the tab you last chose — All, Games or Apps, per host, after going back to Home and after closing StreamLight. A Remote Monitor still in use still opens on Apps, and a tab with nothing on it falls back to the usual one
+
+🙏 THANKS:
+• Thanks to @vitorhugoaranda (https://github.com/FoggyBytes/StreamLight/issues/23) for asking for a shared clipboard
+• Thanks to @MariolloPL (https://github.com/FoggyBytes/StreamLight/issues/24) for asking for controller-only prompts
+
+----------------------------------------
+Version 6.2.0 - Sleep Tight (19/09/2026)
+----------------------------------------
+
+StreamTweak 8.6.0 is needed on the host for the new host options — with an older StreamTweak the host can still be shut down as before. The Power dialog is rebuilt around the two machines: the host and the device in your hands each get their own choice of Keep on, Sleep, Restart or Shut down, and each shows only what that machine really supports.
+
+✨ NEW FEATURES:
+• Sleep and restart for the host and for this device — one row each in the Power dialog, so any pair works: the host asleep while the handheld shuts down, the host restarting while you keep playing on the client
+• Only what each machine can do — the host reports its own options through StreamTweak and this device reads its own, so a PC without standby or without the right to shut down shows exactly that
+• Install Windows updates per machine — offered on the row that restarts or shuts down, only when that machine has updates waiting
+• A warning before putting to sleep a host that could not be woken again — away from home over Tailscale, or with its network adapter not set to wake the PC
+• A host you put to sleep stays asleep — StreamLight stops contacting it until you choose Wake, so turning this device back on no longer wakes the host with it. It reads "Asleep" on Home meanwhile
+
+🎨 UI:
+• Each row says whether that machine's Windows is up to date, and a line under the rows says what is about to happen
+• The status bar calls X "Power" instead of "Shutdown"
+
+🙏 THANKS:
+• Thanks to @carlossgv (https://github.com/FoggyBytes/StreamTweak/issues/10) for asking for sleep
+
+-----------------------------------
+Version 6.1.0 - Sorted (18/09/2026)
+-----------------------------------
+
+No StreamTweak update required — everything in 6.1.0 is client-side. The host page gets an All tab with everything you can launch in one list, and the split between Games and Apps becomes yours to correct: anything StreamLight put on the wrong side can be moved to the other.
+
+✨ NEW FEATURES:
+• All on the host page — every game plus Desktop, Virtual Display and Steam Big Picture in one list, under Last played and Pinned, so starting from the desktop or a virtual display no longer means changing tab. The page now opens on All
+• Move between Games and Apps — on either tab, the right stick click (M on the keyboard) moves the selected entry to the other one and takes you there. The choice is remembered per host, and the host's own controls such as Remote Input and Remote Monitor stay on Apps
+
+🎨 UI:
+• LB / RB switch the host page's tabs and sit at the two ends of the strip, where Settings and the profile dialogs have them; the profile moves to LT / RT beside its badge, Q / E unchanged on the keyboard
+• The tabs no longer show a count, and Virtual Display sits right after Desktop
+• The moving background now runs only on Home, Settings and the PIN pad — the host page and the launch and quit screens stand on the plain background
+
+🐛 FIXES:
+• The pulsing Streaming marks and the spinner pause while the window is being moved, as the waves already did — moving the window could stutter while a host was streaming
+• Desktop (fallback), the entry Apollo and Vibepollo add when their app list cannot be read, counts as Desktop — it sits under Apps and the PIN unlock can use it
+
+🙏 THANKS:
+• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/22) for asking for an All tab
+
+-------------------------------------
+Version 6.0.0 - Free Run (18/09/2026)
+-------------------------------------
+
+No StreamTweak update required — everything in 6.0.0 is client-side. VRR presentation, built on Nonary's VRR work for Moonlight: on a variable-refresh display each frame is shown as soon as it is ready instead of waiting for the screen's next refresh. Home is redrawn around a moving background, takes you straight back into a game that is still streaming, favourite games can be pinned to the top of the host page, and host profiles and per-game settings are rebuilt on the tabs of Settings.
+
+✨ NEW FEATURES:
+• VRR in Settings → Video — with V-Sync on and a variable-refresh display, frames are shown as soon as they are ready, with three timing profiles (Low latency, Balanced, Smooth) and Reduce judder
+• VRR per host profile — like Fractional V-Sync, so a handheld and a docked profile can each have their own answer
+• VRR pacing overlay line — how evenly frames are presented, or why VRR is not running
+• Resume from Home — while a host is streaming, its card shows the game in progress with Resume in place of Play again
+• Pinned games — Start on the pad or P on the keyboard pins the selected game, and pinned games sit together under Last played, in alphabetical order
+• Moving background — waves in your accent colour rise over the lower three quarters of every screen, twice as fast while a host is streaming or a launch is starting. Still with Reduce animations, and paused while a dialog is open or the window is being moved
+• Opening animation — the waves rise, the StreamLight icon fades in and a band of light writes its name before Home appears. About three seconds, any button skips it, and it can be turned off in Settings → Session
+• Card opacity per host — a slider in the host's Background lets the moving background show through its card, from 70% to 100%. Every host starts at 90%
+• Name a profile with the pad — X opens eight ready-made names such as Docked, Portable, Handheld and TV, with a field for your own when a keyboard is at hand
+
+✨ IMPROVEMENTS:
+• Settings follow VRR — while it runs, Display mode shows Borderless, V-Sync and Frame pacing show On and Fractional V-Sync shows Off, all locked, and your own choices come back when VRR is switched off
+• The Frame rate row shows the rate recommended for VRR on this display, and the VRR row says when the chosen frame rate is above the display's refresh, where VRR cannot run
+• Less GPU work on 4K streams — where the graphics card decodes and renders on the same device, each frame is now shown directly instead of being copied first. 1080p and 1440p are unchanged
+
+🎨 UI:
+• Home — the host's card takes the left of the screen and the game stands beside it on the background. Before a host's first game, a line says where it will appear
+• Host profiles and per-game settings are split into the tabs of Settings — one section at a time, switched with LB / RB shown at the ends of the strip, with the number of changed values on every tab
+• Inherited values look inherited — the accent marks only what a profile or a game changes, every row says where its value comes from (Global: 4K, Docked 4K: 120), Y gives a row back and Reset all the whole set
+• Host profiles show how many settings each profile changes and switch with LT / RT from anywhere in the dialog; per-game settings open with the game's cover and name the profile they inherit from
+• The Last played badge on Home reads Last played 2 h ago · 18 h total — it used to say Last played for 18 h, as if that were the last session, when it is every session added up
+
+🐛 FIXES:
+• A crash while the video renderer was being recreated during a stream — rare before, frequent with VRR on a GPU that briefly falls behind, which recreates it several times a minute
+
+⚠️ COMPATIBILITY:
+• VRR is experimental, Windows D3D11 only, and needs a display with variable refresh
+• VRR and Fractional V-Sync cannot run together: with VRR on, Fractional V-Sync is off
+
+🙏 THANKS:
+• Thanks to Nonary (Chase Payne, https://github.com/Nonary/moonlight-qt) for the VRR pacing this release is built on
+• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/14) for asking for VRR and testing Nonary's build against half-rate V-Sync
+
+------------------------------------
+Version 5.9.0 - In Step (15/09/2026)
+------------------------------------
+
+No StreamTweak update required — everything in 5.9.0 is client-side and works with any host. StreamLight catches up with Moonlight's latest engine fixes and libraries, understands the Remote Input and Remote Monitor entries of Vibeshine and Vibepollo 2.0, and splits each host's library into Games and Apps.
+
+✨ NEW FEATURES:
+• Games and Apps on the host page — LT/RT (PgUp/PgDn on the keyboard) switch between the games and everything that is not one: Desktop, Steam Big Picture and the host's own controls. A host with no games, or with a Remote Monitor still attached, opens on Apps
+• Remote Input and Remote Monitor from Vibeshine and Vibepollo 2.0 are recognised as host controls — they open beside a running game without asking to quit it, and skip the wait for a game window
+• Host actions report their result instead of an error — Disconnect Monitor, Disconnect Input and Terminate say what they did, and when the host asks for confirmation StreamLight asks Yes or No and repeats the launch itself
+
+✨ IMPROVEMENTS:
+• Engine and protocol brought level with Moonlight's development branch — faster recovery from lost video packets, decoder device selection by GPU vendor and driver, audio latency held to 50 ms whatever the packet size, and some thirty more upstream fixes
+• OpenSSL 3.6.4 and SDL 3.4.16 — security and bug-fix releases of the libraries underneath, plus the latest host discovery library
+• The client's own ID is sent to Sunshine-based hosts instead of a placeholder shared by every client, as Moonlight now does
+• Everything under Apps shows Open and carries no hours or session count
+
+🐛 FIXES:
+• Pointing at a game with the mouse updates the cover and details beside the list, not only the highlight on the row
+• A host running Tailscale could be recorded with its Tailscale address as its local one, and the log then reported it moving back to the LAN every few seconds
+• The software renderer drew full-range video at the wrong levels, a display larger than 8K could crash the display list, and a game with an empty name stopped the whole library from loading
+
+⚠️ COMPATIBILITY:
+• Remote Input and Remote Monitor need Vibeshine or Vibepollo 2.0 on the host; elsewhere the Apps tab simply has fewer entries
+
+------------------------------------
+Version 5.8.0 - Keep Up (14/09/2026)
+------------------------------------
+
+No StreamTweak update required — everything in 5.8.0 is client-side and works with any host. StreamLight can now update itself from Settings, Play again behaves like the rest of the host card and ends where a game started from the library ends, and waking a host shows how long each step is taking.
+
+✨ NEW FEATURES:
+• Update now in Settings → About — shown only when a newer release is out, it downloads the installer and checks it against the checksum GitHub publishes for it, then Install now opens the installer, which reopens StreamLight when it finishes. Nothing is installed until you press it, and Windows asks for permission once, as for any install into Program Files
+• A newer version is announced when StreamLight starts — Yes takes you to Settings → About, No asks again next time, and Don't remind me about this version keeps it quiet until the one after
+• A failed update stays on screen and says why — a failed download, a checksum that does not match or a release with no installer — and the same button retries it
+
+✨ IMPROVEMENTS:
+• A wake is timed step by step — the host appearing on the network and StreamTweak coming up each count up in tenths of a second while they are the one being waited on and keep the figure once they are done, so a slow wake says which part was slow rather than only which part is still running
+• A wake that could not be sent stops there and says so, instead of waiting out the full two and a half minutes for a host that was never told anything
+• A wake that gives up leaves the dialog on screen with the step that ran out and how long it was waited on, where it used to close with nothing said
+
+🎨 UI:
+• The first step of a wake reads Wake signal sent rather than Magic packet sent
+• The steps of a wake sit centred in the dialog, like its title and button
+
+🐛 FIXES:
+• Play again follows the host's state like every other button on the card — it greys out while the link speed is changing, where it stayed lit and could be pressed, and on an offline host it stays greyed on the card instead of disappearing from under the game it names
+• A greyed button can no longer be triggered with the controller — during a link speed change the mouse was blocked and the D-pad was not, so A on a dimmed Open started a stream into an adapter that was still renegotiating
+• Stopping a game started with Play again returns to the host's page with that game at the top, not to the host list, so a session started from the card ends where one started from the library does
+• Coming back from there asks whether to put the host's link back — that question is only ever raised on the way from a host's page to the host list, and a game launched from the card never made that trip, so a link left at streaming speed went unmentioned
+• An adaptive trigger effect from the host is checked against the controller list like every other controller command — the check let through one controller number past the end of the list
+
+⚠️ COMPATIBILITY:
+• Updating from the app starts with this version — anything older cannot update itself, so 5.8.0 is installed by hand from the releases page
+
+------------------------------------
+Version 5.7.0 - Pick Up (09/09/2026)
+------------------------------------
+
+No StreamTweak update required — everything in 5.7.0 is client-side and works with any host. StreamLight now remembers what you played and for how long, so the last game is one button away from the host list.
+
+✨ NEW FEATURES:
+• Last played on the host card — the game you last streamed on that host: a badge above the cover reading how long you have put into it and how long ago, the artwork at the card's own height with its shadow, and the title underneath. A Play again button sits below it, on the same line as Open, Profiles and Options
+• Last played at the top of the host page — the same game as the first row under its own heading, with the cursor already on it, so opening a host and pressing A starts where you left off. Everything else follows under All apps, in the order it always had
+• Play time per game — how long you have streamed each one, shown next to the store on every row of the library. Kept per host, and remembered through an uninstall and reinstall because it is filed under the game's name rather than the id the host gives it. Desktop and Steam Big Picture never count
+• The spotlight on the host page shows the hours and the number of sessions for the game you are looking at, under its store
+• A Reset stats button at the foot of the per-game panel, which clears that game's hours and session count for the host and greys itself out when there is nothing to clear
+
+🎨 UI:
+• A game's title is never cut, on the host card or in the spotlight — it wraps to as many lines as it needs and shrinks to fit rather than ending in an ellipsis, so a name as long as Metal Gear Solid 4: Guns of the Patriots – Master Collection Version reads in full, last word included
+• The cover on the host card is drawn several times larger than the strip it replaces, from the artwork already cached for that host, and stops short of the point where it would be scaled up past the size the artwork exists at
+• It also sizes itself to the title: biggest when the name fits on one line, standing back when it takes three, so the block always ends on the same edge
+• Both screens present a game the same way — cover, title, figures — because they are now drawn by one component instead of two arrangements of the same idea
+• Moving between buttons is a colour that crosses over rather than a switch: the fill, the border and the label warm into the accent together, so walking a row reads as one light travelling along it. The same applies to the rows of the library, where the border used to snap while the fill faded
+• The accent you choose now reaches the whole interface. The PIN pad that appears after waking a host was drawing its focus ring and its dots in the default cyan whatever you had picked, because it named its own colours instead of reading yours
+• Text sizes follow one scale instead of twenty-one hand-picked values sitting a pixel or two apart, so a heading, a label and a caption keep the same relationship to each other on every screen
+• Settings is drawn in the same palette as the rest of the app — it carried its own set of flat greys while every other screen uses cooler ones, so it read a shade warmer than the screen it opens over
+• The clock, the date, the battery and the button prompts along the bottom grow with the window like everything else. They were fixed in place, which on a handheld made them the one part of the screen drawn smaller than what surrounds it
+• Settings tabs carry on past either end: LB and RB wrap around, so About is one press from Video instead of nine
+• The app says host where it used to say PC, and this device where it means the one in your hands — and it no longer asks you to click anything, which on a handheld there is nothing to do
+
+🐛 FIXES:
+• Small grey text is readable — the section headings in Settings, the captions under a game's figures and the muted half of a two-tone line all sat below the contrast the accessibility guidelines ask for
+• Buttons that cannot be pressed now look like it. A disabled button was drawn exactly like a working one, so the only way to find out was to press it
+• Coming back from a stream puts the cursor back on the game you just closed. It moves to the top of the library the moment the session ends, so a cursor left where it was pointed at whichever title had slid into that place
+• The library's section headings scroll with their rows. Last played was drawn above the list and stayed pinned there, so after scrolling a few titles the screen claimed the game at the top of the view was the last one played
+
+⚠️ COMPATIBILITY:
+• The host session report is gone from the card and Last played stands in its place. The old panel described the host's last session, whatever had streamed and from whichever device, and needed an authorized StreamTweak to appear at all; this one describes what you played, from a record kept on this machine, and works against a plain Sunshine host. The quality grade is not repeated here — StreamTweak's dashboard still calculates and shows it
+• Play time is kept per host, so deleting a host deletes its hours along with its profiles and per-game settings. A host reachable both on the LAN and over Tailscale is one host here and keeps one total
+• Nothing is removed from the bridge: the host still answers the command this panel used to send, and no StreamTweak setting changes
+
+---------------------------------------
+Version 5.6.1 - Lights Off (07/09/2026)
+---------------------------------------
+
+No StreamTweak update required — 5.6.1 is client-side and works with any host. One fix, to the PIN pad that appears after waking a host.
+
+🐛 FIXES:
+• Unlocking a host with the PIN pad no longer starts Hue Sync on the client — the pad is carried by a hidden session that exists only to type four digits, and the Philips Hue setting, global or from a host profile, was reading it as a stream starting. It now acts only on a session you actually watch
+
+--------------------------------------
+Version 5.6.0 - Half Rate (02/09/2026)
+--------------------------------------
+
+No StreamTweak update required — everything in 5.6.0 is client-side and works with any host. A 60 FPS stream on a 120 Hz screen can be shown one frame every two refreshes, which is what NVIDIA Profile Inspector and Special-K were being used for.
+
+✨ NEW FEATURES:
+• Fractional V-Sync — a switch in Settings → Video that shows each frame for a whole number of refreshes instead of once per refresh, so 60 FPS on a 120 Hz screen becomes one frame every two. Off by default, and it needs V-Sync and Frame pacing on
+• It acts only where the screen runs at an exact multiple of the frame rate, and it is the ratio that matters rather than the screen — at 60 FPS that means 120, 180 or 240 Hz, while a 144 Hz screen is 2.4x at 60 and a clean 2x at 72, which the Custom pill on the frame rate row will give you. The log says at the start of every stream whether it applied, with the numbers it decided on
+• Overridable per host profile, on the row directly under Frame pacing, since that and V-Sync are what decide whether it can act at all — a profile missing either greys the row and names the one to fix, and keeps the choice for the day that changes
+• A Presentation cadence line for the overlay: how many refreshes each frame was really held for, how deep the queue to the display is sitting, and how long presenting a frame blocked. It measures the same way with Fractional V-Sync off, so the two can be compared on the same numbers
+
+🎨 UI:
+• Every on/off setting is a pair of Off/On pills instead of a switch — the same control the host profile and per-game panels have always used, so a yes-or-no answer looks the same wherever it is asked
+• Those pills grow with the interface scale and the switches did not — a switch was sized by the theme rather than by us, so on a handheld every row grew around a control that stayed the size it is on a desktop
+
+⚠️ COMPATIBILITY:
+• This is not the Frame pacing → Hardware setting that 5.1.3 was the last to carry. That one also switched the frame pacing off and left presentation as the only thing timing the stream, which is where the drifting delay of issue #9 came from; this one leaves frame pacing running and requires it. Nothing else about the picture path changes, and with the switch off the app behaves exactly as 5.5.0 did
+
+🙏 THANKS:
+• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/11) for running half-rate V-Sync through an injector for months and saying so plainly — that is what identified the one arrangement never shipped here — and for testing this build the day it was written
+
+-----------------------------------------
+Version 5.5.0 - Your Display (01/09/2026)
+-----------------------------------------
+
+No StreamTweak update required — everything in 5.5.0 is client-side and works with any host. The resolution and frame rate pickers now offer what your own screen can do, and a frame rate outside the presets can be typed in.
+
+✨ NEW FEATURES:
+• The frame rates your display can actually run — a 165 Hz screen is offered 165, next to the usual 30/60/90/120, and a small dot marks the values that came from your display rather than from the list
+• A Custom pill beside the frame rate, the same one the resolution row has always had — for a rate no display reports, or a deliberate cap. It is there in the host profile and per-game panels too, so a rate you set globally can be overridden anywhere
+• Your display's own resolution is offered as well — a 16:10 or ultrawide panel no longer has to be entered by hand
+• The in-stream Stream Settings panel offers the same values as Settings, your display's own included, so changing resolution or frame rate mid-session no longer means a shorter list than the one you started from
+
+🎨 UI:
+• Resolution and Frame rate are two rows instead of one, each showing what was found on this display underneath its name
+• The custom resolution and custom frame rate windows both say what this display reports, so there is a number to aim at before typing one
+• In the in-stream panel the resolution and frame rate rows read "this display" when the value on them is your screen's own, the same thing the dot says in Settings
+
+🐛 FIXES:
+• A frame rate outside the four presets can be chosen again — until 5.4.0 one could only arrive from the settings store shared with Moonlight, so after that release the row could still display an unusual value but never produce one
+• The custom resolution window is drawn at the same scale as everything else — it was missed when the interface moved to a single scale in 5.3.0, and stayed small on large screens
+• A frame rate outside the presets is no longer lost by the in-stream Stream Settings panel — it had nowhere to put one, showed 120 instead, and wrote that back to your profile as soon as anything else on the panel was applied
+• Leaving a full-screen stream is one step shorter on an ordinary PC — the app used to rebuild its own window on the way out, which exists to clear the grey screen the Xbox full screen experience leaves behind on handhelds, and now runs only on devices set up for that shell
+
+⚠️ COMPATIBILITY:
+• Match refresh rate has been removed, one release after it arrived — putting the panel on the stream's own rate measured worse than leaving it high and presenting at half rate: occasional stutters, slightly worse control latency, and clearly worse rendering times. If your screen runs faster than your stream, halving the refresh at the driver level with NVIDIA Profile Inspector or Special-K is still the way to do it. The setting is gone from Settings and from host profiles; nothing else changes, and it was off by default
+
+🙏 THANKS:
+• Thanks to @markmghali (https://github.com/FoggyBytes/StreamLight/issues/13) for reporting that his 165 Hz laptop dropped to 60 after 5.4.0, and to @Soladus for pinning down that the picker had never offered it
+• Thanks to @Soladus (https://github.com/FoggyBytes/StreamLight/issues/11) for measuring Match refresh rate against the tools it was meant to replace, on his own hardware, and reporting exactly where it fell short
+
 --------------------------------------
 Version 1.4.0 (21/09/2026)
 --------------------------------------

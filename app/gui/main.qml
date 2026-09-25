@@ -1,7 +1,6 @@
 import Theme 1.0
 import QtQuick 2.9
 import QtQuick.Controls 2.2
-import QtQuick.Layouts 1.3
 import QtQuick.Window 2.2
 import QtQuick.Controls.Material 2.2
 
@@ -78,11 +77,55 @@ ApplicationWindow {
     // all change nothing — every one of them keeps the same HWND. Rebuilding the native window
     // is what fixes it; measured on an Ally, 03/08/2026. Full-screen path only.
     //
-    // NB: showNormal() + showFullScreen() below is redundant in theory, since
-    // recreateNativeWindow() re-applies the visibility itself — but this is the sequence that
-    // was verified on hardware, so dropping it needs another runtime test, not a reading.
+    // NB: showNormal() + showFullScreen() below was called redundant here, on the grounds
+    // that recreateNativeWindow() re-applied the visibility itself. ⚠️ That call is gone in
+    // this build, so the pair is no longer redundant on that reasoning — it is now the only
+    // thing putting the window back into full screen, and it stays.
+    //
+    // (Measured separately on 29/08: after visible=false → visible=true the window already
+    // reports FullScreen, so the pair may still be redundant for a different reason. Not
+    // acted on — that measurement was taken on a normal desktop, not under the Xbox shell,
+    // which is the only place any of this matters.)
     property int _preStreamVisibility: Window.Windowed
 
+    /*
+     * ⚠️ THE ANSWER, 01/09/2026. The diagnostic build that stood here tried curing the grey
+     * screen with graphics persistence alone — releasing the window's graphics resources,
+     * swap chain included, without touching the HWND — on the theory that the 5.0.0 note
+     * ("only a new HWND gets a new swap chain and a fresh binding") had fused two things
+     * that nobody had separated.
+     *
+     * Tested on the Ally, under the Xbox full screen experience, from the installed build:
+     * the grey screen came back, identical. And the mechanism itself was not at fault — it
+     * had been measured working beforehand (sceneGraphInvalidated 5/5 on hide with
+     * persistence off, 0/5 with Qt's default). So the resources are genuinely released and
+     * rebuilt, and it changes nothing.
+     *
+     * That separates the two halves and names the guilty one: what does not survive the
+     * shell taking exclusive full screen is bound to the HWND, not to the graphics
+     * resources. The demolition stays.
+     *
+     * setGraphicsPersistence() was written and measured for that experiment and removed in
+     * the same release: it had no callers left, and a Qt call kept "in case" is a call
+     * nobody can date. It is in the 5.5.0 history if the idea is ever worth reopening.
+     *
+     * And it no longer runs everywhere. It used to fire on EVERY full-screen exit, including
+     * on ordinary desktops where the grey screen never happens. It is now gated on
+     * isGamingPostureDevice: this machine is set up for the Xbox experience.
+     *
+     * ⚠️ Do NOT read this as a fix for the exit trouble on issue #11 — an earlier version of
+     * this comment did, and it was wrong twice over. That issue reports a freeze at the START
+     * of a stream, and the separate exit symptom @Soladus describes ("the GUI stays in full
+     * screen and doesn't switch to windowed") turned up on a 4.5.1 rebuild, which does not
+     * contain recreateNativeWindow at all — checked against the tag. Whatever the exit
+     * trouble is, this is not the thing causing it.
+     *
+     * ⚠️ That gate is per DEVICE, not per session, because four measured cases showed the two
+     * shells are indistinguishable from inside the process — see the note on the property in
+     * systemproperties.h. So on a handheld the rebuild also runs in desktop mode. That is the
+     * deliberate direction of the error: a hitch where it was not needed, never a grey screen
+     * where it was.
+     */
     function hideForStream() {
         _preStreamVisibility = window.visibility
         window.visible = false
@@ -92,12 +135,16 @@ ApplicationWindow {
         window.visible = true
 
         if (_preStreamVisibility === Window.FullScreen) {
+            // Full-screen path only: this is the only path where the binding is lost.
+            if (SystemProperties.isGamingPostureDevice) {
+                SystemProperties.recreateNativeWindow()
+            }
+
             window.showNormal()
             // Deferred by one event-loop tick on purpose: applied in the same tick, Qt
             // coalesces the two state changes into one.
             Qt.callLater(function() {
                 window.showFullScreen()
-                SystemProperties.recreateNativeWindow()
             })
         }
     }
@@ -108,7 +155,7 @@ ApplicationWindow {
     minimumWidth: 1280
     minimumHeight: 720
     title: "ArtMoon"
-    font.family: "DM Sans"
+    font.family: Theme.family
 
     // ── Embedded UI fonts (matches StreamTweak) ───────────────────────────────
     FontLoader { source: "qrc:/res/fonts/DMSans-Regular.ttf" }
@@ -117,28 +164,23 @@ ApplicationWindow {
     FontLoader { source: "qrc:/res/fonts/JetBrainsMono-Regular.ttf" }
     FontLoader { source: "qrc:/res/fonts/JetBrainsMono-Medium.ttf" }
 
-    // ── Design system palette ─────────────────────────────────────────────────
-    readonly property color clrBg:      "#0d0d0d"
-    readonly property color clrBg1:     "#151515"
-    readonly property color clrBg2:     "#1a1a1a"
-    readonly property color clrBg3:     "#212121"
-    readonly property color clrBgHov:   "#262626"
-    readonly property color clrBgPrs:   "#2c2c2c"
-    readonly property color clrBorder:  "#2a2a2a"
-    readonly property color clrBorderL: "#3a3a3a"
-    readonly property color clrBorderS: "#404040"
-    readonly property color clrText:    "#f0f0f0"
-    readonly property color clrTextDim: "#a0a0a0"
-    readonly property color clrTextMut: "#707070"
-    readonly property color clrTextDis: "#555555"
-    readonly property color clrGreen:   Theme.accent
-    readonly property color clrGreenH:  Qt.darker(Theme.accent, 1.15)   // hover: a shade down from the accent
-    readonly property color clrGreenP:  Qt.darker(Theme.accent, 1.45)   // pressed: two shades down
-    readonly property color clrGreenLk: Theme.accent
-    readonly property color clrRed:     "#C42B1C"
-    readonly property color clrBlue:    "#3a96dd"
-    readonly property string monoFont:  "JetBrains Mono"
-    // ─────────────────────────────────────────────────────────────────────────
+    /*
+     * ── The palette that used to be declared here ─────────────────────────────
+     *
+     * Twenty tokens — clrBg, clrBg1…clrBg3, clrBorder, clrText, clrTextDim, clrGreen and the
+     * rest — plus a monoFont. Every one of them was read ZERO times, in this file and in every
+     * other. They were the original design system, and Theme replaced them; what was left was
+     * the definition without a single caller.
+     *
+     * ⚠️ They did real damage while sitting here doing nothing. AppShell carried seven of them
+     * copied out by hand, with a comment saying they were "mirrored from main.qml"; Settings
+     * carried the same seven again as _bg2/_border/_text/_textDim/_textMut. So the app had
+     * three parallel vocabularies for one palette, and only one of them — Theme — was the one
+     * a user's accent could reach. This block was the thing they were all mirroring, and it
+     * had already stopped being used.
+     *
+     * The palette is theme.h. There is no second copy of it anywhere now; keep it that way.
+     */
 
     /*
      * Material's accent, pushed onto the WINDOW.
@@ -165,7 +207,7 @@ ApplicationWindow {
     // This function runs prior to creation of the initial StackView item
     function doEarlyInit() {
         // Force dark background on all Qt versions for the new design
-        Material.background = "#151515"
+        Material.background = Theme.ground
 
         Material.theme = Material.Dark
         window.applyAccentToMaterial()
@@ -233,20 +275,6 @@ ApplicationWindow {
             unmappedGamepadDialog.open()
         }
     }
-
-    // It would be better to use TextMetrics here, but it always lays out
-    // the text slightly more compactly than real Text does in ToolTip,
-    // causing unexpected line breaks to be inserted
-    Text {
-        id: tooltipTextLayoutHelper
-        visible: false
-        font: ToolTip.toolTip.font
-        text: ToolTip.toolTip.text
-    }
-
-    // This configures the maximum width of the singleton attached QML ToolTip. If left unconstrained,
-    // it will never insert a line break and just extend on forever.
-    ToolTip.toolTip.contentWidth: Math.min(tooltipTextLayoutHelper.width, 400)
 
     function goBack() {
         stackView.pop()
@@ -414,7 +442,7 @@ ApplicationWindow {
         headerText: qsTr("HARDWARE ACCELERATION")
         text: qsTr("No functioning hardware accelerated video decoder was detected by ArtMoon." +
                    "Your streaming performance may be severely degraded in this configuration.")
-        helpText: qsTr("Click the Help button for more information on solving this problem.")
+        helpText: qsTr("Open Help for more on solving this.")
         helpUrl: "https://github.com/moonlight-stream/moonlight-docs/wiki/Fixing-Hardware-Decoding-Problems"
     }
 
@@ -423,7 +451,7 @@ ApplicationWindow {
         headerText: qsTr("DISPLAY SERVER")
         text: qsTr("Hardware acceleration doesn't work on XWayland. Continuing on XWayland may result in poor streaming performance. " +
                    "Try running with QT_QPA_PLATFORM=wayland or switch to X11.")
-        helpText: qsTr("Click the Help button for more information.")
+        helpText: qsTr("Open Help for more.")
         helpUrl: "https://github.com/moonlight-stream/moonlight-docs/wiki/Fixing-Hardware-Decoding-Problems"
     }
 
@@ -443,7 +471,7 @@ ApplicationWindow {
         property string unmappedGamepads : ""
         text: qsTr("ArtMoon detected controllers without a mapping:") + "\n" + unmappedGamepads
         helpTextSeparator: "\n\n"
-        helpText: qsTr("Click the Help button for information on how to map your controllers.")
+        helpText: qsTr("Open Help for how to map controllers.")
         helpUrl: "https://github.com/moonlight-stream/moonlight-docs/wiki/Gamepad-Mapping"
     }
 

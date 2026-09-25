@@ -42,7 +42,7 @@ Item {
 
     // The caller's own scale, so the strip matches the rows under it.
     property real u: Theme.uiScale
-    function _px(n) { return Math.round(n * u) | 0 }
+    function _px(n) { return Math.round(n * u) }
 
     property bool shoulders: false
 

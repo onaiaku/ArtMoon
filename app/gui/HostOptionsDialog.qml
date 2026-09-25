@@ -43,7 +43,7 @@ Popup {
         Label {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("OPTIONS") + (dlg.hostName.length ? "  ·  " + dlg.hostName : "")
-            font.family: Theme.family; font.pixelSize: dlg._px(13); font.bold: true; font.letterSpacing: 1.6
+            font.family: Theme.family; font.pixelSize: dlg._px(Theme.fontSmall); font.bold: true; font.letterSpacing: 1.6
             color: Theme.text3
         }
 
@@ -68,9 +68,9 @@ Popup {
                     dlg.chosen(it.kind)
                 }
             }
-            Keys.onReturnPressed: { _activate(); event.accepted = true }
-            Keys.onEnterPressed:  { _activate(); event.accepted = true }
-            Keys.onSpacePressed:  { _activate(); event.accepted = true }
+            Keys.onReturnPressed: function(event) { _activate(); event.accepted = true }
+            Keys.onEnterPressed:  function(event) { _activate(); event.accepted = true }
+            Keys.onSpacePressed:  function(event) { _activate(); event.accepted = true }
 
             delegate: Item {
                 width: grid.cellWidth
@@ -79,6 +79,7 @@ Popup {
                 readonly property bool _danger:   modelData.danger === true
                 readonly property bool _disabled: modelData.disabled === true
                 readonly property bool _hasImg:   modelData.iconSource !== undefined && modelData.iconSource !== ""
+                readonly property bool _winMark:  modelData.winMark === true
 
                 Rectangle {
                     anchors.fill: parent
@@ -117,9 +118,27 @@ Popup {
                             }
                             Label {
                                 anchors.centerIn: parent
-                                visible: !_hasImg
+                                visible: !_hasImg && !_winMark
                                 text: modelData.icon || ""
-                                font.pixelSize: dlg._px(30)
+                                font.pixelSize: dlg._px(Theme.fontH1)
+                            }
+                            // The Windows mark, drawn — the same four squares and colours as the
+                            // Power dialog's (PowerDialog.WinMark), at tile size: 2×12 + 2 = 26 px,
+                            // the footprint of the emoji glyphs beside it. Grid fills row by row:
+                            // top left, top right, bottom left, bottom right.
+                            Grid {
+                                anchors.centerIn: parent
+                                visible: _winMark
+                                columns: 2
+                                spacing: dlg._px(2)
+                                Repeater {
+                                    model: ["#6CD2FE", "#4ACFFF", "#38C0FF", "#20AEFF"]
+                                    Rectangle {
+                                        required property string modelData
+                                        width: dlg._px(12); height: dlg._px(12)
+                                        color: modelData
+                                    }
+                                }
                             }
                         }
                         Label {
@@ -127,7 +146,7 @@ Popup {
                             width: grid.cellWidth - dlg._px(28)
                             text: modelData.label
                             color: (_danger && _sel) ? Qt.lighter(Theme.danger, 1.25) : Theme.text
-                            font.family: Theme.family; font.pixelSize: dlg._px(14); font.bold: _sel
+                            font.family: Theme.family; font.pixelSize: dlg._px(Theme.fontSmall); font.bold: _sel
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
                         }
@@ -141,7 +160,7 @@ Popup {
                             visible: _disabled && text.length > 0
                             text: modelData.reason || ""
                             color: Theme.text3
-                            font.family: Theme.family; font.pixelSize: dlg._px(11)
+                            font.family: Theme.family; font.pixelSize: dlg._px(Theme.fontCaption)
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
                         }

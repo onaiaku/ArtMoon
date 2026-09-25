@@ -4,7 +4,6 @@
 #include "nvhttp.h"
 #include "nvpairingmanager.h"
 #include "../settings/appsettings.h"
-#include "../settings/appliststate.h"
 #include "../settings/playtime.h"
 
 #include <Limelight.h>
@@ -706,7 +705,6 @@ public:
         if (!orphanedUuid.isEmpty()) {
             HostProfileManager::get()->forgetHost(orphanedUuid);
             AppSettingsManager::get()->forgetHost(orphanedUuid);
-            AppListStateManager::get()->forgetHost(orphanedUuid);
             // Play time is keyed by uuid like the two above, so deleting a host takes its
             // hours with it. The guard that matters is the same one: orphanedUuid is only
             // set once nothing refers to the uuid any more, so removing a Tailscale clone

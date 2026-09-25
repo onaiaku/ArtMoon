@@ -412,6 +412,17 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
                 // Key_F13 is inert and only our explicit handler consumes it.
                 sendKey(type, Qt::Key_F13);
                 break;
+            case SDL_CONTROLLER_BUTTON_START:
+                // Start / Menu / Options / + (6.0.0): pins the selected game on the host page.
+                // Inert key for the same reason as Select's F13 — nothing in Qt acts on it, so
+                // only the page's own handler does. Start still does NOT open Settings (see Y).
+                sendKey(type, Qt::Key_F18);
+                break;
+            case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+                // Right stick click (6.1.0): moves the selected entry between GAMES and APPS on
+                // the host page. Inert key, same reason as F13 and F18.
+                sendKey(type, Qt::Key_F19);
+                break;
             default:
                 break;
             }

@@ -65,6 +65,7 @@
 #include "gui/sdlgamepadkeynavigation.h"
 #include "XboxTileArtwork.h"
 #include "TailscaleManager.h"
+#include "windowsvblankvirtualization.h"
 
 #if defined(Q_OS_WIN32)
 #define IS_UNSPECIFIED_HANDLE(x) ((x) == INVALID_HANDLE_VALUE || (x) == NULL)
@@ -681,7 +682,12 @@ int main(int argc, char *argv[])
         (decltype(DXGIDisableVBlankVirtualization)*)GetProcAddress(GetModuleHandleW(L"dxgi.dll"),
                                                                    "DXGIDisableVBlankVirtualization");
     if (fnDXGIDisableVBlankVirtualization) {
-        fnDXGIDisableVBlankVirtualization();
+        const HRESULT result = fnDXGIDisableVBlankVirtualization();
+        WindowsVblankVirtualization::recordResult(
+            static_cast<int64_t>(result));
+    }
+    else {
+        WindowsVblankVirtualization::recordUnavailable();
     }
 #endif
 
@@ -748,9 +754,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-#ifdef STEAM_LINK
+#if defined(STEAM_LINK) || defined(Q_OS_WIN32)
     // Steam Link requires that we initialize video before creating our
     // QGuiApplication in order to configure the framebuffer correctly.
+    //
+    // We keep the video subsystem initialized on Windows because it's
+    // much more costly to reinitialize than other platforms. It hurts
+    // the settings page transition performance significantly.
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "SDL_InitSubSystem(SDL_INIT_VIDEO) failed: %s",
@@ -785,10 +795,6 @@ int main(int argc, char *argv[])
     // for screensaver inhibitor reporting.
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_APP_NAME, "Moonlight");
     SDL_SetHint(SDL_HINT_APP_NAME, "Moonlight");
-
-    // We handle capturing the mouse ourselves when it leaves the window, so we don't need
-    // SDL doing it for us behind our backs.
-    SDL_SetHint(SDL_HINT_MOUSE_AUTO_CAPTURE, "0");
 
     // SDL will try to lock the mouse cursor on Wayland if it's not visible in order to
     // support applications that assume they can warp the cursor (which isn't possible
@@ -838,6 +844,10 @@ int main(int argc, char *argv[])
 #endif
 
     QGuiApplication app(argc, argv);
+
+    // The shared clipboard sends, at the start of a stream, only what was copied since the
+    // last one — and before the first, since now (§79.6).
+    ClipboardSync::captureBaseline();
 
 #ifdef Q_OS_UNIX
     // Register signal handlers to arbitrate between SDL and Qt.

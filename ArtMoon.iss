@@ -6,6 +6,10 @@
 #define AppPublisher "onaiaku"
 #define AppURL "https://github.com/onaiaku/ArtMoon"
 #define AppExeName "ArtMoon.exe"
+; ⚠️ The second place the version is written, and the only one kept by hand: the exe
+; takes it from app\version.txt through app.pro (VERSION and VERSION_STR), the installer
+; does not. Bump both, or the setup ships as the previous version and names its own
+; file ArtMoon_<old>_Installer, with nothing to notice it by.
 #define SourceDir "build\deploy-x64-release"
 
 [Setup]
@@ -106,6 +110,10 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Filename: "{app}\{#AppExeName}"; Parameters: "--register-xbox-tile"; \
     Tasks: xboxtile; \
     Flags: runhidden waituntilterminated runasoriginaluser
+; This entry is also how the in-app update (app/backend/appupdate.cpp) reopens the app: the
+; update runs this setup visibly, with no switches, so its last page carries this box. There
+; used to be a second, silent-only entry gated on a /SELFUPDATE switch; it went when the update
+; stopped running Setup /VERYSILENT (14/09/2026).
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; \
     Flags: nowait postinstall skipifsilent
 
@@ -266,8 +274,9 @@ begin
     '•  Live host metrics (GPU, encoder, VRAM, temperature, CPU, network)' + #13#10 +
     '•  Session quality grading, and the host''s last session on your Home' + #13#10 +
     '•  Wake the host and sign in with its PIN, from the sofa, on the pad' + #13#10 +
-    '•  Remote host power-off and Windows Update' + #13#10 +
-    '•  Live bitrate shown against your configured target';
+    '•  Live bitrate shown against your configured target on the host dashboard' + #13#10 +
+    '•  Remote host sleep, restart, power-off and Windows Update' + #13#10 +
+    '•  Tailscale presence for remote streaming over the internet';
 
   ArtLightOutroLabel := TNewStaticText.Create(ArtLightPage);
   ArtLightOutroLabel.Parent := ArtLightPage.Surface;
