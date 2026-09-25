@@ -419,25 +419,6 @@ FocusScope {
         }
     }
 
-    // Manual frame-rate entry — the twin of the above, opened by the "Custom" pill on the
-    // Frame rate row. New in 5.5.0: until then the strip was a closed list and a value
-    // outside it could only arrive from the settings store we used to share with Moonlight.
-    CustomFrameRateDialog {
-        id: customFpsDialog
-        onAccepted: function(fps) {
-            if (StreamingPreferences.fps !== fps) {
-                StreamingPreferences.fps = fps
-                if (StreamingPreferences.autoAdjustBitrate) {
-                    StreamingPreferences.bitrateKbps = StreamingPreferences.getDefaultBitrate(
-                        StreamingPreferences.width, StreamingPreferences.height,
-                        fps, StreamingPreferences.enableYUV444)
-                    bitrateSlider.value = StreamingPreferences.bitrateKbps
-                }
-                StreamingPreferences.save()
-            }
-        }
-    }
-
     Item {
         id: header
         anchors.top: parent.top

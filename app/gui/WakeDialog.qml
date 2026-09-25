@@ -116,43 +116,6 @@ Popup {
                                     availableWidth - _glyphW - _timeW - 2 * _gap))
     }
 
-    /*
-     * ── Column widths for the centred block ──────────────────────────────────
-     *
-     * The steps are centred as a block, and a block only has a width if its rows agree on
-     * one. Every row is glyph · label · time with the label and time columns sized to the
-     * widest thing they will ever hold, so the ticks line up down one edge and the times down
-     * the other — the two things a centred-per-row layout used to break.
-     *
-     * The time column is sized for "8:88.8", not for the current figure: sized to the figure,
-     * the whole block would re-centre and shift sideways every tenth of a second.
-     *
-     * The `.height` reads are there only to make these bindings depend on the font: the
-     * method calls alone are not tracked, and a scale change would leave stale widths.
-     */
-    readonly property FontMetrics _bodyFm: FontMetrics {
-        font.family: Theme.family
-        font.pixelSize: dialog._px(Theme.fontBody)
-    }
-    readonly property FontMetrics _smallFm: FontMetrics {
-        font.family: Theme.family
-        font.pixelSize: dialog._px(Theme.fontSmall)
-    }
-    readonly property real _glyphW: _px(26)
-    readonly property real _gap: _px(10)
-    readonly property real _timeW: _smallFm.height >= 0
-                                   ? Math.ceil(_smallFm.advanceWidth("8:88.8")) + _px(2) : 0
-    readonly property real _labelW: {
-        var w = 0
-        if (_bodyFm.height >= 0) {
-            for (var i = 0; i < _steps.length; i++)
-                w = Math.max(w, _bodyFm.advanceWidth(_steps[i]))
-        }
-        // Never wider than the dialog leaves room for: past that the label elides instead.
-        return Math.max(0, Math.min(Math.ceil(w) + _px(2),
-                                    availableWidth - _glyphW - _timeW - 2 * _gap))
-    }
-
     modal: true
     focus: true
     closePolicy: Popup.NoAutoClose
