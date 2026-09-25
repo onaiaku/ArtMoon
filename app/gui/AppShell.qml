@@ -307,8 +307,8 @@ FocusScope {
         if (currentPage === 0 && homeLoader.item) {
             if (homeLoader.item.clearTailscalePreferences)
                 homeLoader.item.clearTailscalePreferences()
-            if (homeLoader.item.refreshLastSession)
-                homeLoader.item.refreshLastSession()
+            if (homeLoader.item.refreshLastPlayed)
+                homeLoader.item.refreshLastPlayed()
             if (cameFromApps && homeLoader.item.maybeAskLinkRestore)
                 homeLoader.item.maybeAskLinkRestore()
         }
