@@ -24,7 +24,7 @@ class QSaveFile;
  * <ul>
  * <li>Windows only. ArtMoon's Linux branch (a terminal running install.sh) is gone.</li>
  * <li>The asset is matched by pattern, not by a literal name: ours carries the version
- *     (StreamLight_5.8.0_Installer.exe, OutputBaseFilename in StreamLight.iss), and the version in
+ *     (ArtMoon_1.4.0_Installer.exe, OutputBaseFilename in ArtMoon.iss), and the version in
  *     the name must be the tag's own.</li>
  * <li>The download is checked against the SHA-256 GitHub publishes for the asset, and refused
  *     when GitHub publishes none — then checked again just before it runs. The file runs
@@ -46,7 +46,7 @@ class QSaveFile;
  *     quit on every error, which from the user's side is the app disappearing.</li>
  * <li>Streamed to disk with progress, rather than read whole into memory, with a stall watchdog
  *     of our own (see the note on m_StallWatch).</li>
- * <li>The StreamTweak tag, which the About and StreamTweak tabs also show, is looked up here too:
+ * <li>The ArtLight tag, which the About and ArtLight tabs also show, is looked up here too:
  *     the QML used to do both lookups with its own XMLHttpRequest, and two copies of the same
  *     request would have been the result of leaving it there.</li>
  * <li>A startup prompt (AppShell, UpdatePromptDialog) offers a newer release once per launch,
@@ -70,8 +70,8 @@ public:
     Q_ENUM(State)
 
     /** Latest release tags as GitHub reports them ("v5.8.0"); empty until known. */
-    Q_PROPERTY(QString latestStreamLight READ latestStreamLight NOTIFY latestChanged)
-    Q_PROPERTY(QString latestStreamTweak READ latestStreamTweak NOTIFY latestChanged)
+    Q_PROPERTY(QString latestArtMoon READ latestArtMoon NOTIFY latestChanged)
+    Q_PROPERTY(QString latestArtLight READ latestArtLight NOTIFY latestChanged)
 
     /** The latest StreamLight release is newer than this build. False while unknown. */
     Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY latestChanged)
@@ -96,8 +96,8 @@ public:
     explicit AppUpdate(QObject* parent = nullptr);
     ~AppUpdate() override;
 
-    QString latestStreamLight() const { return m_LatestStreamLight; }
-    QString latestStreamTweak() const { return m_LatestStreamTweak; }
+    QString latestArtMoon() const { return m_LatestArtMoon; }
+    QString latestArtLight() const { return m_LatestArtLight; }
     bool updateAvailable() const;
     State state() const { return m_State; }
     int progress() const { return m_Progress; }
@@ -105,7 +105,7 @@ public:
     bool installBlocked() const { return m_InstallBlocked; }
     void setInstallBlocked(bool blocked);
 
-    /** Looks up the latest StreamLight and StreamTweak releases. Ignored mid-update. */
+    /** Looks up the latest ArtMoon and ArtLight releases. Ignored mid-update. */
     Q_INVOKABLE void checkLatest();
 
     /**
@@ -155,8 +155,8 @@ private:
     bool holdsDownload() const { return m_State == Downloading || m_State == Ready || m_State == Launching; }
 
     QNetworkReply* getJson(const QString& repo);
-    void handleStreamLight(QNetworkReply* reply);
-    void handleStreamTweak(QNetworkReply* reply);
+    void handleArtMoon(QNetworkReply* reply);
+    void handleArtLight(QNetworkReply* reply);
     void startDownload();
     void handleDownloadData();
     void handleDownloadFinished();
@@ -166,8 +166,8 @@ private:
     void fail(const QString& reason);
 
     QNetworkAccessManager* m_Nam;
-    QString m_LatestStreamLight;
-    QString m_LatestStreamTweak;
+    QString m_LatestArtMoon;
+    QString m_LatestArtLight;
     Asset m_Asset;
     bool m_HasAsset = false;
 

@@ -660,7 +660,7 @@ FocusScope {
         // still offer it this launch.
         if (typeof stackView !== "undefined" && stackView.depth > 1) return
         _updatePrompted = true
-        updatePrompt.latestVersion = AppUpdate.latestStreamLight
+        updatePrompt.latestVersion = AppUpdate.latestArtMoon
         updatePrompt.open()
     }
 

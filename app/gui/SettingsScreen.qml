@@ -191,8 +191,8 @@ FocusScope {
     // Latest-release tags, looked up once per Settings open. The lookup lives in AppUpdate
     // (backend/appupdate.h), not here: the self-update needs the installer asset out of the
     // same StreamLight response, and a QML copy of the request beside it would be two.
-    readonly property string artMoonLatest: AppUpdate.latestStreamLight
-    readonly property string artLightLatest: AppUpdate.latestStreamTweak
+    readonly property string artMoonLatest: AppUpdate.latestArtMoon
+    readonly property string artLightLatest: AppUpdate.latestArtLight
 
     function resetBitrateToDefault() {
         if (!bitrateSlider) return

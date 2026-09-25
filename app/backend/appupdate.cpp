@@ -23,7 +23,7 @@
 
 namespace {
 
-const char* const Owner = "FoggyBytes";
+const char* const Owner = "onaiaku";
 
 // "Don't remind me" in the startup prompt: the tag it was ticked for.
 const char* const SkippedVersionKey = "appupdate/skippedversion";
@@ -38,12 +38,12 @@ constexpr int StallTimeoutMs = 30000;
 constexpr int StallTickMs = 5000;
 constexpr int LateTickMs = 2 * StallTickMs;
 
-// OutputBaseFilename=StreamLight_{#AppVersion}_Installer in StreamLight.iss. Anchored at both
+// OutputBaseFilename=ArtMoon_{#AppVersion}_Installer in ArtMoon.iss. Anchored at both
 // ends: a ".exe.sig" or a "_Installer_debug.exe" must not qualify.
 const QRegularExpression& installerPattern()
 {
     static const QRegularExpression re(
-        QStringLiteral("^StreamLight_(\\d+(?:\\.\\d+){1,3})_Installer\\.exe$"),
+        QStringLiteral("^ArtMoon_(\\d+(?:\\.\\d+){1,3})_Installer\\.exe$"),
         QRegularExpression::CaseInsensitiveOption);
     return re;
 }
@@ -143,7 +143,7 @@ QString AppUpdate::installedVersion()
 QString AppUpdate::downloadDir()
 {
     return QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-            .filePath(QStringLiteral("StreamLight-update"));
+            .filePath(QStringLiteral("ArtMoon-update"));
 }
 
 void AppUpdate::clearDownloads()
@@ -155,10 +155,10 @@ void AppUpdate::clearDownloads()
 
 bool AppUpdate::updateAvailable() const
 {
-    return !m_LatestStreamLight.isEmpty()
-            && !parseVersion(m_LatestStreamLight).isEmpty()
+    return !m_LatestArtMoon.isEmpty()
+            && !parseVersion(m_LatestArtMoon).isEmpty()
             && !parseVersion(installedVersion()).isEmpty()
-            && compareVersions(installedVersion(), m_LatestStreamLight) < 0;
+            && compareVersions(installedVersion(), m_LatestArtMoon) < 0;
 }
 
 bool AppUpdate::shouldPrompt() const
@@ -174,15 +174,15 @@ bool AppUpdate::shouldPrompt() const
         return true;
     }
     // Skipping one release also silences an older one, never a newer one.
-    return compareVersions(m_LatestStreamLight, skipped) > 0;
+    return compareVersions(m_LatestArtMoon, skipped) > 0;
 }
 
 void AppUpdate::skipLatestVersion()
 {
-    if (m_LatestStreamLight.isEmpty()) {
+    if (m_LatestArtMoon.isEmpty()) {
         return;
     }
-    QSettings().setValue(QLatin1String(SkippedVersionKey), m_LatestStreamLight);
+    QSettings().setValue(QLatin1String(SkippedVersionKey), m_LatestArtMoon);
 }
 
 void AppUpdate::setState(State state, const QString& failureReason)
@@ -209,7 +209,7 @@ QNetworkReply* AppUpdate::getJson(const QString& repo)
     // GitHub's API refuses requests without a User-Agent. Qt adds a generic one when none is
     // set; naming ourselves is what GitHub asks for.
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QStringLiteral("StreamLight/%1").arg(parseVersion(installedVersion()).isEmpty()
+                      QStringLiteral("ArtMoon/%1").arg(parseVersion(installedVersion()).isEmpty()
                                                            ? QStringLiteral("unknown")
                                                            : installedVersion().remove(QChar(0xFEFF)).trimmed()));
     request.setTransferTimeout(LookupTimeoutMs);
@@ -229,14 +229,14 @@ void AppUpdate::checkLatest()
 
     setState(Checking);
 
-    QNetworkReply* sl = getJson(QStringLiteral("StreamLight"));
-    connect(sl, &QNetworkReply::finished, this, [this, sl]() { handleStreamLight(sl); });
+    QNetworkReply* sl = getJson(QStringLiteral("ArtMoon"));
+    connect(sl, &QNetworkReply::finished, this, [this, sl]() { handleArtMoon(sl); });
 
-    QNetworkReply* st = getJson(QStringLiteral("StreamTweak"));
-    connect(st, &QNetworkReply::finished, this, [this, st]() { handleStreamTweak(st); });
+    QNetworkReply* st = getJson(QStringLiteral("ArtLight"));
+    connect(st, &QNetworkReply::finished, this, [this, st]() { handleArtLight(st); });
 }
 
-void AppUpdate::handleStreamTweak(QNetworkReply* reply)
+void AppUpdate::handleArtLight(QNetworkReply* reply)
 {
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
@@ -245,13 +245,13 @@ void AppUpdate::handleStreamTweak(QNetworkReply* reply)
 
     const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
     const QString tag = doc.object().value(QStringLiteral("tag_name")).toString();
-    if (!tag.isEmpty() && tag != m_LatestStreamTweak) {
-        m_LatestStreamTweak = tag;
+    if (!tag.isEmpty() && tag != m_LatestArtLight) {
+        m_LatestArtLight = tag;
         emit latestChanged();
     }
 }
 
-void AppUpdate::handleStreamLight(QNetworkReply* reply)
+void AppUpdate::handleArtMoon(QNetworkReply* reply)
 {
     reply->deleteLater();
 
@@ -311,7 +311,7 @@ void AppUpdate::handleStreamLight(QNetworkReply* reply)
     // ⚠️ Changed is emitted after the asset is known, not before: the startup prompt reacts to
     // this signal and asks shouldPrompt(), which needs m_HasAsset. The tag alone may not change
     // (a second lookup finding the same release), so the asset answer is signalled either way.
-    m_LatestStreamLight = tag;
+    m_LatestArtMoon = tag;
     emit latestChanged();
     if (ownsState) {
         setState(Idle);
@@ -349,7 +349,7 @@ void AppUpdate::updateNow()
         // Checking is NOT a reason to refuse. The button is on screen because an earlier lookup
         // found a newer release, and a press while Settings re-checks used to be dropped
         // without a word; the asset from that lookup is the one to use, and
-        // handleStreamLight() leaves it alone once the download has started.
+        // handleArtMoon() leaves it alone once the download has started.
         startDownload();
         return;
     }
@@ -400,7 +400,7 @@ void AppUpdate::startDownload()
     setState(Downloading);
 
     QNetworkRequest request{QUrl(m_Asset.url)};
-    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("StreamLight"));
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("ArtMoon"));
     m_Download = m_Nam->get(request);
 
     connect(m_Download, &QNetworkReply::readyRead, this, &AppUpdate::handleDownloadData);
