@@ -221,6 +221,10 @@ void SdlGamepadKeyNavigation::enable()
 
     updateControllerType();
 
+    // Prompts start on the pad's side when one is connected, instead of waiting for the first
+    // press to leave the keyboard ones. InputHints ignores this once real input has been seen.
+    InputHints::get()->seedFromConnectedPads(!m_Gamepads.isEmpty());
+
     m_Enabled = true;
 
     // Start the polling timer if the window is focused
@@ -464,6 +468,15 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
     for (auto gc : std::as_const(m_Gamepads)) {
         short leftX = SDL_GameControllerGetAxis(gc, SDL_CONTROLLER_AXIS_LEFTX);
         short leftY = SDL_GameControllerGetAxis(gc, SDL_CONTROLLER_AXIS_LEFTY);
+
+        // The stick navigates as much as the D-pad does, so it is pad input as much as a
+        // button is. Same threshold as the navigation below: resting drift must not count.
+        // Deliberately outside the repeat-delay gate — that gate is about how often a held
+        // direction repeats, and this is about which device the prompts should name.
+        if (qAbs(leftX) > 30000 || qAbs(leftY) > 30000) {
+            InputHints::get()->notePadInput();
+        }
+
         if (SDL_GetTicks() - m_LastAxisNavigationEventTime < AXIS_NAVIGATION_REPEAT_DELAY) {
             // Do nothing
         }
@@ -516,6 +529,7 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
 
         if (!m_LeftTriggerDown && leftTrigger > 20000) {
             m_LeftTriggerDown = true;
+            InputHints::get()->notePadInput();
             sendKey(QEvent::Type::KeyPress, Qt::Key_F14);
             sendKey(QEvent::Type::KeyRelease, Qt::Key_F14);
         }
@@ -525,6 +539,7 @@ void SdlGamepadKeyNavigation::onPollingTimerFired()
 
         if (!m_RightTriggerDown && rightTrigger > 20000) {
             m_RightTriggerDown = true;
+            InputHints::get()->notePadInput();
             sendKey(QEvent::Type::KeyPress, Qt::Key_F15);
             sendKey(QEvent::Type::KeyRelease, Qt::Key_F15);
         }
