@@ -1117,7 +1117,7 @@ FocusScope {
             font.pixelSize: appsRoot._px(13)
             font.letterSpacing: appsRoot._u * 1.6
             verticalAlignment: Text.AlignBottom
-            bottomPadding: appGrid._px(8)
+            bottomPadding: appsRoot._px(8)
         }
 
         delegate: NavigableItemDelegate {
