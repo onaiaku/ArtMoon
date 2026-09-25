@@ -2929,9 +2929,14 @@ void Session::exec()
         m_VideoDecoder->notifyWindowChanged(&windowChangeInfo);
     };
 
-    for (;;) {
+    // Seeded BEFORE the loop, not inside it. Inside, this would be reset to
+    // "now" on every iteration and the elapsed check below could never reach a
+    // second — the tick would compile, run, and never fire once. That is how
+    // this was broken already: the block was re-added after the port with the
+    // declaration one scope too deep.
     Uint32 lastTelemetryTickMs = SDL_GetTicks();
 
+    for (;;) {
         // The Qt event loop is suspended while we own this thread, so the
         // telemetry sampler's QTimer cannot fire during a stream. Drive one
         // sample+send tick per second from this loop instead. Time-based, not
