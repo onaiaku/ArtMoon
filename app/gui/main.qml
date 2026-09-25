@@ -459,9 +459,9 @@ ApplicationWindow {
         id: wow64Dialog
         headerText: qsTr("WRONG ARCHITECTURE")
         standardButtons: Dialog.Ok | Dialog.Cancel
-        text: qsTr("This version of ArtMoon isn't optimized for your PC. Please download the '%1' version of ArtMoon for the best streaming performance.").arg(SystemProperties.friendlyNativeArchName)
+        text: qsTr("This version of ArtMoon isn't optimized for this device. Please download the '%1' version of ArtMoon for the best streaming performance.").arg(SystemProperties.friendlyNativeArchName)
         onAccepted: {
-            Qt.openUrlExternally("https://github.com/moonlight-stream/moonlight-qt/releases");
+            Qt.openUrlExternally("https://github.com/onaiaku/ArtMoon/releases");
         }
     }
 

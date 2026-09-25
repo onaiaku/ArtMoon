@@ -2449,7 +2449,7 @@ FocusScope {
                             height: settingsScreen._rowHeight
 
                             Label {
-                                text: qsTr("Automatically discover PCs on local network")
+                                text: qsTr("Automatically discover hosts on the local network")
                                 font.family: Theme.family
                                 font.pixelSize: settingsScreen._px(Theme.fontBody)
                                 font.bold: true
