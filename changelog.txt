@@ -252,5 +252,5 @@ Sunshine / Apollo / Vibepollo / Vibeshine host without it.
   moonlight-common-c do the heavy lifting, and we leave them exactly
   as they are — our work lives in the interface around them
 
-• FoggyBytes, whose StreamTweak ArtMoon is built from. ArtMoon exists
+• FoggyBytes, whose StreamLight ArtMoon is built from. ArtMoon exists
   because they opened their work, and we're grateful for it
