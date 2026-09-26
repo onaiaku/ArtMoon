@@ -131,13 +131,11 @@ Changed:
   exact decoder build verified clean on the RTX 5060 mini PC at up to
   138 FPS in 4K 10-bit HDR.
 
-• The settings store is now named ArtMoon (previously FoggyBytes/
-  StreamLight — the fork's original working title, which still named the
-  config directory ~/.config/FoggyBytes/StreamLight.conf and the Windows
-  registry key Software\FoggyBytes\StreamLight). On first launch, 1.2.0
-  migrates every existing setting to the new store automatically —
-  nothing is lost, no re-pairing, no reset notice. The old store is left
-  untouched so a downgrade to 1.1.x still works.
+• The settings store is now named ArtMoon, in the config directory and
+  the Windows registry key alike. On first launch, 1.2.0 migrates every
+  existing setting to the new store automatically — nothing is lost, no
+  re-pairing, no reset notice. The old store is left untouched so a
+  downgrade to 1.1.x still works.
 
 --------------------------------------
 Version 1.1.0 (02/09/2026)
@@ -251,6 +249,3 @@ Sunshine / Apollo / Vibepollo / Vibeshine host without it.
   client is built on. FFmpeg, D3D11VA, DXVA2, libplacebo and
   moonlight-common-c do the heavy lifting, and we leave them exactly
   as they are — our work lives in the interface around them
-
-• FoggyBytes, whose StreamLight ArtMoon is built from. ArtMoon exists
-  because they opened their work, and we're grateful for it
