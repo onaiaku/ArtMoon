@@ -2184,8 +2184,7 @@ FocusScope {
                 text = qsTr("The test could not run — none of ArtMoon's test servers were reachable. Check this device's Internet connection and try again.")
                 imageSrc = "qrc:/res/baseline-warning-24px.svg"
             } else if (result === 0) {
-                text = qsTr("This network does not appear to be blocking ArtMoon. If connecting still fails, check the host's firewall.") + "\n\n" +
-                       qsTr("To stream over the Internet, run the Moonlight Internet Hosting Tool on the host and use its Internet Streaming Tester.")
+                text = qsTr("This network does not appear to be blocking ArtMoon. If connecting still fails, check the host's firewall.")
                 imageSrc = "qrc:/res/baseline-check_circle_outline-24px.svg"
             } else {
                 text = qsTr("This network is blocking ArtMoon. Streaming over the Internet may not work while you are on it.") + "\n\n" +
