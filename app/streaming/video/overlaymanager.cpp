@@ -197,6 +197,11 @@ bool OverlayManager::isOverlayEnabled(OverlayType type)
     return m_Overlays[type].enabled;
 }
 
+const char* OverlayManager::getOverlayText(OverlayType type)
+{
+    return m_Overlays[type].text;
+}
+
 void OverlayManager::updateOverlayText(OverlayType type, const char* text)
 {
     m_Overlays[type].isPanel = false;

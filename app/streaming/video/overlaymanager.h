@@ -68,6 +68,17 @@ public:
     ~OverlayManager();
 
     bool isOverlayEnabled(OverlayType type);
+
+    // The plain text of @p type's overlay, as last handed to updateOverlayText().
+    //
+    // Renderers that push a pre-rendered SDL_Surface through IOverlayRenderer
+    // never need this, but the AVSampleBufferDisplayLayer renderer on macOS
+    // builds its overlay out of a Cocoa text field and reads the string
+    // directly. 6.0.0's overlaymanager replaced this file and dropped the
+    // accessor along with the surface rework. It was never unused — only
+    // unbuilt, because macOS is not compiled on the Linux or Windows runners.
+    const char* getOverlayText(OverlayType type);
+
     void updateOverlayText(OverlayType type, const char* text);
     // Render a structured panel (rounded card, selectable rows, header + footer)
     // instead of a plain wrapped-text block. Used by the Stream Settings overlay.
