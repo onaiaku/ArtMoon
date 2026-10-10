@@ -44,18 +44,26 @@ struct PadDefault {
     int mask;
 };
 
-// Defaults deliberately avoid Select and Start: Steam's own overlay binds combos
-// on those, and a client shortcut that fights the overlay is one the user cannot
-// win. LB + RB + a face button clears them while still satisfying the "three
-// buttons, at least one system button" rule that keeps a combo from firing during
-// play (gamepadMaskIsSafe) — LB and RB both count as system buttons.
+// Defaults avoid face buttons. A combo that includes one is a combo the player sets off
+// by accident mid-game, and LB + RB + A proved exactly that: on a Steam Deck it ended a
+// session and left the app frozen at the picker on the next launch, recoverable only by
+// killing it. Start and Select together are not part of ordinary play, which is why they
+// are the conventional client quit combo.
 //
-// The trade is real and was made knowingly: LB + RB + A is easier to hit by
-// accident mid-game than the old Select + LB + RB + X. Rebindable in
-// Settings -> Shortcuts, and an existing custom binding is never touched — these
-// are only the values a fresh install starts from.
+// This file used to argue the opposite — that Steam's overlay binds combos on Select and
+// Start, and a client shortcut fighting the overlay "cannot win". Measured on a Steam Deck
+// in Game Mode, with Steam Input's virtual pad feeding the app: LB + RB + Start + Select
+// reaches ArtMoon and ends the session cleanly, four presses out of four, no overlay. The
+// old note was wrong. This is what replaced it, and the measurement is why. Scope of that
+// measurement: SteamOS in Game Mode. The Windows/mini-PC path has not been tried with this
+// combo yet.
+//
+// Every combo still has to satisfy "at least one system button" so it cannot fire during
+// ordinary play (gamepadMaskIsSafe) — Start, Select, LB and RB all count. Rebindable in
+// Settings -> Shortcuts, and an existing binding is never touched: these are only the
+// values a fresh install starts from.
 static const PadDefault s_PadDefaults[ShortcutManager::PAD_COUNT] = {
-    { "Quit session",              LB_FLAG | RB_FLAG | A_FLAG },
+    { "Quit session",              LB_FLAG | RB_FLAG | PLAY_FLAG | BACK_FLAG },
     { "Cycle performance overlay", LB_FLAG | RB_FLAG | X_FLAG },
     { "Open stream settings",      LB_FLAG | RB_FLAG | B_FLAG },
 };
