@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 1.9.1 (10/10/2026)**
+--------------------------------------
+
+The quit shortcut no longer sits under a face button.
+
+**Fixed — 1**
+
+**Input**
+- **The quit shortcut is now L1 + R1 + Start + Select by default.** It was L1 + R1 + A, and a face button is far more likely to be handed to you by a game than the two bumpers with Start and Select are — quitting a session mid-play is not something anyone means to do. Only fresh installs move; a binding you have set yourself is left exactly where you put it.
+
+--------------------------------------
 **Version 1.9.0 (09/10/2026)**
 --------------------------------------
 
