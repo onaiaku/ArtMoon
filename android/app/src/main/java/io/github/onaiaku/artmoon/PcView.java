@@ -1061,7 +1061,6 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         if (row == null) {
             return;
         }
-        row.removeAllViews();
 
         io.github.onaiaku.artmoon.ui.AmScale s =
                 io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
@@ -1086,6 +1085,38 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_pg_up_cap), 28f);
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_pg_dn_cap), 28f);
 
+        // ⚠️ REBUILD ONLY WHEN THE SET OF HOSTS CHANGES.
+        //
+        // This method used to removeAllViews() and re-inflate every tab on EVERY host update, and
+        // updateComputer() runs on the discovery cadence — it does not wait for anything to actually
+        // differ. So the whole strip was destroyed and re-made every few seconds, and the selected
+        // tab went without its pill for the frame in between: a flash on the selected host's title
+        // with nothing behind it on the screen to explain it. The same hosts in the same order are
+        // the same tabs; the label and the state dot are the only things under them that can move,
+        // and those are repainted in place below.
+        String signature = hostTabsSignature(hosts);
+        if (signature.equals(row.getTag(R.id.am_tab_label)) && row.getChildCount() == hosts + 1) {
+            for (int i = 0; i < hosts; i++) {
+                View tab = row.getChildAt(i);
+                ComputerObject co = pcGridAdapter.hostAt(i);
+                if (tab == null || co == null) {
+                    continue;
+                }
+                android.widget.TextView label = tab.findViewById(R.id.am_tab_label);
+                if (label != null) {
+                    label.setText(co.details.name.toUpperCase());
+                }
+                View dot = tab.findViewById(R.id.am_tab_dot);
+                if (dot != null) {
+                    dot.setBackgroundResource(stateDotFor(co));
+                }
+            }
+            updateTabSelection();
+            return;
+        }
+        row.setTag(R.id.am_tab_label, signature);
+        row.removeAllViews();
+
         for (int i = 0; i < hosts; i++) {
             final int index = i;
             ComputerObject co = pcGridAdapter.hostAt(i);
@@ -1103,18 +1134,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
             View dot = tab.findViewById(R.id.am_tab_dot);
             if (dot != null) {
-                int dotRes;
-                if (co.details.state == ComputerDetails.State.UNKNOWN) {
-                    dotRes = R.drawable.am_dot_auth;
-                } else if (co.details.state == ComputerDetails.State.ONLINE
-                        && co.details.pairState == PairState.PAIRED) {
-                    dotRes = R.drawable.am_dot_online;
-                } else if (co.details.state == ComputerDetails.State.ONLINE) {
-                    dotRes = R.drawable.am_dot_pairing;
-                } else {
-                    dotRes = R.drawable.am_dot_offline;
-                }
-                dot.setBackgroundResource(dotRes);
+                dot.setBackgroundResource(stateDotFor(co));
             }
 
             tab.setOnClickListener(new OnClickListener() {
@@ -1168,6 +1188,38 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         row.addView(add);
 
         updateTabSelection();
+    }
+
+    /**
+     * What the strip is showing right now: every host's uuid, in order.
+     *
+     * Held as a tag on the row rather than in a field so it cannot disagree with the views it
+     * describes. If the row carries no tag — a fresh activity, a rotation, a process restart — the
+     * signature never matches, the tabs are built once, and then they stay built for as long as the
+     * set of hosts holds.
+     */
+    private String hostTabsSignature(int hosts) {
+        StringBuilder sig = new StringBuilder();
+        for (int i = 0; i < hosts; i++) {
+            ComputerObject co = pcGridAdapter != null ? pcGridAdapter.hostAt(i) : null;
+            sig.append(co == null ? "?" : co.details.uuid).append('|');
+        }
+        return sig.toString();
+    }
+
+    /** A host's state dot: unknown / online+paired / online / offline (the desktop's tab strip). */
+    private static int stateDotFor(ComputerObject co) {
+        if (co.details.state == ComputerDetails.State.UNKNOWN) {
+            return R.drawable.am_dot_auth;
+        }
+        if (co.details.state == ComputerDetails.State.ONLINE
+                && co.details.pairState == PairState.PAIRED) {
+            return R.drawable.am_dot_online;
+        }
+        if (co.details.state == ComputerDetails.State.ONLINE) {
+            return R.drawable.am_dot_pairing;
+        }
+        return R.drawable.am_dot_offline;
     }
 
     /** Selected tab = the host the stage is currently showing. */
@@ -1590,11 +1642,17 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             InputModeManager.get().notifyKeyEvent(event);
         }
         boolean gamepad = InputModeManager.get().getMode() == InputModeManager.Mode.GAMEPAD;
-        // Swallow the ACTION_DOWN half of every owned key: if it reaches the
-        // framework it moves Android's hidden geometric focus, painting extra
-        // rings and drifting away from the owned model (two compasses).
-        if (gamepad && event.getAction() == KeyEvent.ACTION_DOWN
-                && event.getRepeatCount() == 0) {
+        // Swallow the ACTION_DOWN half of every owned key — INCLUDING its repeats.
+        //
+        // ⚠️ The repeats used to fall through: `getRepeatCount() == 0` guarded this whole block, so
+        // a HELD direction sent a stream of unowned events to the framework. Its geometric focus
+        // search then landed on the tab strip — clickable, and therefore focusable — lighting that
+        // tab for a frame until the next pad paint cleared it again, and the tab it lands on first
+        // is the selected one. That is the flash Nik saw on the selected host's title every time he
+        // moved the ring: not the tab being rebuilt, a ring the framework put on it that we took off
+        // again. Repeats buy nothing here — the ring moves on ACTION_UP — so none of them need to
+        // leave this method.
+        if (gamepad && event.getAction() == KeyEvent.ACTION_DOWN) {
             switch (event.getKeyCode()) {
                 case KeyEvent.KEYCODE_BUTTON_Y:
                 case KeyEvent.KEYCODE_BUTTON_B:
@@ -1626,12 +1684,14 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     activatePadAction();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_UP:
-                    // T-model: Up jumps to + Add a Host from Open/Options.
-                    movePadTo(2);
+                    // Nik's rule, kept: Up jumps to + Add a Host. By SLOT, not by a hard-coded
+                    // index — the ring grew the panel's Resume/Stop (padActionTargets), so "2" is
+                    // no longer Add a Host.
+                    movePadToAdd();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
-                    // Down only exits Add (back to Open); walls elsewhere.
-                    if (padActionIndex == 2) movePadTo(0);
+                    // Down only exits Add (back to Open); walls everywhere else on the card.
+                    if (isOnAddSlot()) movePadTo(0);
                     return true;
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
                     movePadAction(1);
@@ -1692,12 +1752,72 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                                 : findViewById(R.id.am_action_open);
         View options = row != null ? row.findViewById(R.id.am_action_options)
                                    : findViewById(R.id.am_action_options);
+        // The panel pair — Resume / Play again, with Stop under it (HostStage.qml:1876-1895).
+        // The desktop walks into them FROM the action row: Resume is one stop past its last button
+        // and Stop is the stop after that, because "geometrically the pair is to the right of them,
+        // which is what Right already means here" (HostStage.qml:1711-1716). Resolved off the same
+        // row the other two come from, so a rebind can never pair them with the wrong card.
+        View resume = row != null ? row.findViewById(R.id.am_panel_resume)
+                                  : findViewById(R.id.am_panel_resume);
+        View stop = row != null ? row.findViewById(R.id.am_panel_stop)
+                                : findViewById(R.id.am_panel_stop);
         View add = findViewById(R.id.manuallyAddPcText);
+
         java.util.List<View> targets = new java.util.ArrayList<>();
         if (open != null && open.getVisibility() == View.VISIBLE) targets.add(open);
         if (options != null && options.getVisibility() == View.VISIBLE) targets.add(options);
+        if (resume != null && shownInTree(resume)) targets.add(resume);
+        if (stop != null && shownInTree(stop)) targets.add(stop);
+        // Android's own extra stop, and it stays LAST. The strip's "+ Add a host" tab is the only
+        // way to add a host on a phone-sized screen, but it is not on the card's line, so Left and
+        // Right never reach it — Up does, which is Nik's rule.
         if (add != null && add.getVisibility() == View.VISIBLE) targets.add(add);
         return targets.toArray(new View[0]);
+    }
+
+    /**
+     * VISIBLE, and so is every view above it.
+     *
+     * ⚠️ The panel column is GONE until the block has something to show, and a GONE parent leaves
+     * its children's own visibility at VISIBLE — so a plain getVisibility() check would put an
+     * invisible Resume button in the ring and the pad would stop on a control nobody can see.
+     * getWindowVisibility() is the one-call version of this but answers GONE for a view that is
+     * simply not attached yet, which is exactly the moment the ring is seeded and retried.
+     */
+    private static boolean shownInTree(View v) {
+        for (View p = v; p != null; p = (p.getParent() instanceof View) ? (View) p.getParent() : null) {
+            if (p.getVisibility() != View.VISIBLE) return false;
+        }
+        return true;
+    }
+
+    /** The slot carrying the strip's "+ Add a host" tab, or -1 when there is none. */
+    private int padAddSlot() {
+        View[] t = padActionTargets();
+        if (t.length == 0) return -1;
+        return t[t.length - 1].getId() == R.id.manuallyAddPcText ? t.length - 1 : -1;
+    }
+
+    private boolean isOnAddSlot() {
+        int add = padAddSlot();
+        return add >= 0 && padActionIndex == add;
+    }
+
+    /** Up: jump to + Add a host wherever it currently sits in the ring. */
+    private void movePadToAdd() {
+        int add = padAddSlot();
+        if (add >= 0) movePadTo(add);
+    }
+
+    /**
+     * The last slot Left/Right may stand on: the card's own controls, never the strip's tab.
+     *
+     * Without it the walk runs off the card and onto "+ Add a host", which sits in a different row
+     * above — that is an Up move, and it is the only way in.
+     */
+    private int padLastCardSlot() {
+        int add = padAddSlot();
+        return (add < 0) ? padActionTargets().length - 1 : add - 1;
     }
 
     private final java.util.List<View> padPainted = new java.util.ArrayList<>();
@@ -1781,10 +1901,19 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         }
     }
 
-    /** Right/Left across Open / Options only (0..1), clamped, no wrap. */
+    /**
+     * Right/Left along the CARD's own line: Open, Options, then the panel's Resume and Stop.
+     *
+     * The end is read from the live ring rather than hard-coded, because Resume only exists once
+     * the block has something to show and Stop only exists while something is streaming — with
+     * neither, Right from Options simply walls, exactly as it does on the desktop, which clamps on
+     * _maxActionIndex (HostStage.qml:420-423) and never wraps.
+     */
     private void movePadAction(int delta) {
+        int last = padLastCardSlot();
+        if (last < 0) return;
         int next = padActionIndex + delta;
-        if (next > 1) next = 1;
+        if (next > last) next = last;
         if (next < 0) next = 0;
         movePadTo(next);
     }
