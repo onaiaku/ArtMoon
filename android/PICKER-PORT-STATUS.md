@@ -96,3 +96,44 @@ with my own eyes yet.
 
 §231 pad glyphs — the most visible **MINE**, every button on that page wearing a letter — then §111
 focus, then §446 notices, then §1095's action row. Nothing is called ported until you've marked it.
+
+---
+
+## 12 Oct 2026, 20:56 — the three things Nik found with the pad in his hand, and where each one is now
+
+He had the controller, walked the page himself, and reported three faults. All three were real.
+Everything below is measured off his Fold (density 2.625, screen 1972x1248), not read off the code.
+
+**1. The action pills were being sliced when the playtime line shows. — FIXED (`e6ef07b4`)**
+
+Not a button size. A space problem, in his words, and the numbers agree:
+
+| | stack needs | column has | pills drawn | keycaps |
+|---|---|---|---|---|
+| an entry **with** playtime | 892px | 853px | 40px (should be 79) | 63 x **32** — glyph stretched into a half-disc |
+| an entry **without** | 834px | 853px | 79px | 63 x **63** — correct |
+
+LinearLayout took the 39px shortfall out of its last child, the action row, and a compound
+drawable stretches to whatever box it is given — so both glyphs came out shaved top and bottom.
+`am_hero_cover` is weighted now, which is the desktop's own rule for it
+(`GameFacts.qml:147`), so the picture gives up the room and the buttons never can again.
+
+**2. Nothing on this page owned a pad button. — FIXED (`e6ef07b4`)**
+
+X did nothing at all (36 presses in one sitting, with the prompt two inches away promising it
+would stop the session); A worked only by accident, as Android's activation key on whatever held
+focus. Now: X stops the running session, A launches what the spotlight shows, B is back, Y is
+Settings, Select opens the per-game menu. The stray DEL this pad sends with every X press is
+swallowed with it. The d-pad is deliberately not owned — the list already walks it, and the
+spotlight follows (verified by moving the cursor with a d-pad keyevent and watching the hero change).
+
+**3. The spotlight's cover has never been filled. — FIXED (`e6ef07b4`)**
+
+`populateCover` lived on the old app grid's adapter and was deleted with the old screen. The rows
+kept their own call; the hero did not. The right-hand preview has therefore been the bare
+`am_detail_cover_bg` rectangle — the big blue box — since the old picker came out. The rows loading
+real artwork is what proves the host's side was never the problem. Called from `updateHero()` now.
+
+**Still open, and still his to mark:** whether the preview and the strip *look* right with the pad
+in his hand, and whether a game with no artwork on the host should keep the blue frame (it does
+today) or be hidden the way `PcGridAdapter` hides a source-less cover.
