@@ -685,6 +685,10 @@ public class NvHTTP {
                     app.setAppId(xpp.getText());
                 } else if (currentTag.peek().equals("IsHdrSupported")) {
                     app.setHdrSupported(xpp.getText().equals("1"));
+                } else if (currentTag.peek().equals("UUID")) {
+                    app.setUuid(xpp.getText());
+                } else if (currentTag.peek().equals("IsAppCollectorGame")) {
+                    app.setAppCollectorGame(xpp.getText().equals("1"));
                 }
                 break;
             }
@@ -696,6 +700,18 @@ public class NvHTTP {
             throw new XmlPullParserException("Malformed XML: Root tag was not terminated");
         }
         
+        // Vibeshine / Vibepollo 2.0 pad their control titles with leading spaces so they sort first
+        // in a client that alphabetises. We sort and group those ourselves, so all the padding does
+        // here is crop the label. Ordinary apps keep their name untouched: it is the key play time
+        // and the "last played" record are stored under. (Mirrors nvhttp.cpp::getAppList.)
+        for (NvApp app : appList) {
+            if (io.github.onaiaku.artmoon.apps.AppCategories.hostControlKind(
+                    app.getAppId(), app.getUuid(), app.getAppName())
+                    != io.github.onaiaku.artmoon.apps.AppCategories.HostControl.NONE) {
+                app.setAppName(app.getAppName().trim());
+            }
+        }
+
         // Ensure that all apps in the list are initialized
         ListIterator<NvApp> i = appList.listIterator();
         while (i.hasNext()) {
