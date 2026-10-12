@@ -47,6 +47,7 @@ import io.github.onaiaku.artmoon.nvstream.http.NvHTTP;
 import io.github.onaiaku.artmoon.preferences.PreferenceConfiguration;
 import io.github.onaiaku.artmoon.preferences.StreamSettings;
 import io.github.onaiaku.artmoon.settings.PlaytimeManager;
+import io.github.onaiaku.artmoon.utils.CacheHelper;
 import io.github.onaiaku.artmoon.utils.ServerHelper;
 import io.github.onaiaku.artmoon.utils.UiHelper;
 
@@ -79,6 +80,10 @@ public class AppsPageView extends ArtMoonActivity {
 
     private boolean inForeground;
     private boolean showHiddenApps;
+
+    /** The host's last polled state. Never assumed: the chip tells the truth or says nothing. */
+    private boolean hostStateKnown = false;
+    private boolean hostOnline = false;
 
     private final static int START_OR_RESUME_ID = 1;
     private final static int QUIT_ID = 2;
@@ -124,6 +129,23 @@ public class AppsPageView extends ArtMoonActivity {
                     adapter = new AppsRowAdapter(AppsPageView.this, computer, localBinder.getUniqueId());
 
                     managerBinder = localBinder;
+
+                    // ⚠️ The last list this host gave us is held on this machine, and it is worth
+                    // more than a live fetch when the live fetch cannot happen. AppView reads the
+                    // same cache file on the way in (populateAppGridWithCache); without it the page
+                    // is blank on any network the host is not reachable from — which is exactly the
+                    // case the cache exists for.
+                    if (computer.rawAppList == null || computer.rawAppList.isEmpty()) {
+                        try {
+                            String cached = CacheHelper.readInputStreamToString(CacheHelper
+                                    .openCacheFileForInput(getCacheDir(), "applist", uuidString));
+                            if (cached != null && !cached.isEmpty()) {
+                                computer.rawAppList = cached;
+                            }
+                        } catch (IOException e) {
+                            // Nothing cached for this host yet: the live fetch is the only way.
+                        }
+                    }
 
                     // The page is filled from the cache first so it is never empty on the way in,
                     // then from the host's own answer.
@@ -279,11 +301,19 @@ public class AppsPageView extends ArtMoonActivity {
      */
     private void paintChips() {
         TextView online = (TextView) findViewById(R.id.am_chip_online);
-        // The dot is drawn inside the pill, not beside it — the desktop's badge carries the same
-        // dot (AppsScreen.qml's chip row), and it is the only green on the screen.
-        online.setCompoundDrawablesWithIntrinsicBounds(R.drawable.am_dot_online, 0, 0, 0);
-        online.setCompoundDrawablePadding((int) (6 * getResources().getDisplayMetrics().density));
-        online.setVisibility(View.VISIBLE);
+        // ⚠️ It says Online only once the host has said so. The pill was painted green before a
+        // single poll had landed, so it claimed a connection nobody had checked — on the one screen
+        // that goes blank when the host cannot be reached. Offline is the same pill without the dot.
+        if (!hostStateKnown) {
+            // No verdict yet: a missing chip beats a green one that means nothing.
+            online.setVisibility(View.GONE);
+        } else {
+            online.setText(hostOnline ? "Online" : "Offline");
+            online.setCompoundDrawablesWithIntrinsicBounds(
+                    hostOnline ? R.drawable.am_dot_online : 0, 0, 0, 0);
+            online.setCompoundDrawablePadding((int) (6 * getResources().getDisplayMetrics().density));
+            online.setVisibility(View.VISIBLE);
+        }
         findViewById(R.id.am_chip_profile).setVisibility(View.GONE);
         findViewById(R.id.am_chip_tailscale).setVisibility(View.GONE);
         findViewById(R.id.am_chip_link).setVisibility(View.GONE);
@@ -633,8 +663,32 @@ public class AppsPageView extends ArtMoonActivity {
         }
     }
 
+    /** The host's own state, for the chip and for the words the empty state uses. */
+    private void setHostOnline(final boolean online) {
+        if (hostStateKnown && hostOnline == online) {
+            return;
+        }
+        hostStateKnown = true;
+        hostOnline = online;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing()) {
+                    return;
+                }
+                paintChips();
+            }
+        });
+    }
+
     /** Three different strings by tab, as the desktop has them. */
     private String emptyText() {
+        if (hostStateKnown && !hostOnline) {
+            // Not the host's hidden list — the host is not answering from this network at all, and
+            // saying otherwise would blame the wrong thing.
+            return "Can't reach " + (computer != null ? computer.name : "the host")
+                    + " from this network";
+        }
         if (AppLibrary.CAT_GAMES.equals(category)) {
             return "No games to show — some may be hidden on the host";
         }
@@ -766,13 +820,20 @@ public class AppsPageView extends ArtMoonActivity {
                 if (!details.uuid.equalsIgnoreCase(uuidString)) {
                     return;
                 }
-                if (details.state == ComputerDetails.State.OFFLINE) {
+                // ⚠️ A host that cannot be reached from here is not a reason to close the page —
+                // it is the everyday state of a phone. The old screen finished itself on OFFLINE,
+                // which would make the picker the one screen that dies whenever Nik is away from
+                // home. The desktop keeps the page and says so: the chip goes Offline, the cached
+                // library is still there, and nothing is thrown away.
+                setHostOnline(details.state == ComputerDetails.State.ONLINE);
+                if (details.state != ComputerDetails.State.ONLINE) {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(AppsPageView.this, getResources().getText(
-                                    R.string.lost_connection), Toast.LENGTH_SHORT).show();
-                            finish();
+                            if (isFinishing()) {
+                                return;
+                            }
+                            fillPage();
                         }
                     });
                     return;
