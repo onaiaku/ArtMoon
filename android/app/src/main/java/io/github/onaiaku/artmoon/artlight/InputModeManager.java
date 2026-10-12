@@ -29,7 +29,15 @@ public final class InputModeManager {
     public enum Mode { TOUCH, GAMEPAD, KEYBOARD }
 
     public interface PromptRefreshListener {
-        /** Called when the input mode changed; re-render this screen's prompts. */
+        /**
+         * Called when anything that decides how a prompt is DRAWN changed: the
+         * input mode, or the vendor set behind the pad glyphs. Re-render this
+         * screen's prompts.
+         *
+         * A pad swap is a prompt change even though the mode itself never moved
+         * (gamepad -> gamepad), so this fires for both. That is why the callback
+         * is named for the refresh rather than for the mode.
+         */
         void onInputModeChanged(Mode newMode);
     }
 
@@ -43,10 +51,33 @@ public final class InputModeManager {
     }
 
     private Mode mode = Mode.TOUCH; // touch is the Android default
+    private String glyphSet = PadGlyphs.UNKNOWN; // Xbox art until a pad says otherwise
     private final List<PromptRefreshListener> listeners = new ArrayList<>();
 
     public Mode getMode() {
         return mode;
+    }
+
+    /**
+     * Which vendor's glyph art prompts should draw, resolved from the pad that is
+     * actually being used: a PlayStation pad gets crosses and shapes, a Switch pad
+     * gets its swapped buttons. Defaults to Xbox art, which is what the desktop
+     * draws when it does not know either.
+     */
+    public String getGlyphSet() {
+        return glyphSet;
+    }
+
+    private void setGlyphSet(String newSet) {
+        if (newSet == null || newSet.equals(glyphSet)) {
+            return;
+        }
+        glyphSet = newSet;
+        LimeLog.info("InputModeManager: glyph set -> " + newSet);
+        // Copy: listeners may remove themselves during iteration
+        for (PromptRefreshListener l : new ArrayList<>(listeners)) {
+            l.onInputModeChanged(mode);
+        }
     }
 
     public void addListener(PromptRefreshListener l) {
@@ -102,6 +133,16 @@ public final class InputModeManager {
                 || (src & InputDevice.SOURCE_DPAD) != 0;
         Mode oldMode = mode;
         if (isGamepad || isDpad || srcGamepad) {
+            // Vendor first, so the glyphs are right on the same frame the mode
+            // flips — a pad press that draws Xbox art over a Nintendo layout is
+            // worse than no glyph at all.
+            //
+            // Only when the device record survived: same reasoning as the mode
+            // below. A missing record must not silently reset a known PlayStation
+            // pad back to Xbox art.
+            if (dev != null) {
+                setGlyphSet(PadGlyphs.setForDevice(dev));
+            }
             setMode(Mode.GAMEPAD);
         } else if (event.getSource() != InputDevice.SOURCE_UNKNOWN) {
             setMode(Mode.KEYBOARD);

@@ -39,6 +39,8 @@ public final class PromptBar {
     // Resting state per action, restored when leaving gamepad mode
     private final Map<String, android.graphics.drawable.Drawable> origKeycapBg = new LinkedHashMap<>();
     private final Map<String, Integer> origKeycapColor = new LinkedHashMap<>();
+    private final Map<String, int[]> origKeycapPad = new LinkedHashMap<>();
+    private final Map<String, Integer> origKeycapGravity = new LinkedHashMap<>();
     private final Activity activity;
     private boolean registered = false;
 
@@ -60,6 +62,13 @@ public final class PromptBar {
         if (keycap != null && !origKeycapBg.containsKey(action)) {
             origKeycapBg.put(action, keycap.getBackground());
             origKeycapColor.put(action, keycap.getCurrentTextColor());
+            // A glyph replaces the keycap's TEXT, and the resting chip is sized by
+            // that text plus its padding. Saving the background alone would put a
+            // glyph back on a chip that still had no room around the letter.
+            origKeycapPad.put(action, new int[] {
+                    keycap.getPaddingLeft(), keycap.getPaddingTop(),
+                    keycap.getPaddingRight(), keycap.getPaddingBottom() });
+            origKeycapGravity.put(action, keycap.getGravity());
         }
         pills.put(action, new Pill(keycap, label, action));
     }
@@ -89,7 +98,6 @@ public final class PromptBar {
         }
         for (Pill p : pills.values()) {
             boolean gamepad = mode == InputModeManager.Mode.GAMEPAD;
-            boolean keyboard = mode == InputModeManager.Mode.KEYBOARD;
 
             if (p.label != null) {
                 // Label always shows the real name — restore the string
@@ -105,51 +113,78 @@ public final class PromptBar {
                 p.keycap.setVisibility(View.GONE);
             } else {
                 p.keycap.setVisibility(View.VISIBLE);
-                p.keycap.setText(textFor(mode, p.action));
                 if (gamepad) {
-                    // Coloured Xbox face button + dark lettering
-                    p.keycap.setBackgroundResource(gamepadBg(p.action));
-                    p.keycap.setTextColor(0xFF1A1D22);
+                    // The real vendor glyph: circle and symbol in one image, the
+                    // same art the desktop draws. It carries its own letter, so the
+                    // keycap shows the picture and no text at all.
+                    int glyph = PadGlyphs.drawableFor(
+                            InputModeManager.get().getGlyphSet(), buttonKeyFor(p.action));
+                    android.graphics.drawable.Drawable d = glyph != 0
+                            ? PadGlyphs.sized(activity.getResources(), glyph) : null;
+                    if (d != null) {
+                        p.keycap.setText("");
+                        p.keycap.setCompoundDrawables(d, null, null, null);
+                        p.keycap.setGravity(android.view.Gravity.CENTER);
+                        p.keycap.setPadding(0, 0, 0, 0);
+                        p.keycap.setBackground(null);
+                    } else {
+                        // No glyph for this button: show the key letter rather than
+                        // leaving the prompt blank.
+                        restoreKeycap(p);
+                        p.keycap.setText(textFor(mode, p.action));
+                    }
                 } else { // keyboard
-                    android.graphics.drawable.Drawable bg = origKeycapBg.get(p.action);
-                    if (bg != null) {
-                        p.keycap.setBackground(bg);
-                    }
-                    Integer col = origKeycapColor.get(p.action);
-                    if (col != null) {
-                        p.keycap.setTextColor(col);
-                    }
+                    restoreKeycap(p);
+                    p.keycap.setText(textFor(mode, p.action));
                 }
             }
         }
     }
 
-    private static String textFor(InputModeManager.Mode mode, String action) {
-        if (mode == InputModeManager.Mode.GAMEPAD) {
-            return gamepadGlyph(action);
+    /** Undo everything gamepad mode did to a keycap, so text mode is untouched. */
+    private void restoreKeycap(Pill p) {
+        p.keycap.setCompoundDrawables(null, null, null, null);
+        android.graphics.drawable.Drawable bg = origKeycapBg.get(p.action);
+        if (bg != null) {
+            p.keycap.setBackground(bg);
         }
+        Integer col = origKeycapColor.get(p.action);
+        if (col != null) {
+            p.keycap.setTextColor(col);
+        }
+        int[] pad = origKeycapPad.get(p.action);
+        if (pad != null) {
+            p.keycap.setPadding(pad[0], pad[1], pad[2], pad[3]);
+        }
+        Integer grav = origKeycapGravity.get(p.action);
+        if (grav != null) {
+            p.keycap.setGravity(grav);
+        }
+    }
+
+    /**
+     * Gamepad mode draws a glyph, not text, so this is only reached when no glyph
+     * exists for the button — the key letter is the honest thing to show then.
+     */
+    private static String textFor(InputModeManager.Mode mode, String action) {
         return keyboardKey(action);
     }
 
-    private static int gamepadBg(String action) {
-        if ("settings".equals(action)) {
-            return io.github.onaiaku.artmoon.R.drawable.am_pad_y; // yellow Y
-        }
-        if ("shutdown".equals(action)) {
-            return io.github.onaiaku.artmoon.R.drawable.am_pad_power;
-        }
-        // exit / back / hosts → red B
-        return io.github.onaiaku.artmoon.R.drawable.am_pad_b;
-    }
-
-    private static String gamepadGlyph(String action) {
-        // Desktop mapping: Y = settings, B = back/exit, A = select,
-        // power gets the neutral pad.
+    /**
+     * The pad button a prompt names, from the desktop's own hint row
+     * (app/gui/AppShell.qml, _hintsHome): Power is X, Settings is Y, Exit is B.
+     * Anything unlisted selects with A.
+     *
+     * Android used to invent a "power paddle" here — a flat grey circle with an
+     * arrow typed on it — where the desktop has always put X. The keyboard
+     * letters (P / S / Esc) were already right, which is why they are untouched.
+     */
+    private static String buttonKeyFor(String action) {
         if ("settings".equals(action)) {
             return "Y";
         }
         if ("shutdown".equals(action)) {
-            return "⟳";
+            return "X";
         }
         if ("exit".equals(action) || "back".equals(action) || "hosts".equals(action)) {
             return "B";
