@@ -4,7 +4,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Per-game play time, kept by the client. Port of {@code app/settings/playtime.h} and
@@ -150,7 +154,10 @@ public final class PlaytimeManager {
         if (appName == null) {
             return "";
         }
-        return appName.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        // ⚠️ One spelling (nvapp.h:148, playtime.h:182): the record and the picker's sort have to
+        // agree about whether two names are the same game, or a pinned title and its play time end
+        // up filed under two keys.
+        return io.github.onaiaku.artmoon.apps.AppCategories.normaliseGameName(appName);
     }
 
     /**
@@ -383,6 +390,157 @@ public final class PlaytimeManager {
         }
 
         editor.apply();
+    }
+
+    // ── Pinned games (6.0.0) ────────────────────────────────────────────────────────────────────
+    /*
+     * The games pinned on this host, which the picker lists under PINNED, right after LAST PLAYED.
+     * They live here, beside the play time, because they are keyed exactly the same way and for the
+     * same reason: host uuid + the game's NAME, so a pin survives a reinstall and an apps.json
+     * rebuilt with new ids, and a Tailscale clone shares the pins of the LAN tile it came from.
+     *
+     * ⚠️ One value per host holding the names, not a group per game: pins are read whole on every
+     * sort, and one read beats walking every record to rebuild the list. It sits in the host node,
+     * so forgetHost() takes it along, and reset() — which clears one game's HOURS — does not.
+     */
+    private static final String SER_PINNED  = "pinned";
+
+    // Entries moved by hand to the other tab (6.1.0), one list per direction (playtime.cpp:33-35).
+    private static final String SER_ASAPPS  = "movedToApps";
+    private static final String SER_ASGAMES = "movedToGames";
+
+    // The picker's tab the user last chose on this host (6.3.0).
+    private static final String SER_LASTTAB = "lastTab";
+
+    /**
+     * Reads one of the name lists stored at the host level. Always a copy: SharedPreferences hands
+     * back the live set for a string set, and mutating it in place is a documented way to corrupt
+     * the store on the next write.
+     */
+    private static Set<String> readNameSet(SharedPreferences p, String key) {
+        Set<String> stored = p.getStringSet(key, null);
+        return stored == null ? new LinkedHashSet<String>() : new LinkedHashSet<String>(stored);
+    }
+
+    /** Names are compared the one way — see AppCategories.normaliseGameName(). */
+    private static String key(String appName) {
+        return io.github.onaiaku.artmoon.apps.AppCategories.normaliseGameName(appName);
+    }
+
+    private static void writeNameSet(SharedPreferences.Editor editor, String key, Set<String> names) {
+        // Empty means "nothing here", not "an empty list": the desktop removes the key so a later
+        // change to the automatic answer still reaches every entry the user never touched.
+        if (names.isEmpty()) {
+            editor.remove(key);
+        } else {
+            editor.putStringSet(key, names);
+        }
+    }
+
+    /** Normalised names — the form AppCategories.appSortOrder() looks them up in. */
+    public static Set<String> pinnedOn(Context context, String hostUuid) {
+        Set<String> out = new LinkedHashSet<String>();
+        if (hostUuid == null || hostUuid.isEmpty()) {
+            return out;
+        }
+        for (String name : readNameSet(prefs(context), hostGroup(hostUuid) + "/" + SER_PINNED)) {
+            out.add(key(name));
+        }
+        return out;
+    }
+
+    /**
+     * Pins or unpins one game. The readable spelling is what gets stored, so the list can be read
+     * by a human; lookups fold case through key() on both sides.
+     */
+    public static void setPinned(Context context, String hostUuid, String appName, boolean pinned) {
+        if (hostUuid == null || hostUuid.isEmpty() || appName == null || appName.isEmpty()) {
+            return;
+        }
+
+        final SharedPreferences p = prefs(context);
+        final String prefKey = hostGroup(hostUuid) + "/" + SER_PINNED;
+        final Set<String> names = readNameSet(p, prefKey);
+        final String want = key(appName);
+
+        // Out first, whatever spelling it went in under — unpinning "Hollow  Knight" has to remove
+        // a pin made as "hollow knight".
+        for (String existing : new java.util.ArrayList<String>(names)) {
+            if (key(existing).equals(want)) {
+                names.remove(existing);
+            }
+        }
+        if (pinned) {
+            names.add(appName);
+        }
+
+        final SharedPreferences.Editor editor = p.edit();
+        writeNameSet(editor, prefKey, names);
+        editor.apply();
+    }
+
+    /** Normalised name → true when the user put it under APPS, false when under GAMES. */
+    public static Map<String, Boolean> categoryOverridesOn(Context context, String hostUuid) {
+        Map<String, Boolean> out = new LinkedHashMap<String, Boolean>();
+        if (hostUuid == null || hostUuid.isEmpty()) {
+            return out;
+        }
+
+        final SharedPreferences p = prefs(context);
+        for (String name : readNameSet(p, hostGroup(hostUuid) + "/" + SER_ASGAMES)) {
+            out.put(key(name), Boolean.FALSE);
+        }
+        for (String name : readNameSet(p, hostGroup(hostUuid) + "/" + SER_ASAPPS)) {
+            out.put(key(name), Boolean.TRUE);
+        }
+        return out;
+    }
+
+    /**
+     * Moves one entry to the other tab, or back. {@code asApp} is where it goes; {@code automatic}
+     * is where it would land by itself — only a departure from that is stored, so a later change to
+     * the automatic split still reaches every entry the user never touched (playtime.cpp:318).
+     */
+    public static void setCategoryOverride(Context context, String hostUuid, String appName,
+                                           boolean asApp, boolean automatic) {
+        if (hostUuid == null || hostUuid.isEmpty() || appName == null || appName.isEmpty()) {
+            return;
+        }
+
+        final SharedPreferences p = prefs(context);
+        final SharedPreferences.Editor editor = p.edit();
+        final String want = key(appName);
+
+        for (String listKey : new String[] { SER_ASAPPS, SER_ASGAMES }) {
+            final String fullKey = hostGroup(hostUuid) + "/" + listKey;
+            final Set<String> names = readNameSet(p, fullKey);
+            for (String existing : new java.util.ArrayList<String>(names)) {
+                if (key(existing).equals(want)) {
+                    names.remove(existing);
+                }
+            }
+            if (asApp != automatic && listKey.equals(asApp ? SER_ASAPPS : SER_ASGAMES)) {
+                names.add(appName);
+            }
+            writeNameSet(editor, fullKey, names);
+        }
+        editor.apply();
+    }
+
+    /** "all", "games" or "apps"; empty when nothing was ever chosen on this host. */
+    public static String lastTabOn(Context context, String hostUuid) {
+        if (hostUuid == null || hostUuid.isEmpty()) {
+            return "";
+        }
+        return prefs(context).getString(hostGroup(hostUuid) + "/" + SER_LASTTAB, "");
+    }
+
+    /** Only a choice made by hand is written — the picker's own fallbacks never overwrite it. */
+    public static void setLastTab(Context context, String hostUuid, String tab) {
+        if (hostUuid == null || hostUuid.isEmpty() || tab == null || tab.isEmpty()) {
+            return;
+        }
+        prefs(context).edit().putString(hostGroup(hostUuid) + "/" + SER_LASTTAB, tab).apply();
     }
 
     /**
