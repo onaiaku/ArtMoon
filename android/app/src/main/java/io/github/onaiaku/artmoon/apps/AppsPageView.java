@@ -759,17 +759,25 @@ public class AppsPageView extends ArtMoonActivity {
         if (count == 0) {
             return;
         }
-        int current = grid.getSelectedItemPosition();
+        // ⚠️ The cursor is the adapter's, not the list's: in touch mode getSelectedItemPosition()
+        // reports INVALID_POSITION while the list has plainly moved (see selectedRow above).
+        int current = adapter.focusedPosition();
+        if (current < 0 || current >= count) {
+            current = grid.getSelectedItemPosition();
+        }
         if (current < 0 || current >= count) {
             // Nothing is selected yet: the entry itself should already be under the cursor (see
             // landCursorOnFirstRow), and if the very first press arrives before that has happened,
             // it lands on the first entry rather than moving off wherever the list happens to be.
-            grid.setSelection(firstSelectableRow());
+            current = firstSelectableRow();
+            selectRow(current);
+            grid.setSelection(current);
             return;
         }
         int next = Math.max(0, Math.min(count - 1, current + dir));
         if (next != current) {
             grid.setSelection(next);
+            selectRow(next);
         }
     }
 
@@ -814,10 +822,17 @@ public class AppsPageView extends ArtMoonActivity {
             }
             return;
         }
-        if (grid.getSelectedItemPosition() >= 0) {
+        // The list has to hold the focus or no row draws as the cursor, and in touch mode a plain
+        // ListView cannot take it — appGrid is focusableInTouchMode for exactly this. This used to
+        // be a silent failure: requestFocus() returned false, the highlight never appeared, and the
+        // page looked like nothing was selected.
+        grid.requestFocus();
+        if (adapter.focusedPosition() >= 0) {
             return;
         }
-        grid.setSelection(firstSelectableRow());
+        int first = firstSelectableRow();
+        selectRow(first);
+        grid.setSelection(first);
     }
 
     private void settleCursorOnVisible() {
@@ -1163,6 +1178,21 @@ public class AppsPageView extends ArtMoonActivity {
                         runningAppId = running;
                         lastRunningAppId = running;
                         fillPage();
+                        /*
+                         * Ask for the artwork again, now that the host has just answered.
+                         *
+                         * ⚠️ The asset loader keeps no memory of a load that came back empty: if the
+                         * host was not reachable when a row was first bound, the artwork task ends
+                         * with nothing and no one asks a second time. The row then sits on its
+                         * placeholder until something re-binds it — which is why a scroll brought
+                         * the art back (Nik, 12 Oct 2026: "the background artwork of what is
+                         * selected doent show until i scroll"). The app list arriving IS the proof
+                         * that the host is answering, so this is the honest moment to ask again.
+                         */
+                        if (adapter != null) {
+                            adapter.notifyDataSetChanged();
+                        }
+                        updateHero();
                     }
                 });
             }
