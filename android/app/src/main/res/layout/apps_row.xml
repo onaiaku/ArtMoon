@@ -67,14 +67,15 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <TextView
+    <ImageView
         android:id="@+id/am_row_pin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
         android:layout_marginEnd="8dp"
         android:layout_marginRight="8dp"
-        android:textSize="12sp"
-        android:text="\u2b50"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/am_label_pin"
+        android:src="@drawable/am_pin"
         android:textColor="@color/am_text2"
         android:visibility="gone" />
 

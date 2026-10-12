@@ -264,7 +264,7 @@ public class AppsRowAdapter extends BaseAdapter {
 
         TextView title = (TextView) v.findViewById(R.id.am_row_title);
         TextView meta = (TextView) v.findViewById(R.id.am_row_meta);
-        TextView pin = (TextView) v.findViewById(R.id.am_row_pin);
+        ImageView pin = (ImageView) v.findViewById(R.id.am_row_pin);
         TextView tag = (TextView) v.findViewById(R.id.am_row_tag);
         ImageView cover = (ImageView) v.findViewById(R.id.am_row_cover);
 
