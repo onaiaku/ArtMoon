@@ -47,6 +47,7 @@ import io.github.onaiaku.artmoon.nvstream.http.NvHTTP;
 import io.github.onaiaku.artmoon.preferences.PreferenceConfiguration;
 import io.github.onaiaku.artmoon.preferences.StreamSettings;
 import io.github.onaiaku.artmoon.settings.PlaytimeManager;
+import io.github.onaiaku.artmoon.utils.ShortcutHelper;
 import io.github.onaiaku.artmoon.utils.CacheHelper;
 import io.github.onaiaku.artmoon.utils.ServerHelper;
 import io.github.onaiaku.artmoon.utils.UiHelper;
@@ -133,6 +134,14 @@ public class AppsPageView extends ArtMoonActivity {
                         return;
                     }
 
+                    // This PC earns its home-screen shortcut here — the old screen made it at
+                    // exactly this point (`AppView:124-134`), and this is the only picker now, so
+                    // this is the only place it can happen. Same thread, same two calls.
+                    ShortcutHelper shortcutHelper = new ShortcutHelper(AppsPageView.this);
+                    shortcutHelper.createAppViewShortcut(computer, true,
+                            getIntent().getBooleanExtra(NEW_PAIR_EXTRA, false));
+                    shortcutHelper.reportComputerShortcutUsed(computer);
+
                     adapter = new AppsRowAdapter(AppsPageView.this, computer, localBinder.getUniqueId());
 
                     managerBinder = localBinder;
@@ -213,6 +222,9 @@ public class AppsPageView extends ArtMoonActivity {
         String savedTab = PlaytimeManager.lastTabOn(this, uuidString);
         if (savedTab != null && !savedTab.isEmpty()) {
             category = savedTab;
+            // A saved tab counts as chosen by hand (AppsScreen.qml's _openingTabFor), so the
+            // empty-tab move below leaves it alone — exactly as the desktop does.
+            tabChosenByUser = true;
         }
 
         TextView name = (TextView) findViewById(R.id.am_host_name);
@@ -790,6 +802,22 @@ public class AppsPageView extends ArtMoonActivity {
         }
         page = AppLibrary.page(this, uuidString, appList, category, showHiddenApps,
                 hiddenAppIds, keepVisible, runningAppId);
+
+        // The two corrections the desktop makes the moment the counts are known
+        // (AppsScreen.qml:437-440, the onCountsChanged handler). A host holding a Remote Monitor
+        // lists only Resume and Disconnect Monitor, so that page is APPS; and a tab with nothing
+        // in it is not where the page should sit when APPS has something. Both move the page,
+        // never the memory — and both are unconditional on the desktop, so they are here.
+        if (page.remoteMonitorActive && !AppLibrary.CAT_APPS.equals(category)) {
+            category = AppLibrary.CAT_APPS;
+            fillPage();
+            return;
+        }
+        if (!AppLibrary.CAT_APPS.equals(category) && page.rows.isEmpty() && page.appsCount > 0) {
+            category = AppLibrary.CAT_APPS;
+            fillPage();
+            return;
+        }
         if (adapter == null) {
             adapter = new AppsRowAdapter(this, computer, "");
         }
@@ -858,9 +886,18 @@ public class AppsPageView extends ArtMoonActivity {
     private void paintTabs() {
         final String[] tabs = {AppLibrary.CAT_ALL, AppLibrary.CAT_GAMES, AppLibrary.CAT_APPS};
         final int[] ids = {R.id.am_tab_all, R.id.am_tab_games, R.id.am_tab_apps};
+        final int[] counts = {page != null ? page.allCount : -1,
+                              page != null ? page.gamesCount : -1,
+                              page != null ? page.appsCount : -1};
+        final int[] labels = {R.string.am_tab_all, R.string.am_tab_games, R.string.am_tab_apps};
         for (int i = 0; i < ids.length; i++) {
             TextView tab = (TextView) findViewById(ids[i]);
             boolean on = tabs[i].equals(category);
+            // The count belongs in the label, printed exactly as the old screen printed it
+            // (`AppView:806-808`). It was never a second screen's feature — it is this page's.
+            tab.setText(counts[i] >= 0
+                    ? getString(labels[i]) + "  " + counts[i]
+                    : getString(labels[i]));
             tab.setSelected(on);
             tab.setTextColor(getResources().getColor(
                     on ? R.color.am_text_primary : R.color.am_text2));
@@ -981,7 +1018,7 @@ public class AppsPageView extends ArtMoonActivity {
             return;
         }
         // ⚠️ The host's poll reply carries no app list. It is fetched by its own poller, which the
-        // old screen started here too (AppView.startComputerUpdates). Without it the page shows no
+        // old screen started here too, and the new one has to do it for itself. Without it the page shows no
         // entries at all: the only list it would ever see is whatever the computer record happened
         // to be holding when the screen opened.
         if (poller == null) {

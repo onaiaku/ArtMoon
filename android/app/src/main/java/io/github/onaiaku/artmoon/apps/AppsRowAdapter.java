@@ -69,7 +69,7 @@ public class AppsRowAdapter extends BaseAdapter {
     /**
      * The asset pipeline writes the app's name and toggles a visibility on the TextView it is handed,
      * and this row's name lives in its own title beside the cover — so the pipeline gets a view of
-     * its own, the same way every call site in AppGridAdapter has always done it.
+     * its own, the way the old app grid's call sites always did it.
      */
     private TextView loaderTextViewDummy;
 
@@ -312,8 +312,9 @@ public class AppsRowAdapter extends BaseAdapter {
         // the image, so the null that used to be passed here was a guaranteed NPE on the first row
         // ever drawn — which is exactly how this page died the first time it had a real list to
         // show (12 Oct 2026: AppsRowAdapter.getView -> CachedAppAssetLoader.populateImageView,
-        // "TextView.setText on a null object reference"). The views of AppView's adapter are the
-        // same pipeline, and they hand it the same dummy they have always handed it.
+        // "TextView.setText on a null object reference"). The old app grid used this pipeline the
+        // same way and handed it the same dummy; that grid is gone now, and the pattern is this
+        // page's to keep.
         if (loaderTextViewDummy == null) {
             loaderTextViewDummy = new TextView(context);
         }

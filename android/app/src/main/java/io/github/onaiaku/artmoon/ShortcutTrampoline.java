@@ -278,8 +278,8 @@ public class ShortcutTrampoline extends Activity {
         ComputerDetails _computer = null;
 
         // PC arguments, both are optional, but at least one must be provided
-        uuidString = getIntent().getStringExtra(AppView.UUID_EXTRA);
-        String nameString = getIntent().getStringExtra(AppView.NAME_EXTRA);
+        uuidString = getIntent().getStringExtra(io.github.onaiaku.artmoon.apps.AppsPageView.UUID_EXTRA);
+        String nameString = getIntent().getStringExtra(io.github.onaiaku.artmoon.apps.AppsPageView.NAME_EXTRA);
 
         // App arguments, both are optional, but one must be provided in order to start an app
         String appIdString = getIntent().getStringExtra(Game.EXTRA_APP_ID);
@@ -305,7 +305,7 @@ public class ShortcutTrampoline extends Activity {
             uuidString = _computer.uuid;
 
             // Set the AppView UUID intent, since it wasn't provided
-            setIntent(new Intent(getIntent()).putExtra(AppView.UUID_EXTRA, uuidString));
+            setIntent(new Intent(getIntent()).putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.UUID_EXTRA, uuidString));
         }
 
         if (appIdString != null && !appIdString.isEmpty()) {
