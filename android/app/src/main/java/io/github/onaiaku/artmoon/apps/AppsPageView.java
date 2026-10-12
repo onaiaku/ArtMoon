@@ -684,10 +684,11 @@ public class AppsPageView extends ArtMoonActivity {
     /** Three different strings by tab, as the desktop has them. */
     private String emptyText() {
         if (hostStateKnown && !hostOnline) {
-            // Not the host's hidden list — the host is not answering from this network at all, and
-            // saying otherwise would blame the wrong thing.
-            return "Can't reach " + (computer != null ? computer.name : "the host")
-                    + " from this network";
+            // ⚠️ Do not blame the network. I measured exactly this on 12 Oct 2026 and got it wrong:
+            // Nik's phone routed the host straight into the VPN and its packets plainly reached the
+            // host's ports from there. "Can't reach it from this network" was a claim I had not
+            // checked. Say only what is true — the host has not answered.
+            return (computer != null ? computer.name : "The host") + " isn't answering";
         }
         if (AppLibrary.CAT_GAMES.equals(category)) {
             return "No games to show — some may be hidden on the host";
