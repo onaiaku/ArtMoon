@@ -1191,6 +1191,45 @@ if (ambientView == null) {
         if (running != null) {
             running.setVisibility(isRunning ? View.VISIBLE : View.GONE);
         }
+
+        // The facts under the name, as the desktop's GameFacts has them: the state in words, and
+        // the two figures beside it. "running now" takes the accent there, so it takes it here —
+        // a glance should tell you the same thing on both screens.
+        final AppLibrary.Row row = appGridAdapter.rowAt(
+                appGridAdapter.positionOfAppId(selectedApp.app.getAppId()));
+
+        TextView facts = findViewById(R.id.am_pick_facts);
+        if (facts != null) {
+            StringBuilder sb = new StringBuilder();
+            if (isRunning) {
+                sb.append(getString(R.string.am_pick_running));
+            }
+            if (row != null && row.overridden) {
+                if (sb.length() > 0) {
+                    sb.append("  ·  ");
+                }
+                sb.append(getString(R.string.am_meta_custom_settings));
+            }
+            facts.setText(sb.toString());
+            facts.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
+            facts.setTextColor(getResources().getColor(
+                    isRunning ? R.color.am_online : R.color.am_text2));
+        }
+
+        TextView figures = findViewById(R.id.am_pick_figures);
+        if (figures != null) {
+            if (row != null && row.playtime != null && row.playtime.valid) {
+                figures.setText(getString(R.string.am_facts_played, played(row.playtime.totalSeconds))
+                        + "  ·  " + (row.playtime.sessionCount == 1
+                                ? getString(R.string.am_facts_session)
+                                : getString(R.string.am_facts_sessions, row.playtime.sessionCount)));
+                figures.setVisibility(View.VISIBLE);
+            }
+            else {
+                // Never measured is not "0 minutes played" — it is nothing to say, so say nothing.
+                figures.setVisibility(View.GONE);
+            }
+        }
         if (resumeBtn != null) {
             resumeBtn.setVisibility(isRunning ? View.VISIBLE : View.GONE);
         }
@@ -1198,6 +1237,19 @@ if (ambientView == null) {
             stopBtn.setVisibility(isRunning ? View.VISIBLE : View.GONE);
         }
         detail.setVisibility(View.VISIBLE);
+    }
+
+    /** A duration the way the desktop writes it: hours and minutes, never a raw second count. */
+    private String played(long seconds) {
+        if (seconds < 60) {
+            return "0m";
+        }
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        if (hours == 0) {
+            return minutes + "m";
+        }
+        return hours + "h " + (minutes % 60) + "m";
     }
 
     private void startSelectedApp() {

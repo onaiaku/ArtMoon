@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The active tab's underline, and only the active one's (§12: a 2px accent rule under the label,
+     nothing beside it — the counts were never on the desktop's tabs). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+    <item android:id="@+id/am_tab_rule" android:gravity="bottom">
+        <shape android:shape="rectangle">
+            <size android:height="2dp" />
+            <solid android:color="@color/am_accent" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The app picker — the desktop's page (AppsScreen.qml), built as its own screen.
+
+    This is NOT the old app list with new code pasted over it. The old master-detail screen is left
+    where it is and this replaces it as the page: same grammar as Home — one thing in the spotlight,
+    everything else in a strip, one navigation zone, and the action row saying what A will do.
+
+    The two columns, in the desktop's own proportions (AppsScreen.qml §3):
+      · library 52% of what is left after the side margins — the only zone the pad walks
+      · hero 48% — the spotlight, mouse-only buttons, drawn with their glyphs
+
+    Sizes here are Android dp read off the desktop's unit scale for a phone in landscape; where a
+    number differs from the desktop it is because dp and the desktop's units are not the same ruler,
+    and the fraction is what was matched, not the count.
+
+    Ids are the desktop's names so the two can be read side by side: appsHeader, cfgLine, libraryTabs,
+    appGrid, hero, heroFacts, heroActions.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/am_ground">
+
+    <!-- CoverAmbient: the focused cover, blurred, behind everything (§18). -->
+    <ImageView
+        android:id="@+id/am_page_ambient"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/am_ambient_veil" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- ── appsHeader ─────────────────────────────────────────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/appsHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:baselineAligned="false"
+            android:paddingStart="20dp"
+            android:paddingLeft="20dp"
+            android:paddingEnd="20dp"
+            android:paddingRight="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp">
+
+            <TextView
+                android:id="@+id/am_host_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true"
+                android:textColor="@color/am_text_primary" />
+
+            <!-- The chips: Online, profile, Tailscale, link state. Nothing green except Online. -->
+            <LinearLayout
+                android:id="@+id/chipRow"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginLeft="12dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/am_chip_online"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_chip_online" />
+
+                <TextView
+                    android:id="@+id/am_chip_profile"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/am_chip_tailscale"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/am_chip_link"
+                    style="@style/AmSpecChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/am_back"
+                android:layout_width="48dp"
+                android:layout_height="40dp"
+                android:minHeight="48dp"
+                android:background="@drawable/am_pill_soft"
+                android:scaleType="fitCenter"
+                android:padding="10dp"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="@string/am_back" />
+        </LinearLayout>
+
+        <!-- ── cfgLine: the effective config, in two labelled groups (§17) ─────────────── -->
+        <LinearLayout
+            android:id="@+id/cfgLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:baselineAligned="false"
+            android:paddingStart="20dp"
+            android:paddingLeft="20dp"
+            android:paddingEnd="20dp"
+            android:paddingRight="20dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/am_cfg_host_label"
+                style="@style/AmCfgLabel"
+                android:text="@string/am_cfg_host" />
+
+            <TextView
+                android:id="@+id/am_cfg_host"
+                style="@style/AmCfgChip" />
+
+            <TextView
+                android:id="@+id/am_cfg_sep"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginLeft="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginRight="12dp"
+                android:text="·"
+                android:textColor="@color/am_text2" />
+
+            <TextView
+                android:id="@+id/am_cfg_stream_label"
+                style="@style/AmCfgLabel"
+                android:text="@string/am_cfg_stream" />
+
+            <TextView
+                android:id="@+id/am_cfg_stream"
+                style="@style/AmCfgChip" />
+        </LinearLayout>
+
+        <!-- ── the two columns ───────────────────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:baselineAligned="false"
+            android:paddingStart="20dp"
+            android:paddingLeft="20dp"
+            android:paddingEnd="20dp"
+            android:paddingRight="20dp">
+
+            <!-- ── the library: the only zone (§12) ─────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.52"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/libraryTabs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:baselineAligned="false"
+                    android:paddingBottom="6dp">
+
+                    <TextView
+                        android:id="@+id/am_tab_all"
+                        style="@style/AmTab"
+                        android:background="@drawable/am_tab_underline" />
+
+                    <TextView
+                        android:id="@+id/am_tab_games"
+                        style="@style/AmTab"
+                        android:background="@drawable/am_tab_underline" />
+
+                    <TextView
+                        android:id="@+id/am_tab_apps"
+                        style="@style/AmTab"
+                        android:background="@drawable/am_tab_underline" />
+                </LinearLayout>
+
+                <!-- The list runs the full height of the page — that is where the rows come from. -->
+                <ListView
+                    android:id="@+id/appGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:divider="@null"
+                    android:dividerHeight="0dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false"
+                    android:paddingBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/am_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:visibility="gone"
+                    android:gravity="center"
+                    android:textSize="15sp"
+                    android:textColor="@color/am_text2" />
+            </LinearLayout>
+
+            <!-- ── the spotlight: hero + heroFacts + heroActions (§11) ──────────────── -->
+            <LinearLayout
+                android:id="@+id/hero"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.48"
+                android:layout_marginStart="16dp"
+                android:layout_marginLeft="16dp"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/am_hero_cover"
+                    android:layout_width="150dp"
+                    android:layout_height="225dp"
+                    android:background="@drawable/am_detail_cover_bg"
+                    android:scaleType="fitCenter"
+                    android:padding="4dp"
+                    android:contentDescription="@string/am_pick_cover_desc" />
+
+                <TextView
+                    android:id="@+id/am_hero_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textSize="21sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text_primary"
+                    android:gravity="center"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+
+                <!-- "running now" · "custom settings" — green when running, else text2 (§11). -->
+                <TextView
+                    android:id="@+id/am_hero_meta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:textSize="12sp"
+                    android:textColor="@color/am_text2"
+                    android:gravity="center"
+                    android:visibility="gone" />
+
+                <!-- Playtime and session count. Empty on the APPS tab (§6). -->
+                <TextView
+                    android:id="@+id/am_hero_figures"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textSize="13sp"
+                    android:textColor="@color/am_text_primary"
+                    android:gravity="center"
+                    android:visibility="gone" />
+
+                <!--
+                    The action row. Drawn, clickable, deliberately outside the focus chain: every one
+                    of these already has a face button, so the pad has nothing to walk to and the
+                    glyph says which. None of them carries an accent fill — in this interface an
+                    accent fill means "the focus is here".
+                -->
+                <LinearLayout
+                    android:id="@+id/heroActions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/am_hero_launch"
+                        style="@style/AmHeroBtn" />
+
+                    <TextView
+                        android:id="@+id/am_hero_customize"
+                        style="@style/AmHeroBtn"
+                        android:text="@string/am_hero_customize" />
+
+                    <TextView
+                        android:id="@+id/am_hero_stop"
+                        style="@style/AmHeroBtn"
+                        android:text="@string/am_hero_stop"
+                        android:textColor="@color/am_danger"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── the keys, as on every other page ─────────────────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/am_page_keys"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="20dp"
+            android:paddingLeft="20dp"
+            android:paddingEnd="20dp"
+            android:paddingRight="20dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:id="@+id/am_key_launch"
+                style="@style/AmKeyHint" />
+
+            <TextView
+                android:id="@+id/am_key_customize"
+                style="@style/AmKeyHint" />
+
+            <TextView
+                android:id="@+id/am_key_stop"
+                style="@style/AmKeyHint" />
+
+            <TextView
+                android:id="@+id/am_key_settings"
+                style="@style/AmKeyHint"
+                android:text="@string/am_key_settings_hint" />
+
+            <TextView
+                android:id="@+id/am_key_hosts"
+                style="@style/AmKeyHint"
+                android:text="@string/am_key_hosts_hint" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

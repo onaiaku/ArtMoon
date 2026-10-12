@@ -436,5 +436,16 @@
     <string name="applist_menu_unpin">Unpin</string>
     <string name="applist_menu_move_apps">Move to apps</string>
     <string name="applist_menu_move_games">Move to games</string>
+    <string name="am_facts_played">%1$s played</string>
+    <string name="am_facts_sessions">%1$d sessions</string>
+    <string name="am_facts_session">1 session</string>
+    <string name="am_chip_online">Online</string>
+    <string name="am_cfg_host">Host</string>
+    <string name="am_cfg_stream">Stream</string>
+    <string name="am_hero_customize">Per-game settings</string>
+    <string name="am_hero_stop">Stop</string>
+    <string name="am_key_settings_hint">S  Settings</string>
+    <string name="am_key_hosts_hint">Esc  Hosts</string>
+    <string name="am_pick_cover_desc">Cover art</string>
 </resources>
 

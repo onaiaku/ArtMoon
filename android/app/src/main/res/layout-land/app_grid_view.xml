@@ -108,6 +108,26 @@
                 android:gravity="center" />
 
             <TextView
+                android:id="@+id/am_pick_facts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textSize="12sp"
+                android:textColor="@color/am_text2"
+                android:gravity="center"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/am_pick_figures"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/am_text_primary"
+                android:gravity="center"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/am_pick_running"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
