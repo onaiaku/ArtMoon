@@ -745,7 +745,40 @@ public class AppsPageView extends ArtMoonActivity {
     }
 
     /** After a finger's scroll: the cursor takes the row nearest the middle of the column. */
+    /**
+     * Move the cursor one row, clamped at both ends.
+     *
+     * <p>Left to the list, a d-pad press is not a pure move: the edges have behaviour of their own,
+     * and the list also scrolls, which is what wakes {@link #settleCursorOnVisible()} underneath the
+     * press. Driving the selection here means one press is one row.
+     */
+    private void moveCursor(int dir) {
+        if (grid == null || adapter == null) {
+            return;
+        }
+        int count = adapter.getCount();
+        if (count == 0) {
+            return;
+        }
+        int current = grid.getSelectedItemPosition();
+        if (current < 0 || current >= count) {
+            current = 0;
+        }
+        int next = Math.max(0, Math.min(count - 1, current + dir));
+        if (next != current) {
+            grid.setSelection(next);
+        }
+    }
+
     private void settleCursorOnVisible() {
+        // ⚠️ Not while a pad is in the hand. A pad press scrolls the list, which wakes this on the
+        // tail of every press, and this then moves the cursor to whatever row is nearest the middle
+        // of the viewport — somewhere the press never put it. This exists for a finger: a scroll
+        // with no cursor in it, landing on the row the eye is on.
+        if (io.github.onaiaku.artmoon.artlight.InputModeManager.get().getMode()
+                == io.github.onaiaku.artmoon.artlight.InputModeManager.Mode.GAMEPAD) {
+            return;
+        }
         if (grid == null || adapter == null || grid.getChildCount() == 0) {
             return;
         }
@@ -1213,6 +1246,18 @@ public class AppsPageView extends ArtMoonActivity {
 
             case KeyEvent.KEYCODE_DPAD_UP:
             case KeyEvent.KEYCODE_DPAD_DOWN:
+                /*
+                 * ⚠️ Not handed to the list. At the top row an UP is "unhandled" there, and what
+                 * Android does with a d-pad key at the edge of a list is not nothing: press UP on
+                 * the first entry, then DOWN, and the selection lands on the last one (Nik, 12 Oct
+                 * 2026). The cursor is moved here, clamped, and the key is swallowed — an edge is
+                 * then just an edge.
+                 */
+                if (down) {
+                    moveCursor(kc == KeyEvent.KEYCODE_DPAD_UP ? -1 : 1);
+                }
+                return true;
+
             case KeyEvent.KEYCODE_PAGE_UP:       // the keyboard's pair for the tabs
             case KeyEvent.KEYCODE_PAGE_DOWN:
                 return super.dispatchKeyEvent(event);
