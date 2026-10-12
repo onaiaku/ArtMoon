@@ -444,8 +444,7 @@
     <string name="am_cfg_stream">Stream</string>
     <string name="am_hero_customize">Per-game settings</string>
     <string name="am_hero_stop">Stop</string>
-    <string name="am_key_settings_hint">S  Settings</string>
-    <string name="am_key_hosts_hint">Esc  Hosts</string>
+    <string name="am_label_hosts">Hosts</string>
     <string name="am_pick_cover_desc">Cover art</string>
     <string name="am_row_streaming">Streaming</string>
 </resources>

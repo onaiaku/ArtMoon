@@ -173,8 +173,23 @@ public final class PadGlyphs {
         if (d == null) {
             return null;
         }
-        int px = Math.round(GLYPH_DP * res.getDisplayMetrics().density);
-        d.setBounds(0, 0, px, px);
+        final int face = Math.round(GLYPH_DP * res.getDisplayMetrics().density);
+        final int iw = Math.max(1, d.getIntrinsicWidth());
+        final int ih = Math.max(1, d.getIntrinsicHeight());
+
+        // ⚠️ THE BOX IS THE BUTTON'S SHAPE, NOT A SQUARE, and it comes from the art itself.
+        //
+        // PadGlyph.qml:19-28 is explicit about why: face buttons are square, while LB/RB/LT/RT and
+        // Select/Start are pills "wider than they are tall, so they derive from it rather than being
+        // squeezed into a square". Its own note records the bug this prevents — drawing a 40×24 pill
+        // into a square box made the same LB look half the size of the LB beside it.
+        //
+        // Compound drawables stretch to their bounds rather than fitting inside them, so a square
+        // bound does not just crop the pill, it distorts it. The art's own ratio decides instead.
+        final int boxW = iw > ih ? Math.round(face * 40 / 26f) : face;
+        final int boxH = iw > ih ? Math.round(face * 24 / 26f) : face;
+        float ratio = Math.min((float) boxW / iw, (float) boxH / ih);
+        d.setBounds(0, 0, Math.max(1, Math.round(iw * ratio)), Math.max(1, Math.round(ih * ratio)));
         return d;
     }
 }

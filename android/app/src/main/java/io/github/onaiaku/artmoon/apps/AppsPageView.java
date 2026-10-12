@@ -37,6 +37,7 @@ import io.github.onaiaku.artmoon.ArtMoonActivity;
 import io.github.onaiaku.artmoon.OrientationHelper;
 import io.github.onaiaku.artmoon.R;
 import io.github.onaiaku.artmoon.computers.ComputerManagerListener;
+import io.github.onaiaku.artmoon.artlight.PromptBar;
 import io.github.onaiaku.artmoon.artlight.ArtLightBridge;
 import io.github.onaiaku.artmoon.artlight.HostMetricsPoller;
 import io.github.onaiaku.artmoon.grid.AppAmbientArtwork;
@@ -91,7 +92,6 @@ public class AppsPageView extends ArtMoonActivity {
      * PgUp/PgDn with a keyboard, exactly as the desktop draws them (AppsScreen.qml:1226-1232) —
      * each chip is drawn beside the thing it moves.
      */
-    private boolean lastInputWasPad = false;
 
     private final static int START_OR_RESUME_ID = 1;
     private final static int QUIT_ID = 2;
@@ -104,6 +104,8 @@ public class AppsPageView extends ArtMoonActivity {
     private boolean tabChosenByUser = false;
 
     private String category = AppLibrary.CAT_ALL;
+    /** The shared prompt bar: it draws every keycap on this page. */
+    private PromptBar promptBar;
     private int runningAppId = 0;
     private int lastRunningAppId = 0;
     private String lastRawApplist = "";
@@ -310,27 +312,24 @@ public class AppsPageView extends ArtMoonActivity {
     }
 
     /**
-     * The keys along the foot: the same launch the hero offers, this client's stream settings, and
-     * the way out to the host list. The desktop's foot reads "S Settings / Esc Hosts" and the
-     * Android client's own settings screen is its Settings — the same two doors, in this app's
-     * furniture rather than the desktop's.
+     * The keys along the foot: this client's stream settings, and the way out to the host list.
+     *
+     * <p>The pills carry what the desktop's Apps bar carries and no more — Settings on Y/S and
+     * Hosts on B/Esc (AppShell.qml {@code _hintsApps}). The launch and Stop prompts that used to sit
+     * here are gone, for the desktop's own reason: A and X are already drawn on the hero's buttons
+     * next to the words for what they do, and the bar does not say it a second time
+     * (AppShell.qml:519-527). The launch prompt was invisible in any case — nothing ever set its
+     * text — while still holding a click target.
      */
     private void wireFoot() {
-        findViewById(R.id.am_key_launch).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                launchSelected();
-            }
-        });
-
-        findViewById(R.id.am_key_settings).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.am_pill_settings).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(AppsPageView.this, StreamSettings.class));
             }
         });
 
-        findViewById(R.id.am_key_hosts).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.am_pill_hosts).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 finish();
@@ -507,35 +506,34 @@ public class AppsPageView extends ArtMoonActivity {
             });
         }
 
-        applyShoulderLabels();
-        applyHeroCaps();
+        wirePrompts();
     }
 
     /**
-     * The hero's pills carry the button that does the same thing, as the desktop's do
-     * (AppsScreen.qml:1141 — ActionHint with btn "A" / key "Enter" on the verb, "X" on Stop).
+     * The page's prompts, registered with the shared PromptBar — the same component Home's footer
+     * uses, so the two screens cannot disagree about what a pad button looks like.
+     *
+     * <p>⚠️ This page had its own version, and it is why the picker's prompts were the only ones in
+     * the app still printing a letter. It held a {@code lastInputWasPad} boolean and re-wrote the
+     * keycap's text between "LB" and "PgUp" on every event. The app already resolves that
+     * app-wide — {@code ArtMoonActivity.dispatchKeyEvent} feeds {@code InputModeManager}, which
+     * PromptBar listens to — so a second copy could only ever drift from it, and it had: the pad
+     * half of "Settings" and "Hosts" was never drawn at all, because a letter was the whole prompt.
+     *
+     * <p>What each prompt resolves to is the desktop's own table, and none of it is decided here:
+     * the shoulders are LB/RB or PgUp/PgDn (AppsScreen.qml:1226), the hero's verb is A or Enter and
+     * Stop is X (AppsScreen.qml:1116,1124), Settings is Y or S and Hosts is B or Esc
+     * (AppShell.qml {@code _hintsApps}).
      */
-    private void applyHeroCaps() {
-        TextView launch = (TextView) findViewById(R.id.am_hero_launch_cap);
-        if (launch != null) {
-            launch.setText(lastInputWasPad ? "A" : "Enter");
-        }
-        TextView stop = (TextView) findViewById(R.id.am_hero_stop_cap);
-        if (stop != null) {
-            stop.setText("X");
-        }
-    }
-
-    /** LB/RB or PgUp/PgDn: whichever input is in the hand, drawn on the chip that carries it. */
-    private void applyShoulderLabels() {
-        TextView l = (TextView) findViewById(R.id.am_tab_sh_left_cap);
-        if (l != null) {
-            l.setText(lastInputWasPad ? "LB" : getString(R.string.am_key_pgup));
-        }
-        TextView r = (TextView) findViewById(R.id.am_tab_sh_right_cap);
-        if (r != null) {
-            r.setText(lastInputWasPad ? "RB" : getString(R.string.am_key_pgdn));
-        }
+    private void wirePrompts() {
+        promptBar = new PromptBar(this);
+        promptBar.registerById(R.id.am_tab_sh_left_cap, "prevTab");
+        promptBar.registerById(R.id.am_tab_sh_right_cap, "nextTab");
+        promptBar.registerById(R.id.am_hero_launch_cap, "launch");
+        promptBar.registerById(R.id.am_hero_stop_cap, "stop");
+        promptBar.registerById(R.id.am_key_settings_cap, R.id.am_key_settings, "settings");
+        promptBar.registerById(R.id.am_key_hosts_cap, R.id.am_key_hosts, "hosts");
+        promptBar.attach();
     }
 
     /**
@@ -553,21 +551,6 @@ public class AppsPageView extends ArtMoonActivity {
         setTab(tabs[(at + (dir < 0 ? -1 : 1) + tabs.length) % tabs.length], true);
     }
 
-    /** Reads the device behind an input event and re-labels the shoulders if the hand changed. */
-    private void noteInputSource(android.view.InputDevice device) {
-        if (device == null) {
-            return;
-        }
-        int sources = device.getSources();
-        boolean pad = (sources & android.view.InputDevice.SOURCE_GAMEPAD) ==
-                android.view.InputDevice.SOURCE_GAMEPAD
-                || (sources & android.view.InputDevice.SOURCE_JOYSTICK) != 0;
-        if (pad != lastInputWasPad) {
-            lastInputWasPad = pad;
-            applyShoulderLabels();
-            applyHeroCaps();
-        }
-    }
 
     /**
      * Moves to a tab. The counts were never printed beside the labels — the desktop's tabs are three
@@ -606,7 +589,6 @@ public class AppsPageView extends ArtMoonActivity {
             }
         };
         findViewById(R.id.am_hero_stop).setOnClickListener(stop);
-        findViewById(R.id.am_key_stop).setOnClickListener(stop);
 
     }
 
@@ -842,9 +824,9 @@ public class AppsPageView extends ArtMoonActivity {
                 break;
             }
         }
-        if (running != null) {
-            ((TextView) findViewById(R.id.am_key_stop)).setText("X  Stop");
-        }
+        // Nothing to write: Stop's prompt follows the running row's own button, which carries the
+        // cap for whoever is holding the controls. The foot used to be stamped with "X  Stop" here
+        // and never cleared, so it outlived the session it named.
     }
 
     /** The host's own state, for the chip and for the words the empty state uses. */
@@ -1148,8 +1130,6 @@ public class AppsPageView extends ArtMoonActivity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Which hand is on the controls decides what the shoulder chips say.
-        noteInputSource(event.getDevice());
 
         // The tabs, the desktop's own pair: LB/RB on the pad (Key_F16/F17) and PgUp/PgDn on the
         // keyboard, one step each way with the ring wrapping (AppsScreen.qml:503-511).
@@ -1166,9 +1146,9 @@ public class AppsPageView extends ArtMoonActivity {
 
     @Override
     public boolean onGenericMotionEvent(android.view.MotionEvent event) {
-        // A stick moving is the pad in the hand — and the ListView takes the event itself, which is
+        // A stick moving is the pad in the hand — InputModeManager reads the device from the event
+        // itself (ArtMoonActivity.dispatchKeyEvent), and the ListView takes the motion, which is
         // what moves its selection and fires the cursor above.
-        noteInputSource(event.getDevice());
         return super.onGenericMotionEvent(event);
     }
 

@@ -495,23 +495,90 @@
             android:paddingTop="2dp"
             android:paddingBottom="10dp">
 
-            <TextView
-                android:id="@+id/am_key_launch"
-                style="@style/AmKeyHint" />
+            <!-- Settings and Hosts, as a keycap beside its name — the pair the shared PromptBar
+                 draws a real pad glyph into when a controller is in the hand (Y/S and B/Esc, the
+                 desktop's own Apps bar: AppShell.qml _hintsApps). This row used to be one string
+                 reading "S  Settings": the keyboard half of the prompt, with the pad half missing
+                 and no room to draw it. A and X are not here, for the desktop's reason — they are
+                 already drawn on the hero's own buttons next to the words for what they do
+                 (AppShell.qml:519-527). -->
+            <LinearLayout
+                android:id="@+id/am_pill_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:baselineAligned="false"
+                android:layout_marginEnd="16dp"
+                android:layout_marginRight="16dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:clickable="true"
+                android:focusable="false">
 
-            <TextView
-                android:id="@+id/am_key_stop"
-                style="@style/AmKeyHint" />
+                <TextView
+                    android:id="@+id/am_key_settings_cap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp"
+                    android:minWidth="24dp"
+                    android:minHeight="24dp"
+                    android:gravity="center"
+                    android:text="@string/am_key_s"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text"
+                    android:background="@drawable/am_action_cap"
+                    android:paddingStart="7dp" android:paddingLeft="7dp"
+                    android:paddingEnd="7dp" android:paddingRight="7dp"
+                    android:alpha="0.85" />
 
-            <TextView
-                android:id="@+id/am_key_settings"
-                style="@style/AmKeyHint"
-                android:text="@string/am_key_settings_hint" />
+                <TextView
+                    android:id="@+id/am_key_settings"
+                    style="@style/AmKeyHint"
+                    android:layout_marginEnd="0dp"
+                    android:layout_marginRight="0dp"
+                    android:text="@string/am_footer_settings" />
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/am_key_hosts"
-                style="@style/AmKeyHint"
-                android:text="@string/am_key_hosts_hint" />
+            <LinearLayout
+                android:id="@+id/am_pill_hosts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:baselineAligned="false"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:clickable="true"
+                android:focusable="false">
+
+                <TextView
+                    android:id="@+id/am_key_hosts_cap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp"
+                    android:minWidth="24dp"
+                    android:minHeight="24dp"
+                    android:gravity="center"
+                    android:text="@string/am_key_esc"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text"
+                    android:background="@drawable/am_action_cap"
+                    android:paddingStart="7dp" android:paddingLeft="7dp"
+                    android:paddingEnd="7dp" android:paddingRight="7dp"
+                    android:alpha="0.85" />
+
+                <TextView
+                    android:id="@+id/am_key_hosts"
+                    style="@style/AmKeyHint"
+                    android:layout_marginEnd="0dp"
+                    android:layout_marginRight="0dp"
+                    android:text="@string/am_label_hosts" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

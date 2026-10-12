@@ -73,6 +73,12 @@ public final class PromptBar {
         pills.put(action, new Pill(keycap, label, action));
     }
 
+    /** Register a keycap on its own — a prompt whose label is not a view of its own. */
+    public void registerById(int keycapId, String action) {
+        View k = activity.findViewById(keycapId);
+        register(k instanceof TextView ? (TextView) k : null, null, action);
+    }
+
     /** Register by view id lookup (null-safe — layouts may lack pills). */
     public void registerById(int keycapId, int labelId, String action) {
         View k = activity.findViewById(keycapId);
@@ -195,11 +201,19 @@ public final class PromptBar {
         if ("settings".equals(action)) {
             return "Y";
         }
-        if ("shutdown".equals(action)) {
+        if ("shutdown".equals(action) || "stop".equals(action)) {
             return "X";
         }
         if ("exit".equals(action) || "back".equals(action) || "hosts".equals(action)) {
             return "B";
+        }
+        // The picker's two shoulders, drawn at the ends of its tab strip (AppsScreen.qml:1226-1246
+        // and the same pair on Settings, AppShell.qml _hintsSettings).
+        if ("prevTab".equals(action)) {
+            return "LB";
+        }
+        if ("nextTab".equals(action)) {
+            return "RB";
         }
         return "A";
     }
@@ -211,8 +225,17 @@ public final class PromptBar {
         if ("shutdown".equals(action)) {
             return "P";
         }
+        if ("stop".equals(action)) {
+            return "X";
+        }
         if ("exit".equals(action) || "back".equals(action) || "hosts".equals(action)) {
             return "Esc";
+        }
+        if ("prevTab".equals(action)) {
+            return "PgUp";
+        }
+        if ("nextTab".equals(action)) {
+            return "PgDn";
         }
         return "Enter";
     }
@@ -226,6 +249,9 @@ public final class PromptBar {
         }
         if ("hosts".equals(action)) {
             return "Hosts";
+        }
+        if ("stop".equals(action)) {
+            return "Stop";
         }
         if ("exit".equals(action) || "back".equals(action)) {
             return "Exit";
