@@ -1,4 +1,4 @@
-package com.limelight.binding.input.evdev;
+package io.github.onaiaku.artmoon.binding.input.evdev;
 
 import android.view.KeyEvent;
 
