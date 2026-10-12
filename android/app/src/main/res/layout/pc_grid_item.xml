@@ -84,10 +84,10 @@
                 android:layout_height="match_parent"
                 android:layout_marginBottom="58dp"
                 android:orientation="vertical"
-                android:paddingStart="60dp"
-                android:paddingLeft="60dp"
-                android:paddingEnd="60dp"
-                android:paddingRight="60dp"
+                android:paddingStart="49dp"
+                android:paddingLeft="49dp"
+                android:paddingEnd="49dp"
+                android:paddingRight="49dp"
                 android:paddingTop="20dp"
                 android:paddingBottom="0dp"
                 android:clipChildren="true">
@@ -474,14 +474,15 @@
                  this port deviates from both, each one tuned on Nik's own screen. Do not
                  "restore" either without asking him.
 
-                   - the START inset is 60dp, not 38, so the buttons ride the same left edge as
-                     the text above them (the column carries the same 60dp). Nik: "everything i
+                   - the START inset is 49dp, not 38, so the buttons ride the same left edge as
+                     the text above them (the column carries the same 49dp). Nik: "everything i
                      listed earlier needs moving right so its not sat on the edge of the photo",
-                     "basically like we did for the open and option buttons but sideways".
-                     Calibrated against his own reactions the same day: 38dp = 56px was "right on
-                     the left edge of the image", 74px he could not see at all ("what did you do
-                     move it 1 pixl?"), and 107px he called "a massive gap on the left hand side".
-                     60dp = 89px is the middle of those three. Do not take it to either extreme.
+                     "basically like we did for the open and option buttons but sideways". 60dp was
+                     the first attempt (89px) and he asked for half the movement back: "Can you
+                     half that amount please" — half of the 22dp he had been given is 11dp, hence
+                     49dp = 73px. Reference points, all on this screen the same day: 38dp = 56px
+                     was "right on the left edge of the image", 107px was "a massive gap on the
+                     left hand side". Tune from here in 11dp steps, not in fresh guesses.
                    - the BOTTOM inset is 15dp, not 30: "You moved them slightly to high now,
                      moved them down half of what you moved them up." At 30 the buttons floated;
                      at 0 they were the thing that clipped. -->
@@ -490,8 +491,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
-                android:layout_marginStart="60dp"
-                android:layout_marginLeft="60dp"
+                android:layout_marginStart="49dp"
+                android:layout_marginLeft="49dp"
                 android:layout_marginBottom="15dp"
                 android:orientation="horizontal">
 
