@@ -7,9 +7,13 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.TextUtils;
+import android.view.ContextMenu;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -28,6 +32,7 @@ import io.github.onaiaku.artmoon.ArtMoonActivity;
 import io.github.onaiaku.artmoon.OrientationHelper;
 import io.github.onaiaku.artmoon.R;
 import io.github.onaiaku.artmoon.computers.ComputerManagerListener;
+import io.github.onaiaku.artmoon.grid.AppAmbientArtwork;
 import io.github.onaiaku.artmoon.computers.ComputerManagerService;
 import io.github.onaiaku.artmoon.nvstream.http.ComputerDetails;
 import io.github.onaiaku.artmoon.nvstream.http.NvApp;
@@ -67,6 +72,16 @@ public class AppsPageView extends ArtMoonActivity {
     private boolean inForeground;
     private boolean showHiddenApps;
 
+    private final static int START_OR_RESUME_ID = 1;
+    private final static int QUIT_ID = 2;
+    private final static int START_WITH_QUIT = 4;
+    private final static int HIDE_APP_ID = 7;
+    private final static int PIN_APP_ID = 8;
+    private final static int MOVE_APP_ID = 9;
+
+    /** True once the user has picked a tab themselves; a rebuild must not put it back. */
+    private boolean tabChosenByUser = false;
+
     private String category = AppLibrary.CAT_ALL;
     private int runningAppId = 0;
     private int lastRunningAppId = 0;
@@ -76,6 +91,7 @@ public class AppsPageView extends ArtMoonActivity {
     private final Set<Integer> hiddenAppIds = new HashSet<Integer>();
     private final Set<Integer> keepVisible = new HashSet<Integer>();
 
+    private AppAmbientArtwork ambientArtwork;
     private AppsRowAdapter adapter;
     private ListView grid;
     private AppLibrary.Page page;
@@ -171,6 +187,8 @@ public class AppsPageView extends ArtMoonActivity {
             }
         });
 
+        paintChips();
+
         fillConfigLine();
 
         wireTabs();
@@ -195,10 +213,36 @@ public class AppsPageView extends ArtMoonActivity {
             }
         });
 
+        registerForContextMenu(grid);
+
         wireHero();
 
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
                 android.content.Context.BIND_AUTO_CREATE);
+    }
+
+    /**
+     * The chip row beside the host name. The desktop has four chips and this app can honestly
+     * report one of them:
+     *
+     * <ul>
+     *   <li>Online — always. The page is only open on a host that answered.</li>
+     *   <li>The profile — the Android client has no per-host stream profiles, so there is nothing
+     *       to name. The desktop does the same when a host has none: naming the only possible state
+     *       tells the user nothing.</li>
+     *   <li>Tailscale — this client does not know whether the host is reached over a Tailscale
+     *       clone address.</li>
+     *   <li>The link — the link-speed match is not ported, so there is no amber state to report and
+     *       no honest number to put in it.</li>
+     * </ul>
+     *
+     * <p>Three chips that would be guesses are hidden rather than filled with something plausible.
+     */
+    private void paintChips() {
+        findViewById(R.id.am_chip_online).setVisibility(View.VISIBLE);
+        findViewById(R.id.am_chip_profile).setVisibility(View.GONE);
+        findViewById(R.id.am_chip_tailscale).setVisibility(View.GONE);
+        findViewById(R.id.am_chip_link).setVisibility(View.GONE);
     }
 
     /** The host's address and the settings a session would go out with, in two named groups. */
@@ -248,6 +292,7 @@ public class AppsPageView extends ArtMoonActivity {
     private void setTab(String tab, boolean byUser) {
         category = tab;
         if (byUser) {
+            tabChosenByUser = true;
             PlaytimeManager.setLastTab(this, uuidString, tab);
         }
         if (grid != null) {
@@ -263,6 +308,158 @@ public class AppsPageView extends ArtMoonActivity {
                 launchSelected();
             }
         });
+
+        // Stop, on the hero and on the foot — both quit the session the spotlight is showing, and
+        // both ask first, as every quit in this app does.
+        View.OnClickListener stop = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AppLibrary.Row row = selectedRow();
+                if (row == null || !row.running) {
+                    return;
+                }
+                quit(row);
+            }
+        };
+        findViewById(R.id.am_hero_stop).setOnClickListener(stop);
+        findViewById(R.id.am_key_stop).setOnClickListener(stop);
+    }
+
+    /**
+     * Quit the session {@code row} is holding. It is "Stop", not "Quit game": the entry holding the
+     * session is sometimes the Desktop.
+     */
+    private void quit(final AppLibrary.Row row) {
+        UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
+            @Override
+            public void run() {
+                // The listener is already streaming this host's state, so the pill goes when the
+                // host says the session is over — no second poller, no second source of truth.
+                ServerHelper.doQuit(AppsPageView.this, computer, row.app, managerBinder, null);
+            }
+        }, null);
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+
+        AdapterContextMenuInfo info = (AdapterContextMenuInfo) menuInfo;
+        final AppLibrary.Row row = adapter != null ? adapter.rowAt(info.position) : null;
+        if (row == null) {
+            return;
+        }
+
+        menu.setHeaderTitle(row.name);
+
+        if (runningAppId != 0) {
+            if (runningAppId == row.appId) {
+                menu.add(Menu.NONE, START_OR_RESUME_ID, 1, getResources().getString(R.string.applist_menu_resume));
+                menu.add(Menu.NONE, QUIT_ID, 2, getResources().getString(R.string.applist_menu_quit));
+            }
+            else {
+                menu.add(Menu.NONE, START_WITH_QUIT, 1, getResources().getString(R.string.applist_menu_quit_and_start));
+            }
+        }
+
+        // Only offer hiding when it is not the running entry, or when it is already hidden.
+        if (runningAppId != row.appId || row.hidden) {
+            MenuItem hide = menu.add(Menu.NONE, HIDE_APP_ID, 3, getResources().getString(R.string.applist_menu_hide_app));
+            hide.setCheckable(true);
+            hide.setChecked(row.hidden);
+        }
+
+        // Pin and move are for the entries the user owns: a host control (Remote Input, Resume, the
+        // running-game copy) is not a game to pin and cannot be moved between tabs.
+        if (row.movable) {
+            MenuItem pin = menu.add(Menu.NONE, PIN_APP_ID, 6,
+                    getResources().getString(row.pinned ? R.string.applist_menu_unpin : R.string.applist_menu_pin));
+            pin.setCheckable(true);
+            pin.setChecked(row.pinned);
+
+            menu.add(Menu.NONE, MOVE_APP_ID, 7,
+                    getResources().getString(row.isApp ? R.string.applist_menu_move_games : R.string.applist_menu_move_apps));
+        }
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
+        if (info == null || adapter == null) {
+            return super.onContextItemSelected(item);
+        }
+        final AppLibrary.Row row = adapter.rowAt(info.position);
+        if (row == null) {
+            return super.onContextItemSelected(item);
+        }
+
+        switch (item.getItemId()) {
+            case PIN_APP_ID:
+                PlaytimeManager.setPinned(this, uuidString, row.name, !row.pinned);
+                rebuildPageKeeping(row.appId);
+                return true;
+
+            case MOVE_APP_ID:
+                // The desktop sets its "chosen by the user" flag BEFORE the call. Moving an entry is
+                // the strongest statement of which tab is wanted, and it has to survive the rebuild.
+                tabChosenByUser = true;
+                PlaytimeManager.setCategoryOverride(this, uuidString, row.name, !row.isApp, false);
+                rebuildPageKeeping(row.appId);
+                return true;
+
+            case START_OR_RESUME_ID:
+                // Resume is the same as start for us.
+                ServerHelper.doStartWithCurtain(this, row.app, computer, managerBinder);
+                return true;
+
+            case START_WITH_QUIT:
+                UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
+                    @Override
+                    public void run() {
+                        ServerHelper.doStartWithCurtain(AppsPageView.this, row.app, computer, managerBinder);
+                    }
+                }, null);
+                return true;
+
+            case QUIT_ID:
+                quit(row);
+                return true;
+
+            case HIDE_APP_ID:
+                if (item.isChecked()) {
+                    hiddenAppIds.remove(row.appId);
+                }
+                else {
+                    hiddenAppIds.add(row.appId);
+                }
+                updateHiddenApps();
+                return true;
+
+            default:
+                return super.onContextItemSelected(item);
+        }
+    }
+
+    /** Keeps the entry the user just acted on under the cursor when the list is rebuilt. */
+    private void rebuildPageKeeping(int appId) {
+        fillPage();
+        int position = adapter == null ? -1 : adapter.positionOfAppId(appId);
+        if (position >= 0) {
+            grid.setSelection(position);
+            adapter.setFocused(position);
+            updateHero();
+        }
+    }
+
+    private void updateHiddenApps() {
+        SharedPreferences.Editor editor = getSharedPreferences(HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE).edit();
+        Set<String> ids = new HashSet<String>();
+        for (Integer id : hiddenAppIds) {
+            ids.add(Integer.toString(id));
+        }
+        editor.putStringSet(uuidString, ids);
+        editor.apply();
+        fillPage();
     }
 
     private void selectRow(int position) {
@@ -403,16 +600,26 @@ public class AppsPageView extends ArtMoonActivity {
         // Stop is not "Quit game": the entry holding the session is sometimes the Desktop.
         stop.setVisibility(running ? View.VISIBLE : View.GONE);
 
-        if (adapter != null) {
-            final ImageView heroCover = cover;
-            final NvApp heroApp = row.app;
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    heroCover.setContentDescription(heroApp.getAppName());
-                }
-            });
+        cover.setContentDescription(row.name);
+
+        // The page paints its own floor when it has artwork — the blurred, desaturated cover of
+        // whatever is in the spotlight (AppsScreen.qml:748). It follows the spotlight, not the
+        // moment the page opened.
+        showAmbient(row);
+    }
+
+    private void showAmbient(AppLibrary.Row row) {
+        ImageView ambient = (ImageView) findViewById(R.id.am_page_ambient);
+        if (ambient == null || computer == null || managerBinder == null || row == null) {
+            if (ambient != null) {
+                ambient.setVisibility(View.GONE);
+            }
+            return;
         }
+        if (ambientArtwork == null) {
+            ambientArtwork = new AppAmbientArtwork(this, computer, managerBinder.getUniqueId());
+        }
+        ambientArtwork.show(row.app, ambient);
     }
 
     private void launchSelected() {
