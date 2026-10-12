@@ -352,9 +352,7 @@
                     android:layout_width="150dp"
                     android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:background="@drawable/am_detail_cover_bg"
                     android:scaleType="fitCenter"
-                    android:padding="4dp"
                     android:contentDescription="@string/am_pick_cover_desc" />
 
                 <TextView

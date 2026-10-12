@@ -744,7 +744,6 @@ public class AppsPageView extends ArtMoonActivity {
         updateHero();
     }
 
-    /** After a finger's scroll: the cursor takes the row nearest the middle of the column. */
     /**
      * Move the cursor one row, clamped at both ends.
      *
@@ -762,12 +761,63 @@ public class AppsPageView extends ArtMoonActivity {
         }
         int current = grid.getSelectedItemPosition();
         if (current < 0 || current >= count) {
-            current = 0;
+            // Nothing is selected yet: the entry itself should already be under the cursor (see
+            // landCursorOnFirstRow), and if the very first press arrives before that has happened,
+            // it lands on the first entry rather than moving off wherever the list happens to be.
+            grid.setSelection(firstSelectableRow());
+            return;
         }
         int next = Math.max(0, Math.min(count - 1, current + dir));
         if (next != current) {
             grid.setSelection(next);
         }
+    }
+
+    /** The first row that is an app rather than a section heading. */
+    private int firstSelectableRow() {
+        for (int i = 0; adapter != null && i < adapter.getCount(); i++) {
+            if (adapter.getItemViewType(i) != 1) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * The cursor is on the first app the moment the page opens.
+     *
+     * <p>Nik, 12 Oct 2026: "it doesnt have the first item on the list already selected, i have to
+     * press down on the depad before anything is selected". The desktop's grid opens with the first
+     * card in the spotlight, and everything on this page acts on "the spotlight" — an empty
+     * spotlight is a page where A would have nothing to launch.
+     *
+     * <p>The first row of a section is its heading rather than an app, so the landing is on the
+     * first row that is a real entry. It waits for the list if the list has not arrived, and it
+     * leaves an existing selection alone: coming back from Settings must not send him to the top.
+     */
+    private void landCursorOnFirstRow() {
+        landCursorOnFirstRow(24);
+    }
+
+    private void landCursorOnFirstRow(final int triesLeft) {
+        if (grid == null || adapter == null) {
+            return;
+        }
+        if (adapter.getCount() == 0) {
+            if (triesLeft > 0) {
+                grid.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        landCursorOnFirstRow(triesLeft - 1);
+                    }
+                }, 120);
+            }
+            return;
+        }
+        if (grid.getSelectedItemPosition() >= 0) {
+            return;
+        }
+        grid.setSelection(firstSelectableRow());
     }
 
     private void settleCursorOnVisible() {
@@ -1333,6 +1383,16 @@ public class AppsPageView extends ArtMoonActivity {
         inForeground = true;
         if (managerBinder != null) {
             startComputerUpdates();
+        }
+        if (grid != null) {
+            // The page opens with the first app under the cursor, not with nothing until the first
+            // press. Posted rather than called: the list is laid out after this returns.
+            grid.post(new Runnable() {
+                @Override
+                public void run() {
+                    landCursorOnFirstRow();
+                }
+            });
         }
         // Settings can change while this page is behind them, and the config line is a promise
         // about what a session would go out with. Re-read rather than left showing the numbers the
