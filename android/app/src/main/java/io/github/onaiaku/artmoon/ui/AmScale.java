@@ -55,18 +55,35 @@ public final class AmScale {
     }
 
     /**
-     * The STAGE's scale, which the desktop clamps and the shell does not.
+     * The STAGE's scale.
      *
-     * <p>HostStage.qml:315 — {@code _u = Math.max(0.62, Math.min(1.60, width / 1330))}. HomeScreen
-     * and AppShell both divide and stop (HomeScreen.qml:116, AppShell.qml:32), so the brand row,
-     * the tab strip and the footer keep shrinking with the window while the card and everything
-     * on it stop at 0.62. That is the desktop's own behaviour at a narrow width and the port has
-     * to reproduce it, not improve on it.
+     * <p>HostStage.qml:315 — {@code _u = Math.max(0.62, Math.min(1.60, width / 1330))}: the card
+     * stops shrinking at 62% of design while the shell around it keeps dividing.
+     *
+     * <p>⚠️ THE FLOOR IS REMOVED HERE, AND THAT IS NOT A DRIFT FROM THE DESKTOP — the desktop
+     * cannot reach it. main.qml:155 sets {@code minimumWidth: 1280}, so the narrowest window the
+     * desktop will ever draw is 1280 wide: width/1330 = 0.962. The floor would have to sit above
+     * 0.96 to fire even once. It is dead code over there.
+     *
+     * <p>On a phone it is very much alive, and it is the whole of the portrait damage. A phone in
+     * portrait is 475dp (the Fold, cover screen) or ~411dp (an ordinary phone) — width/1330 of
+     * 0.357 and 0.309. The shell scaled to that while the card stopped at 0.62, so the card drew
+     * 1.7–2x larger than the box holding it: the facts block clipped into the hero, the
+     * Authorised badge lost its second word and read "Artlight", the stream badges were cut off
+     * down one side, and the picture read as stretched because the column it sat in was.
+     *
+     * <p>With the card on the same rule as everything else it fits its own box at every width,
+     * exactly as it does on the desktop — the card is a fixed FRACTION of the stage (55%), so a
+     * card scaled to the stage's width always has room. It is small on a phone; being small and
+     * whole is a different problem from being broken.
+     *
+     * <p>The upper clamp stays: a desktop window CAN be wider than 1330, so 1.60 is reachable and
+     * is real desktop behaviour.
      */
     public static AmScale ofStage(Context c) {
         DisplayMetrics dm = c.getResources().getDisplayMetrics();
         float raw = (dm.widthPixels / dm.density) / BASE_WIDTH;
-        return new AmScale(Math.max(0.62f, Math.min(1.60f, raw)));
+        return new AmScale(Math.min(1.60f, raw));
     }
 
     public float uiScale() {

@@ -83,8 +83,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         // inflation only: a recycled row has already been through it, and scaling twice is
         // exactly how a layout drifts out of agreement with the other platforms.
         if (fresh) {
-            // The stage's scale, CLAMPED at 0.62 (HostStage.qml:315) — the card and everything on
-            // it stop shrinking with the window at the same width the desktop's do.
+            // The stage's scale: width / 1330, and deliberately NOT clamped at 0.62 the way
+            // HostStage.qml:315 is. See AmScale.ofStage — the desktop's floor cannot fire (its
+            // window stops at 1280 wide, 0.96 of the design width), while on a phone it was the
+            // card drawn ~1.8x too big for its own box. One rule for the shell and the card.
             AmScale s = AmScale.ofStage(context);
             AmScale.applyTo(v, s);
             // HostStage.qml:556 — the stage card's radius is _px(16), so it scales with the
@@ -144,6 +146,16 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         PcView.ComputerObject obj = (PcView.ComputerObject) getItem(position);
         if (obj != null) {
             boundViews.put(obj.details.uuid, v);
+
+            // Paint what this host last told us, now that there is a view to paint it into.
+            //
+            // A screen change rebuilds the whole tree and makes a NEW adapter with empty caches,
+            // so without this the card came up blank and stayed blank until the poller's next
+            // round trip landed — the "dag and a age" Nik saw on every rotate and unfold. The
+            // values come from the process-level cache rather than the network, so they are on
+            // screen in this frame; the next poll corrects them ~2s later. Silent for a host that
+            // has never reported, so an unknown host still shows its own empty state.
+            io.github.onaiaku.artmoon.artlight.HostMetricsPoller.applyCachedTo(this, obj.details.uuid);
         }
         // Bind-time ring: the row is fresh (poll rebinds wipe activated state),
         // so have PcView's single writer repaint NOW, synchronously, before

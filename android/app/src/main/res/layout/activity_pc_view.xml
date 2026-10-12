@@ -116,12 +116,28 @@
                  puts an ActionHint here at size _px(28) inside a 44x30 item, so what is drawn is
                  the button itself — the key chip ("PgUp") with no pad, the vendor glyph with one.
 
-                 PcView shows/hides the whole 44x30 box, so the box is what carries the id and
-                 the click; the chip inside it is the drawing. -->
+                 PcView shows/hides the whole box, so the box is what carries the id and the
+                 click; the chip inside it is the drawing.
+
+                 ⚠️ BOTH BOXES ARE wrap_content, AND THAT IS THE FIX FOR THE CROPPED "PgUp".
+                 ActionHint.qml:79 floors its label at 11 — `Math.max(11, Math.round(size * 0.46))`
+                 — and floors it in REAL px, so the floor does not scale down with the window
+                 ("the desktop's floor does not move", applyCapLetter's own note). The desktop
+                 survives that because an ActionHint SIZES ITSELF around the label it draws: the
+                 chip grows and nothing is ever cut.
+
+                 Here the chip was nailed into a 44x30 box. At a desktop width the two agree; on a
+                 phone in portrait the box scales to 44 * 0.357 = 16dp wide while the floored label
+                 still needs ~26dp, so the frame clipped the word and the shoulder showed one
+                 letter. wrap_content with the design size as the MINIMUM is the desktop's own
+                 behaviour: the box is never smaller than the design, and never smaller than the
+                 label either. -->
             <FrameLayout
                 android:id="@+id/am_pg_up"
-                android:layout_width="44dp"
-                android:layout_height="30dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="44dp"
+                android:minHeight="30dp"
                 android:clickable="true"
                 android:focusable="false"
                 android:layout_marginEnd="14dp"
@@ -130,7 +146,8 @@
                 <TextView
                     android:id="@+id/am_pg_up_cap"
                     android:layout_width="wrap_content"
-                    android:layout_height="24dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="24dp"
                     android:layout_gravity="center"
                     android:gravity="center"
                     android:minWidth="24dp"
@@ -152,11 +169,13 @@
                 android:gravity="center_vertical" />
 
             <!-- Right trigger — the strip's OTHER END, not the screen's: it follows the last
-                 tab (HomeScreen.qml:1947-1968). -->
+                 tab (HomeScreen.qml:1947-1968). Same wrap_content story as the left one. -->
             <FrameLayout
                 android:id="@+id/am_pg_dn"
-                android:layout_width="44dp"
-                android:layout_height="30dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="44dp"
+                android:minHeight="30dp"
                 android:clickable="true"
                 android:focusable="false"
                 android:layout_marginStart="14dp"
@@ -165,7 +184,8 @@
                 <TextView
                     android:id="@+id/am_pg_dn_cap"
                     android:layout_width="wrap_content"
-                    android:layout_height="24dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="24dp"
                     android:layout_gravity="center"
                     android:gravity="center"
                     android:minWidth="24dp"

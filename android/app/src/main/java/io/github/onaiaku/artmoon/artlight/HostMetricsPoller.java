@@ -63,6 +63,65 @@ public class HostMetricsPoller {
         handler.removeCallbacks(pollRunnable);
     }
 
+    /**
+     * The last values each host gave us — kept in the PROCESS, not in the adapter.
+     *
+     * On a screen change the activity rebuilds its whole view tree and makes a NEW adapter, so
+     * every cache that lives on the adapter comes up empty: the card painted blank and stayed
+     * blank until the next round trip landed, with the cover art decoded from scratch on top of
+     * that. Nik: "rotating the screen or unfolding ... its taking a dag and a age for the stats and
+     * the last played to show up at all."
+     *
+     * None of this data is per-activity. Last session, host link and the games strip are facts
+     * about the HOST, so they are held here, keyed by uuid, and re-applied to a freshly bound card
+     * the moment one exists (PcGridAdapter.getView). A rebuild now paints the last known truth
+     * immediately and the next poll corrects it a couple of seconds later, instead of the card
+     * being empty for the whole of that time.
+     */
+    private static final class LastKnown {
+        String ago, duration, grade, gradeColor;
+        int rttMs = -1, rttPeakMs = -1, hostLatMs = -1;
+        double dropsPct = -1;
+        int gamesTotal;
+        java.util.List<GameCover> games;
+        String hostLink;
+    }
+
+    private static final java.util.HashMap<String, LastKnown> LAST_KNOWN =
+            new java.util.HashMap<>();
+
+    private static LastKnown known(String uuid) {
+        LastKnown lk = LAST_KNOWN.get(uuid);
+        if (lk == null) {
+            lk = new LastKnown();
+            LAST_KNOWN.put(uuid, lk);
+        }
+        return lk;
+    }
+
+    /**
+     * Paint a freshly bound card from the last values seen for it, if it has ever reported any.
+     *
+     * Called by the adapter at bind time — the one moment a view exists and has nothing on it.
+     * Silent when the host has never reported: a host we know nothing about must still show its
+     * empty state rather than somebody else's stale numbers.
+     */
+    public static void applyCachedTo(PcGridAdapter adapter, String uuid) {
+        if (adapter == null || uuid == null) {
+            return;
+        }
+        LastKnown lk = LAST_KNOWN.get(uuid);
+        if (lk == null) {
+            return;
+        }
+        adapter.updateLastSessionByUuid(uuid, lk.ago, lk.duration, lk.grade, lk.gradeColor,
+                lk.rttMs, lk.rttPeakMs, lk.hostLatMs, lk.dropsPct, lk.gamesTotal, lk.games);
+        adapter.updateGameFactsByUuid(uuid, lk.ago, lk.duration, lk.games);
+        if (lk.hostLink != null) {
+            adapter.updateHostLinkByUuid(uuid, lk.hostLink);
+        }
+    }
+
     private final Runnable pollRunnable = new Runnable() {
         @Override
         public void run() {
@@ -112,27 +171,28 @@ public class HostMetricsPoller {
                         if (!running) {
                             return;
                         }
-                        adapter.updateLastSessionByUuid(
-                                tgt.uuid,
-                                snap == null ? null : snap.ago,
-                                snap == null ? null : snap.duration,
-                                snap == null ? null : snap.grade,
-                                snap == null ? null : snap.gradeColor,
-                                snap == null ? -1 : snap.rttMs,
-                                snap == null ? -1 : snap.rttPeakMs,
-                                snap == null ? -1 : snap.hostLatMs,
-                                snap == null ? -1 : snap.dropsPct,
-                                snap == null ? 0 : snap.gamesTotal,
-                                snap == null ? null : snap.games);
+                        // Record BEFORE painting: the cache is what a rebuilt card reads, and it
+                        // must never be a step behind the view it is meant to restore.
+                        LastKnown lk = known(tgt.uuid);
+                        lk.ago = snap == null ? null : snap.ago;
+                        lk.duration = snap == null ? null : snap.duration;
+                        lk.grade = snap == null ? null : snap.grade;
+                        lk.gradeColor = snap == null ? null : snap.gradeColor;
+                        lk.rttMs = snap == null ? -1 : snap.rttMs;
+                        lk.rttPeakMs = snap == null ? -1 : snap.rttPeakMs;
+                        lk.hostLatMs = snap == null ? -1 : snap.hostLatMs;
+                        lk.dropsPct = snap == null ? -1 : snap.dropsPct;
+                        lk.gamesTotal = snap == null ? 0 : snap.gamesTotal;
+                        lk.games = snap == null ? null : snap.games;
+
+                        adapter.updateLastSessionByUuid(tgt.uuid, lk.ago, lk.duration, lk.grade,
+                                lk.gradeColor, lk.rttMs, lk.rttPeakMs, lk.hostLatMs, lk.dropsPct,
+                                lk.gamesTotal, lk.games);
 
                         // The right-hand column is GameFacts — badge, cover, title, figures
                         // (HostStage.qml:1625). The session NUMBERS above stay in the card, where
                         // the desktop keeps them (HostStage.qml:1218 is inside the card).
-                        adapter.updateGameFactsByUuid(
-                                tgt.uuid,
-                                snap == null ? null : snap.ago,
-                                snap == null ? null : snap.duration,
-                                snap == null ? null : snap.games);
+                        adapter.updateGameFactsByUuid(tgt.uuid, lk.ago, lk.duration, lk.games);
                     }
                 });
             }
@@ -152,6 +212,7 @@ public class HostMetricsPoller {
                         if (!running) {
                             return;
                         }
+                        known(tgt.uuid).hostLink = link;
                         adapter.updateHostLinkByUuid(tgt.uuid, link);
                     }
                 });

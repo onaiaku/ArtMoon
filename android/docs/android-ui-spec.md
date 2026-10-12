@@ -9,21 +9,35 @@ This file covers behaviour.
 
 ## 1. Orientation & form factor
 
-- **The app follows the device.** ArtMoon imposes no orientation of its own: rotate the phone and
-  the app rotates with it, honouring the system's auto-rotate setting — and when auto-rotate is
-  off, the system's own rotate button appears, because nothing is pinning the activity any more.
-  `OrientationHelper.applyOrientation()` runs from every ArtMoon activity's `onCreate` **and**
-  `onConfigurationChanged`, and always clears any orientation lock.
-  *Changed 2026-09-28: phones used to be portrait-locked, which phone users read as a bug —
-  the app "wouldn't rotate and not even the rotate button appeared" (issue #5).*
-- **Landscape layouts** exist for the hosts screen, the app picker and the app grid
-  (`res/layout-land/activity_pc_view.xml`, `activity_app_view.xml`, `app_grid_view.xml`,
-  `app_grid_view_small.xml`). `PcView.onConfigurationChanged` re-inflates through
-  `initializeViews()` and `AppView` re-replaces its grid fragment, so those are picked up on a
-  turn or a fold. Settings, Add host, Help and ArtLight have no landscape layout yet: they rotate,
-  and the portrait layout re-lays itself out in the wider window.
-- **Streaming keeps its own policy.** `Game` requests landscape — or the orientation that matches
-  a native-resolution stream — because a stream is not a rotatable screen.
+- **The app is landscape. `SENSOR_LANDSCAPE`, on every device.** `OrientationHelper.applyOrientation()`
+  runs from every ArtMoon activity's `onCreate` **and** `onConfigurationChanged`, and always requests
+  sensor-landscape. *Changed 2026-10-12 (Nik):* the screen is a landscape UI and there is nothing to
+  port for a portrait one — the desktop's window has `minimumWidth: 1280` (`main.qml:155`) and its
+  card stops shrinking at 62% of design (`HostStage.qml:315`), so no desktop has ever drawn this
+  screen below ~825dp wide, while a phone in portrait is 475dp (Fold, cover screen) or ~411dp. In
+  portrait the shell scaled to 36% of design while the card was held at 62%, drawing the card ~1.8x
+  larger than its box: cropped PgUp/PgDn shoulders, the Authorised badge cut to "Artlight",
+  last-played clipping into the hero, the picture reading as stretched, stream badges cut off.
+  Sensor and not plain `LANDSCAPE` so the user can turn the device over.
+- ⚠️ **Precedent worth knowing before a report lands (Nik: "i forsee bug reports coming in").** On
+  2026-09-28 this app was changed *from* an orientation lock *to* following the device, because
+  phone users read the lock as a bug — "wouldn't rotate and not even the rotate button appeared"
+  (issue #5). That lock was **portrait** — the shape this UI is not drawn for. This one is
+  landscape, which is, so it inverts that complaint rather than repeating it. Expect the same wording
+  of report anyway: a landscape lock and a portrait lock both read as "it won't rotate" to someone
+  holding a phone upright.
+- ⚠️ **Platform limit, not ours:** from Android 12 an app targeting 12+ has its orientation request
+  **ignored** on any display whose smallest width is ≥600dp. The Fold's inner screen is ~704dp, so
+  there the app still follows the device. Benign (that screen is landscape-shaped) but it will look
+  like the lock "not working" to anyone testing on an unfolded Fold.
+- **Streaming keeps its own policy.** `Game` requests landscape — or the orientation that matches a
+  native-resolution stream — because a stream is not a rotatable screen.
+- **One layout, every shape** (changed 2026-10-12). There are no `layout-land` variants any more:
+  `res/layout-land/activity_pc_view.xml` was deleted, and every dimension in every layout is the
+  QML's own *base* number with `AmScale.applyTo()` multiplying them by `Theme.uiScale`
+  (`width / 1330`) at bind time. That is the desktop's rule — `AppShell.qml:32` — and it is why one
+  layout serves a phone, a Fold, a tablet and a TV instead of four files drifting apart. A second
+  landscape file was the same invention in the other orientation.
 - TV-banner / leanback metadata: reuse upstream's existing declarations.
 
 ## 2. Hosts screen (hero card)
