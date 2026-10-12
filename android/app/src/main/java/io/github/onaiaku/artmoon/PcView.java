@@ -1364,11 +1364,32 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     bottom = insets.getSystemWindowInsetBottom();
                 }
 
+                // ⚠️ THE STATUS BAR HAS ALREADY BEEN TAKEN OFF US BY THE TIME THIS RUNS.
+                // UiHelper.notifyNewRootView pads android.R.id.content by the TAPPABLE insets on
+                // Q+ ("Draw under the status bar on Android Q devices"), and insets dispatch
+                // parent-first, so that padding is in place before this listener is reached. The
+                // view's own top offset inside the window IS that take.
+                //
+                // Adding `top` to the brand row on top of it counted the status bar twice, and on
+                // the Fold's cover screen that was 79px of the 191px between the top of the screen
+                // and the top of the brand row — 72.8dp of dead space above the logo, measured on
+                // the device, on a window only 475.4dp tall. The desktop has no second inset to
+                // add: AppShell.qml:1741 starts the brand row at its own _px(22) from the top of
+                // a window the app owns outright.
+                //
+                // So give back only what we actually lost. On a screen where nothing else has
+                // inset us (`already` = 0, e.g. the TV path that sets no padding) this is exactly
+                // the old behaviour.
+                int already = 0;
+                android.view.ViewParent parent = root.getParent();
+                if (parent instanceof View) {
+                    already = ((View) parent).getPaddingTop();
+                }
                 if (brand.getLayoutParams()
                         instanceof android.view.ViewGroup.MarginLayoutParams) {
                     android.view.ViewGroup.MarginLayoutParams lp =
                             (android.view.ViewGroup.MarginLayoutParams) brand.getLayoutParams();
-                    int want = brandTopBase + top;
+                    int want = brandTopBase + Math.max(0, top - already);
                     if (lp.topMargin != want) {
                         lp.topMargin = want;
                         brand.setLayoutParams(lp);
