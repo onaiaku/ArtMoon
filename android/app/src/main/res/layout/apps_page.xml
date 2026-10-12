@@ -208,6 +208,39 @@
                     android:baselineAligned="false"
                     android:paddingBottom="6dp">
 
+                    <!-- The shoulders sit at the two ends of the tabs, as they do on the desktop
+                         (AppsScreen.qml:1226 — ProfileShoulder at each end of the strip). With a pad
+                         the chip reads LB/RB, with a keyboard PgUp/PgDn: each is drawn beside what
+                         it moves. Tapping one moves a tab, which is also how a finger does it. -->
+                    <FrameLayout
+                        android:id="@+id/am_tab_sh_left"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="44dp"
+                        android:minHeight="30dp"
+                        android:layout_marginEnd="10dp"
+                        android:layout_marginRight="10dp"
+                        android:clickable="true"
+                        android:focusable="false">
+
+                        <TextView
+                            android:id="@+id/am_tab_sh_left_cap"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:gravity="center"
+                            android:minWidth="24dp"
+                            android:minHeight="24dp"
+                            android:text="@string/am_key_pgup"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/am_text"
+                            android:background="@drawable/am_action_cap"
+                            android:paddingStart="7dp" android:paddingLeft="7dp"
+                            android:paddingEnd="7dp" android:paddingRight="7dp"
+                            android:alpha="0.85" />
+                    </FrameLayout>
+
                     <TextView
                         android:id="@+id/am_tab_all"
                         style="@style/AmTab"
@@ -225,6 +258,35 @@
                         style="@style/AmTab"
                         android:background="@drawable/am_tab_underline"
                         android:text="@string/am_tab_apps" />
+
+                    <FrameLayout
+                        android:id="@+id/am_tab_sh_right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="44dp"
+                        android:minHeight="30dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginLeft="10dp"
+                        android:clickable="true"
+                        android:focusable="false">
+
+                        <TextView
+                            android:id="@+id/am_tab_sh_right_cap"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:gravity="center"
+                            android:minWidth="24dp"
+                            android:minHeight="24dp"
+                            android:text="@string/am_key_pgdn"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/am_text"
+                            android:background="@drawable/am_action_cap"
+                            android:paddingStart="7dp" android:paddingLeft="7dp"
+                            android:paddingEnd="7dp" android:paddingRight="7dp"
+                            android:alpha="0.85" />
+                    </FrameLayout>
                 </LinearLayout>
 
                 <!-- The list runs the full height of the page — that is where the rows come from. -->

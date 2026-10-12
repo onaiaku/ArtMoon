@@ -85,6 +85,13 @@ public class AppsPageView extends ArtMoonActivity {
     private boolean hostStateKnown = false;
     private boolean hostOnline = false;
 
+    /**
+     * Which hand last moved. The shoulders at the ends of the tabs read LB/RB with a pad in it and
+     * PgUp/PgDn with a keyboard, exactly as the desktop draws them (AppsScreen.qml:1226-1232) —
+     * each chip is drawn beside the thing it moves.
+     */
+    private boolean lastInputWasPad = false;
+
     private final static int START_OR_RESUME_ID = 1;
     private final static int QUIT_ID = 2;
     private final static int START_WITH_QUIT = 4;
@@ -241,6 +248,43 @@ public class AppsPageView extends ArtMoonActivity {
                 if (adapter != null) {
                     adapter.setListHasFocus(hasFocus);
                 }
+            }
+        });
+
+        // ⚠️ The cursor has to move when the pad moves it.
+        //
+        // onItemClick is a finger. A stick or a dpad changes the ListView's *selection*, and
+        // nothing was listening to that — so the lit row, the right-hand panel and the figures all
+        // stood still while the list scrolled under them, which is exactly what Nik found (12 Oct
+        // 2026: no selection indicator while scrolling, the right panel not changing with the
+        // cursor, the played/session figures never appearing).
+        grid.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectRow(position);
+                if (view != null) {
+                    view.setSelected(true);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        // A finger scrolls the column rather than moving a selection, so when the list settles the
+        // cursor lands on the row nearest the middle of it — the one the eye is actually on.
+        grid.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                if (scrollState == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
+                    settleCursorOnVisible();
+                }
+            }
+
+            @Override
+            public void onScroll(android.widget.AbsListView view, int firstVisibleItem,
+                                 int visibleItemCount, int totalItemCount) {
             }
         });
 
@@ -429,6 +473,71 @@ public class AppsPageView extends ArtMoonActivity {
         all.setOnClickListener(click);
         games.setOnClickListener(click);
         apps.setOnClickListener(click);
+
+        // The shoulders at the two ends of the strip: LB back, RB forward, the ring wrapping
+        // (AppsScreen.qml:1226 and 1233, switchLibraryTab). A finger uses them the same way.
+        android.view.View left = findViewById(R.id.am_tab_sh_left);
+        if (left != null) {
+            left.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    switchTab(-1);
+                }
+            });
+        }
+        android.view.View right = findViewById(R.id.am_tab_sh_right);
+        if (right != null) {
+            right.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    switchTab(1);
+                }
+            });
+        }
+
+        applyShoulderLabels();
+    }
+
+    /** LB/RB or PgUp/PgDn: whichever input is in the hand, drawn on the chip that carries it. */
+    private void applyShoulderLabels() {
+        TextView l = (TextView) findViewById(R.id.am_tab_sh_left_cap);
+        if (l != null) {
+            l.setText(lastInputWasPad ? "LB" : getString(R.string.am_key_pgup));
+        }
+        TextView r = (TextView) findViewById(R.id.am_tab_sh_right_cap);
+        if (r != null) {
+            r.setText(lastInputWasPad ? "RB" : getString(R.string.am_key_pgdn));
+        }
+    }
+
+    /**
+     * One step along ALL / GAMES / APPS, wrapping at the ends — the desktop's own ring
+     * (switchLibraryTab). A switch by hand is saved, which is what the pad and the keys are.
+     */
+    private void switchTab(int dir) {
+        final String[] tabs = { AppLibrary.CAT_ALL, AppLibrary.CAT_GAMES, AppLibrary.CAT_APPS };
+        int at = 0;
+        for (int i = 0; i < tabs.length; i++) {
+            if (tabs[i].equals(category)) {
+                at = i;
+            }
+        }
+        setTab(tabs[(at + (dir < 0 ? -1 : 1) + tabs.length) % tabs.length], true);
+    }
+
+    /** Reads the device behind an input event and re-labels the shoulders if the hand changed. */
+    private void noteInputSource(android.view.InputDevice device) {
+        if (device == null) {
+            return;
+        }
+        int sources = device.getSources();
+        boolean pad = (sources & android.view.InputDevice.SOURCE_GAMEPAD) ==
+                android.view.InputDevice.SOURCE_GAMEPAD
+                || (sources & android.view.InputDevice.SOURCE_JOYSTICK) != 0;
+        if (pad != lastInputWasPad) {
+            lastInputWasPad = pad;
+            applyShoulderLabels();
+        }
     }
 
     /**
@@ -610,24 +719,52 @@ public class AppsPageView extends ArtMoonActivity {
     }
 
     private void selectRow(int position) {
-        if (adapter == null || adapter.getItemViewType(position) == 1) {
+        if (adapter == null || position < 0 || position >= adapter.getCount()
+                || adapter.getItemViewType(position) == 1) {
             return;
         }
         adapter.setFocused(position);
         updateHero();
     }
 
-    /** The row under the cursor, which is what the spotlight is about. */
+    /** After a finger's scroll: the cursor takes the row nearest the middle of the column. */
+    private void settleCursorOnVisible() {
+        if (grid == null || adapter == null || grid.getChildCount() == 0) {
+            return;
+        }
+        int middle = grid.getHeight() / 2;
+        int bestPosition = -1;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            int centre = child.getTop() + child.getHeight() / 2;
+            int distance = Math.abs(centre - middle);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestPosition = grid.getFirstVisiblePosition() + i;
+            }
+        }
+        if (bestPosition >= 0) {
+            selectRow(bestPosition);
+        }
+    }
+
+    /**
+     * The row under the cursor, which is what the spotlight is about.
+     *
+     * ⚠️ Not grid.getSelectedItemPosition() on its own: in touch mode that is INVALID_POSITION, so
+     * the right-hand panel sat on row 0 while the list had plainly moved. The cursor the highlight
+     * is drawn from is the only honest answer about what is selected.
+     */
     private AppLibrary.Row selectedRow() {
         if (adapter == null || grid == null) {
             return null;
         }
-        return adapter.rowAt(grid.getSelectedItemPosition() >= 0
-                ? grid.getSelectedItemPosition() : adapterPositionOrZero());
-    }
-
-    private int adapterPositionOrZero() {
-        return 0;
+        int position = adapter.focusedPosition();
+        if (position < 0) {
+            position = grid.getSelectedItemPosition() >= 0 ? grid.getSelectedItemPosition() : 0;
+        }
+        return adapter.rowAt(position);
     }
 
     private void fillPage() {
@@ -743,6 +880,15 @@ public class AppsPageView extends ArtMoonActivity {
         StringBuilder parts = new StringBuilder();
         if (running) {
             parts.append(getString(R.string.am_pick_running));
+        }
+        // The store the host named, in words — the desktop's spotlight carries it too
+        // (AppsScreen.qml focusedStore), and it is the "platform" the entry belongs to.
+        String store = adapter != null ? adapter.storeFor(row.name) : "";
+        if (!store.isEmpty()) {
+            if (parts.length() > 0) {
+                parts.append("  ·  ");
+            }
+            parts.append(store);
         }
         if (row.overridden) {
             if (parts.length() > 0) {
@@ -937,20 +1083,28 @@ public class AppsPageView extends ArtMoonActivity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // PgUp/PgDn move between the tabs, as they do on the desktop.
-        if (keyCode == KeyEvent.KEYCODE_PAGE_UP) {
-            setTab(AppLibrary.CAT_ALL.equals(category) ? AppLibrary.CAT_APPS
-                    : AppLibrary.CAT_GAMES.equals(category) ? AppLibrary.CAT_ALL : AppLibrary.CAT_GAMES,
-                    true);
+        // Which hand is on the controls decides what the shoulder chips say.
+        noteInputSource(event.getDevice());
+
+        // The tabs, the desktop's own pair: LB/RB on the pad (Key_F16/F17) and PgUp/PgDn on the
+        // keyboard, one step each way with the ring wrapping (AppsScreen.qml:503-511).
+        if (keyCode == KeyEvent.KEYCODE_BUTTON_L1 || keyCode == KeyEvent.KEYCODE_PAGE_UP) {
+            switchTab(-1);
             return true;
         }
-        if (keyCode == KeyEvent.KEYCODE_PAGE_DOWN) {
-            setTab(AppLibrary.CAT_ALL.equals(category) ? AppLibrary.CAT_GAMES
-                    : AppLibrary.CAT_GAMES.equals(category) ? AppLibrary.CAT_APPS : AppLibrary.CAT_ALL,
-                    true);
+        if (keyCode == KeyEvent.KEYCODE_BUTTON_R1 || keyCode == KeyEvent.KEYCODE_PAGE_DOWN) {
+            switchTab(1);
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(android.view.MotionEvent event) {
+        // A stick moving is the pad in the hand — and the ListView takes the event itself, which is
+        // what moves its selection and fires the cursor above.
+        noteInputSource(event.getDevice());
+        return super.onGenericMotionEvent(event);
     }
 
     @Override

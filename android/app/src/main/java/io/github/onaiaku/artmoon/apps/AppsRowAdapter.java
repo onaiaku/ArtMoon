@@ -100,6 +100,17 @@ public class AppsRowAdapter extends BaseAdapter {
         notifyDataSetChanged();
     }
 
+    /** Where the cursor is. The page reads this rather than the ListView's touch-mode selection. */
+    public int focusedPosition() {
+        return focused;
+    }
+
+    /** The store the host said this entry comes from, in words (AppsScreen.qml focusedStore). */
+    public String storeFor(String appName) {
+        String store = stores.get(appName);
+        return store != null ? store : "";
+    }
+
     public void setListHasFocus(boolean focused) {
         this.listFocused = focused;
         notifyDataSetChanged();
