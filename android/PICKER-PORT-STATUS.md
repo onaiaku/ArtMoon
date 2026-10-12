@@ -83,7 +83,7 @@ with my own eyes yet.
 | Ambient backdrop | focused cover, blurred | **PRESENT** |
 | Host chips (link / online / profile) | yes | **PRESENT** — `paintChips`; profile + tailscale chips are hidden today |
 | "some may be hidden on the host" | the desktop never blames the host for a client bug | **PRESENT** — fixed; it was mine |
-| Hidden apps / ShowHiddenApps | the desktop has no such feature | **EXTRA** — Android-only, inherited from the old picker. Kept, not deleted: that's your call |
+| Hidden apps / ShowHiddenApps | the desktop has no such feature | **GONE** — it was an Android-only leftover from the old picker, and Nik scrapped it (12 Oct 2026, `5029ed6c`). Removed from the app, not just from this list: the menu entry, the preference file, the intent extra, `Row.hidden`, the faint alpha, the host-blaming empty-state lines, and the string in all 26 locales |
 
 ## 3. What I can't tell you without your eyes
 
@@ -171,15 +171,17 @@ because they are live, not because they are the biggest.
   we dont use the desktops settings page".** Android's own stream settings page is what a per-game
   entry would sit on, so if that is ever built it is Android's surface, not the desktop's dialog
   ported across. Removed from this list.
-- host profiles (desktop `HostProfilesDialog`), pad shortcut capture (`ShortcutCaptureDialog`),
-  `GamepadCaptureDialog`, `StageBackgroundDialog`, `AppSettingsDialog`.
+- host profiles, pad shortcut capture, gamepad capture, stage background — **scrapped as port items,
+  Nik's ruling (12 Oct 2026): "same reason we dont have the desktop settings so this wont work"**.
+  They are all reached from the desktop's own settings surface, which Android does not use, so there
+  is nothing here to port. `AppSettingsDialog` goes with them for the same reason.
 - the desktop's own on-screen keyboard (`OnScreenKeyboard.qml`) — Android uses the system keyboard,
   which may be the right answer rather than a gap.
 - ArtMoon's own update prompt (the desktop has one; I cannot point at an Android one).
 
 ### Parked on Nik (decisions, not work)
 - Home's host-strip arrows: LB/RB as they are, or the desktop's LT/RT (`HomeScreen.qml:1853`).
-- Hidden apps / ShowHiddenApps — Android-only, inherited from the old picker: keep or drop.
+- ~~Hidden apps / ShowHiddenApps — keep or drop~~ **answered: scrapped, and removed (`5029ed6c`)**.
 - The finger-scroll rule that settles the cursor on the middle row — mine, the desktop has none.
 - 66 commits on local `main`, unpushed.
 - The desktop watcher-playtime fix (`6f358ea0`) still waiting for his word before it is pushed or
