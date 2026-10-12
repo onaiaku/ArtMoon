@@ -2,12 +2,16 @@ package io.github.onaiaku.artmoon;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 
 import io.github.onaiaku.artmoon.computers.ComputerManagerListener;
 import io.github.onaiaku.artmoon.computers.ComputerManagerService;
 import io.github.onaiaku.artmoon.grid.AppAmbientArtwork;
+import io.github.onaiaku.artmoon.apps.AppLibrary;
+import io.github.onaiaku.artmoon.settings.PlaytimeManager;
 import io.github.onaiaku.artmoon.grid.AppGridAdapter;
 import io.github.onaiaku.artmoon.nvstream.http.ComputerDetails;
 import io.github.onaiaku.artmoon.nvstream.http.NvApp;
@@ -58,6 +62,15 @@ public class AppView extends io.github.onaiaku.artmoon.ArtMoonActivity implement
     private io.github.onaiaku.artmoon.artlight.PromptBar promptBar;
     private AppGridAdapter appGridAdapter;
     private String uuidString;
+    // Which tab the library is on. The host remembers the last one (PlaytimeManager), and the
+    // desktop opens on it rather than always on ALL.
+    private String currentCategory = AppLibrary.CAT_ALL;
+    // The host's app list as it last arrived, kept so the page can be rebuilt when something other
+    // than the list changes: playtime recorded, a pin toggled, an entry moved, a tab chosen.
+    private List<NvApp> lastAppList = new ArrayList<NvApp>();
+    // Ids the host listed last time, so a shortcut is enabled once for a new entry and disabled
+    // once for one the host has dropped.
+    private final Set<Integer> knownAppIds = new HashSet<Integer>();
     private ShortcutHelper shortcutHelper;
 
     private ComputerDetails computer;
@@ -127,6 +140,12 @@ public class AppView extends io.github.onaiaku.artmoon.ArtMoonActivity implement
                         return;
                     }
 
+                    // The host remembers the tab, so coming back to this machine opens where it
+                    // was left rather than always on ALL.
+                    String savedTab = PlaytimeManager.lastTabOn(AppView.this, uuidString);
+                    if (savedTab != null && !savedTab.isEmpty()) {
+                        currentCategory = savedTab;
+                    }
                     appGridAdapter.updateHiddenApps(hiddenAppIds, true);
 
                     // ArtLight integration: fetch the host's app -> store map
@@ -425,6 +444,7 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
                 .apply();
 
         appGridAdapter.updateHiddenApps(hiddenAppIds, hideImmediately);
+        rebuildPage();
     }
 
     private void populateAppGridWithCache() {
@@ -486,7 +506,7 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         super.onCreateContextMenu(menu, v, menuInfo);
 
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) menuInfo;
-        AppObject selectedApp = (AppObject) appGridAdapter.getItem(info.position);
+        AppObject selectedApp = objectForPosition(info.position);
 
         menu.setHeaderTitle(selectedApp.app.getAppName());
 
@@ -531,7 +551,7 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
-        final AppObject app = (AppObject) appGridAdapter.getItem(info.position);
+        final AppObject app = objectForPosition(info.position);
         switch (item.getItemId()) {
             case START_WITH_QUIT:
                 // Display a confirmation dialog first
@@ -602,36 +622,13 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         AppView.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                boolean updated = false;
-
-                    // Look through our current app list to tag the running app
-                for (int i = 0; i < appGridAdapter.getCount(); i++) {
-                    AppObject existingApp = (AppObject) appGridAdapter.getItem(i);
-
-                    // There can only be one or zero apps running.
-                    if (existingApp.isRunning &&
-                            existingApp.app.getAppId() == details.runningGameId) {
-                        // This app was running and still is, so we're done now
-                        return;
-                    }
-                    else if (existingApp.app.getAppId() == details.runningGameId) {
-                        // This app wasn't running but now is
-                        existingApp.isRunning = true;
-                        updated = true;
-                    }
-                    else if (existingApp.isRunning) {
-                        // This app was running but now isn't
-                        existingApp.isRunning = false;
-                        updated = true;
-                    }
-                    else {
-                        // This app wasn't running and still isn't
-                    }
-                }
-
-                if (updated) {
-                    appGridAdapter.notifyDataSetChanged();
-                    updateDetailPanel();
+                // The running game belongs to the page, not to a flag painted onto rows. The page
+                // is handed the host's running id and knows which entry that is, so this rebuilds
+                // rather than walking the list — walking it is also how a row kept a stale
+                // "running" after a session ended on another device.
+                if (lastRunningAppId != details.runningGameId) {
+                    lastRunningAppId = details.runningGameId;
+                    rebuildPage();
                 }
             }
         });
@@ -641,74 +638,189 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         AppView.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                boolean updated = false;
-
-                // First handle app updates and additions
+                // The list that arrived is now the truth about what this host has. Two things are
+                // owed to it that the page cannot do: the launcher shortcuts, and remembering which
+                // entries are new.
                 for (NvApp app : appList) {
-                    boolean foundExistingApp = false;
-
-                    // Try to update an existing app in the list first
-                    for (int i = 0; i < appGridAdapter.getCount(); i++) {
-                        AppObject existingApp = (AppObject) appGridAdapter.getItem(i);
-                        if (existingApp.app.getAppId() == app.getAppId()) {
-                            // Found the app; update its properties
-                            if (!existingApp.app.getAppName().equals(app.getAppName())) {
-                                existingApp.app.setAppName(app.getAppName());
-                                updated = true;
-                            }
-
-                            foundExistingApp = true;
-                            break;
-                        }
-                    }
-
-                    if (!foundExistingApp) {
-                        // This app must be new
-                        appGridAdapter.addApp(new AppObject(app));
-
+                    if (!knownAppIds.contains(app.getAppId())) {
                         // We could have a leftover shortcut from last time this PC was paired
                         // or if this app was removed then added again. Enable those shortcuts
                         // again if present.
                         shortcutHelper.enableAppShortcut(computer, app);
-
-                        updated = true;
+                    }
+                }
+                for (NvApp gone : lastAppList) {
+                    if (!containsAppId(appList, gone.getAppId())) {
+                        shortcutHelper.disableAppShortcut(computer, gone, "App removed from PC");
                     }
                 }
 
-                // Next handle app removals
-                int i = 0;
-                while (i < appGridAdapter.getCount()) {
-                    boolean foundExistingApp = false;
-                    AppObject existingApp = (AppObject) appGridAdapter.getItem(i);
-
-                    // Check if this app is in the latest list
-                    for (NvApp app : appList) {
-                        if (existingApp.app.getAppId() == app.getAppId()) {
-                            foundExistingApp = true;
-                            break;
-                        }
-                    }
-
-                    // This app was removed in the latest app list
-                    if (!foundExistingApp) {
-                        shortcutHelper.disableAppShortcut(computer, existingApp.app, "App removed from PC");
-                        appGridAdapter.removeApp(existingApp);
-                        updated = true;
-
-                        // Check this same index again because the item at i+1 is now at i after
-                        // the removal
-                        continue;
-                    }
-
-                    // Move on to the next item
-                    i++;
+                knownAppIds.clear();
+                for (NvApp app : appList) {
+                    knownAppIds.add(app.getAppId());
                 }
 
-                if (updated) {
-                    appGridAdapter.notifyDataSetChanged();
-                }
+                lastAppList = new ArrayList<NvApp>(appList);
+                rebuildPage();
             }
         });
+    }
+
+    private static boolean containsAppId(List<NvApp> list, int appId) {
+        for (NvApp app : list) {
+            if (app.getAppId() == appId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Build the library page and hand it to the adapter.
+     *
+     * <p>This is the whole of the list's ordering and grouping: which entries each tab shows, where
+     * Continue and PINNED sit, the section headings, the counts on the tabs. It is rebuilt rather
+     * than patched whenever anything it depends on changes — the app list, the playtime record, a
+     * pin, an entry moved between tabs, the running session — because a list assembled
+     * incrementally is how a pinned game ends up filed under two headings.</p>
+     */
+    private void rebuildPage() {
+        if (appGridAdapter == null) {
+            return;
+        }
+
+        AppLibrary.Page page = AppLibrary.page(this, uuidString, lastAppList, currentCategory,
+                showHiddenApps, hiddenAppIds, visibleAppIds(), lastRunningAppId);
+
+        appGridAdapter.setPage(page, currentCategory);
+        updateTabs(page);
+        selectRowForPanel();
+    }
+
+    /**
+     * What the list is showing right now, so an entry hidden a moment ago does not vanish out from
+     * under the checkbox that just hid it.
+     */
+    private Set<Integer> visibleAppIds() {
+        Set<Integer> ids = new HashSet<Integer>();
+        AppLibrary.Page page = appGridAdapter.getPage();
+        if (page != null) {
+            for (AppLibrary.Row row : page.rows) {
+                ids.add(row.appId);
+            }
+        }
+        return ids;
+    }
+
+    /** The tabs, with the counts in their labels and the open one lit. */
+    private void updateTabs(final AppLibrary.Page page) {
+        // Two exceptions to the saved tab, both the desktop's own:
+        //   · a host with Remote Monitor up is really being asked about its apps, not its games;
+        //   · ALL with nothing in it is not a place to open a library.
+        // Applying one rebuilds once, and then the condition is false and it settles — a list that
+        // could not settle would flicker between tabs.
+        if (AppLibrary.CAT_ALL.equals(currentCategory) && page.remoteMonitorActive) {
+            currentCategory = AppLibrary.CAT_APPS;
+            rebuildPage();
+            return;
+        }
+        if (AppLibrary.CAT_ALL.equals(currentCategory) && page.allCount == 0
+                && (page.gamesCount > 0 || page.appsCount > 0)) {
+            currentCategory = (page.gamesCount > 0) ? AppLibrary.CAT_GAMES : AppLibrary.CAT_APPS;
+            rebuildPage();
+            return;
+        }
+
+        final TextView tabAll = findViewById(R.id.am_tab_all);
+        if (tabAll == null) {
+            return;     // the landscape layout is the only one with a list to label
+        }
+
+        tabAll.setText(getString(R.string.am_tab_all) + "  " + page.allCount);
+        ((TextView) findViewById(R.id.am_tab_games)).setText(getString(R.string.am_tab_games) + "  " + page.gamesCount);
+        ((TextView) findViewById(R.id.am_tab_apps)).setText(getString(R.string.am_tab_apps) + "  " + page.appsCount);
+
+        lightTab(tabAll, AppLibrary.CAT_ALL.equals(currentCategory));
+        lightTab(findViewById(R.id.am_tab_games), AppLibrary.CAT_GAMES.equals(currentCategory));
+        lightTab(findViewById(R.id.am_tab_apps), AppLibrary.CAT_APPS.equals(currentCategory));
+
+        tabAll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setCategory(AppLibrary.CAT_ALL);
+            }
+        });
+        findViewById(R.id.am_tab_games).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setCategory(AppLibrary.CAT_GAMES);
+            }
+        });
+        findViewById(R.id.am_tab_apps).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setCategory(AppLibrary.CAT_APPS);
+            }
+        });
+    }
+
+    private void setCategory(String category) {
+        if (category.equals(currentCategory)) {
+            return;
+        }
+        currentCategory = category;
+        // The host remembers the tab, so coming back to this machine opens where it was left.
+        PlaytimeManager.setLastTab(this, uuidString, category);
+        rebuildPage();
+        selectRowForPanel();
+    }
+
+    private void lightTab(TextView tab, boolean on) {
+        tab.setBackgroundResource(on ? R.drawable.am_picker_pill_sel : R.drawable.am_picker_pill);
+        tab.setTextColor(getResources().getColor(on ? R.color.am_on_accent : R.color.am_text2));
+    }
+
+    /** The entry at a list position, or null when that position is a section heading. */
+    private AppObject objectForPosition(int position) {
+        AppLibrary.Row row = appGridAdapter.rowAt(position);
+        if (row == null) {
+            return null;
+        }
+        return new AppObject(row);
+    }
+
+    /**
+     * Keep the detail panel fed: the running game if there is one, otherwise the first entry.
+     *
+     * <p>Desktop parity — the preview is NEVER empty. And it is done here rather than left to the
+     * click path because a page that has just been rebuilt (a tab changed, a pin toggled, a
+     * session ended) has to re-find its selection: the position that showed the running game on
+     * the old page does not mean the same entry on the new one.</p>
+     */
+    private void selectRowForPanel() {
+        if (appGridAdapter == null || appGridAdapter.getPage() == null) {
+            return;
+        }
+
+        for (int i = 0; i < appGridAdapter.getCount(); i++) {
+            AppObject candidate = objectForPosition(i);
+            if (candidate != null && candidate.isRunning) {
+                selectedApp = candidate;
+                appGridAdapter.setSelectedPosition(i);
+                appGridAdapter.setSelectedApp(candidate);
+                updateDetailPanel();
+                return;
+            }
+        }
+
+        int first = appGridAdapter.positionOfFirstRow();
+        AppObject obj = objectForPosition(first);
+        if (obj != null) {
+            selectedApp = obj;
+            appGridAdapter.setSelectedPosition(first);
+            appGridAdapter.setSelectedApp(obj);
+        }
+        updateDetailPanel();
     }
 
     /**
@@ -932,7 +1044,7 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         padListIndex = next;
         AbsListView list = findViewById(R.id.fragmentView);
         if (list != null) list.setSelection(next);   // scrolls, no focus
-        selectedApp = (AppObject) appGridAdapter.getItem(next);
+        selectedApp = objectForPosition(next);
         appGridAdapter.setSelectedApp(selectedApp);
         appGridAdapter.setFocusedPosition(next);
         appGridAdapter.notifyDataSetChanged();
@@ -982,19 +1094,14 @@ if (ambientView == null) {
         }
         // If the selected app vanished from the list (host-side removal),
         // drop the selection instead of showing a stale panel.
-        if (selectedApp != null) {
-            boolean stillThere = false;
-            for (int i = 0; i < appGridAdapter.getCount(); i++) {
-                if (appGridAdapter.getItem(i) == selectedApp) {
-                    stillThere = true;
-                    break;
-                }
-            }
-            if (!stillThere) {
-                selectedApp = null;
-                appGridAdapter.setSelectedApp(null);
-                appGridAdapter.notifyDataSetChanged();
-            }
+        if (selectedApp != null
+                && appGridAdapter.positionOfAppId(selectedApp.app.getAppId()) == AdapterView.INVALID_POSITION) {
+            // Gone from this page — hidden on another device, moved to the other tab, or dropped by
+            // the host. Drop the selection rather than leave a stale panel on screen.
+            selectedApp = null;
+            appGridAdapter.setSelectedApp(null);
+            appGridAdapter.setSelectedPosition(AdapterView.INVALID_POSITION);
+            appGridAdapter.notifyDataSetChanged();
         }
         if (selectedApp == null) {
             detail.setVisibility(View.GONE);
@@ -1033,7 +1140,7 @@ if (ambientView == null) {
             if (grid != null) {
                 int pos = grid.getSelectedItemPosition();
                 if (pos != AdapterView.INVALID_POSITION && pos < appGridAdapter.getCount()) {
-                    target = (AppObject) appGridAdapter.getItem(pos);
+                    target = objectForPosition(pos);
                 }
             }
         }
@@ -1095,7 +1202,7 @@ if (ambientView == null) {
                 if (findViewById(R.id.appFragmentContainer) == null) {
                     return; // portrait: no master-detail pane
                 }
-                AppObject app = (AppObject) appGridAdapter.getItem(pos);
+                AppObject app = objectForPosition(pos);
                 if (app == null || app == selectedApp) {
                     return;
                 }
@@ -1115,7 +1222,7 @@ if (ambientView == null) {
             @Override
             public void onItemClick(AdapterView<?> arg0, View arg1, int pos,
                                     long id) {
-                AppObject app = (AppObject) appGridAdapter.getItem(pos);
+                AppObject app = objectForPosition(pos);
 
                 // Landscape master-detail (desktop parity): a tap selects,
                 // updates the detail panel AND launches immediately — exactly
@@ -1210,24 +1317,9 @@ if (ambientView == null) {
         promptBar.registerById(R.id.am_pick_kb_settings, R.id.am_pick_key_settings, "settings");
         promptBar.registerById(R.id.am_pick_kb_hosts, R.id.am_pick_key_hosts, "hosts");
         promptBar.attach();
-        if (selectedApp == null) {
-            // Desktop parity: the preview is NEVER empty. Prefer the running
-            // app, otherwise default to the first app in the list so the
-            // detail panel is populated from the moment the screen opens.
-            for (int i = 0; i < appGridAdapter.getCount(); i++) {
-                AppObject candidate = (AppObject) appGridAdapter.getItem(i);
-                if (candidate.isRunning) {
-                    selectedApp = candidate;
-                    appGridAdapter.setSelectedApp(candidate);
-                    break;
-                }
-            }
-            if (selectedApp == null && appGridAdapter.getCount() > 0) {
-                AppObject first = (AppObject) appGridAdapter.getItem(0);
-                selectedApp = first;
-                appGridAdapter.setSelectedApp(first);
-            }
-        }
+        // Desktop parity: the preview is NEVER empty — the running game if there is one,
+        // otherwise the first entry, so the panel is populated from the moment the screen opens.
+        selectRowForPanel();
         updateDetailPanel();
     }
 
@@ -1241,6 +1333,20 @@ if (ambientView == null) {
                 throw new IllegalArgumentException("app must not be null");
             }
             this.app = app;
+        }
+
+        /**
+         * From a row of the library page. The panel speaks AppObject and the list speaks
+         * AppLibrary.Row; this is the one place they meet, and it is derived — never a second
+         * copy of the truth that could drift.
+         */
+        public AppObject(AppLibrary.Row row) {
+            if (row == null || row.app == null) {
+                throw new IllegalArgumentException("row must carry an app");
+            }
+            this.app = row.app;
+            this.isRunning = row.running;
+            this.isHidden = row.hidden;
         }
 
         @Override
