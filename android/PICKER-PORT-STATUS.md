@@ -62,7 +62,7 @@ with my own eyes yet.
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" | **PORTED 12 Oct 2026**, awaiting his mark — see `references/host-notices.md` |
 | §916 the configuration line | host link speed + your stream settings | **PRESENT** — `fillConfigLine` + `addCfgChip` |
 | §1047 the game (launch screen) | the segue into a launch | **NOT PORTED** — Moonlight's own launch UI |
-| §1095 action row | the verb's pill, per-game settings, Stop | **PRESENT** — launch + Stop, both with real artwork. Per-game settings is **not** counted as missing: Android does not use the desktop's settings page (Nik, 12 Oct 2026), so that entry would be Android's own surface to build, not this page's port |
+| §1095 action row | the verb's pill, per-game settings, Stop | **PRESENT and marked** — launch + Stop, both with real artwork, and the half-step Nik asked for on the main screen's row is in (he confirmed it himself, 12 Oct 2026: "this can be ticked off its already done"). Per-game settings is **not** counted as missing: Android does not use the desktop's settings page (Nik, 12 Oct 2026), so that entry would be Android's own surface to build, not this page's port |
 | §1331 Continue | the last thing played sits on top | **PRESENT** — `SECTION_CONTINUE`, row 0 only |
 | §1537 thumbnail | box art in the row | **PRESENT** — after the prefetch; was losing a race on every load |
 | §1571 title + store | name, store in words under it | **PRESENT** |
