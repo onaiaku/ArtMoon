@@ -496,6 +496,22 @@ public class AppsPageView extends ArtMoonActivity {
         }
 
         applyShoulderLabels();
+        applyHeroCaps();
+    }
+
+    /**
+     * The hero's pills carry the button that does the same thing, as the desktop's do
+     * (AppsScreen.qml:1141 — ActionHint with btn "A" / key "Enter" on the verb, "X" on Stop).
+     */
+    private void applyHeroCaps() {
+        TextView launch = (TextView) findViewById(R.id.am_hero_launch_cap);
+        if (launch != null) {
+            launch.setText(lastInputWasPad ? "A" : "Enter");
+        }
+        TextView stop = (TextView) findViewById(R.id.am_hero_stop_cap);
+        if (stop != null) {
+            stop.setText("X");
+        }
     }
 
     /** LB/RB or PgUp/PgDn: whichever input is in the hand, drawn on the chip that carries it. */
@@ -537,6 +553,7 @@ public class AppsPageView extends ArtMoonActivity {
         if (pad != lastInputWasPad) {
             lastInputWasPad = pad;
             applyShoulderLabels();
+            applyHeroCaps();
         }
     }
 
@@ -778,6 +795,8 @@ public class AppsPageView extends ArtMoonActivity {
         }
         adapter.setPage(page, category);
         grid.setAdapter(adapter);
+        // The library's art, fetched once for the page rather than raced for by every recycled row.
+        adapter.prefetchCovers();
         grid.setVisibility(page.rows.isEmpty() ? View.GONE : View.VISIBLE);
 
         TextView empty = (TextView) findViewById(R.id.am_empty);
@@ -869,6 +888,10 @@ public class AppsPageView extends ArtMoonActivity {
             meta.setVisibility(View.GONE);
             figures.setVisibility(View.GONE);
             stop.setVisibility(View.GONE);
+            android.view.View noStopPill = findViewById(R.id.am_hero_stop_pill);
+            if (noStopPill != null) {
+                noStopPill.setVisibility(View.GONE);
+            }
             launch.setText("Play");
             return;
         }
@@ -917,6 +940,11 @@ public class AppsPageView extends ArtMoonActivity {
         launch.setText(running ? "Resume" : row.isApp ? "Open" : "Play");
         // Stop is not "Quit game": the entry holding the session is sometimes the Desktop.
         stop.setVisibility(running ? View.VISIBLE : View.GONE);
+        // The pill around it goes with it — the label lives inside the pill now.
+        android.view.View stopPill = findViewById(R.id.am_hero_stop_pill);
+        if (stopPill != null) {
+            stopPill.setVisibility(running ? View.VISIBLE : View.GONE);
+        }
 
         cover.setContentDescription(row.name);
 

@@ -380,16 +380,103 @@
                     android:orientation="horizontal"
                     android:gravity="center">
 
-                    <TextView
-                        android:id="@+id/am_hero_launch"
-                        style="@style/AmHeroBtn" />
+                    <!-- The pill is the desktop's (radius 9, #0dffffff, hairline border) and it
+                         was already there — what was missing is the button inside it. The desktop
+                         draws an ActionHint in every one of these (AppsScreen.qml:1141): A with a
+                         pad, Enter with a keyboard, X to stop. -->
+                    <FrameLayout
+                        android:id="@+id/am_hero_launch_pill"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="9dp"
+                        android:layout_marginRight="9dp"
+                        android:background="@drawable/am_hero_btn"
+                        android:clickable="true"
+                        android:focusable="false">
 
-                    <TextView
-                        android:id="@+id/am_hero_stop"
-                        style="@style/AmHeroBtn"
-                        android:text="@string/am_hero_stop"
-                        android:textColor="@color/am_danger"
-                        android:visibility="gone" />
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingStart="13dp" android:paddingLeft="13dp"
+                            android:paddingEnd="13dp" android:paddingRight="13dp">
+
+                            <TextView
+                                android:id="@+id/am_hero_launch_cap"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="9dp"
+                                android:layout_marginRight="9dp"
+                                android:minWidth="24dp"
+                                android:minHeight="24dp"
+                                android:gravity="center"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/am_text"
+                                android:background="@drawable/am_action_cap"
+                                android:paddingStart="7dp" android:paddingLeft="7dp"
+                                android:paddingEnd="7dp" android:paddingRight="7dp"
+                                android:alpha="0.85" />
+
+                            <TextView
+                                android:id="@+id/am_hero_launch"
+                                style="@style/AmHeroBtn"
+                                android:background="@null"
+                                android:layout_marginEnd="0dp"
+                                android:layout_marginRight="0dp"
+                                android:paddingStart="0dp" android:paddingLeft="0dp"
+                                android:paddingEnd="0dp" android:paddingRight="0dp" />
+                        </LinearLayout>
+                    </FrameLayout>
+
+                    <FrameLayout
+                        android:id="@+id/am_hero_stop_pill"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/am_hero_btn"
+                        android:clickable="true"
+                        android:focusable="false"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingStart="13dp" android:paddingLeft="13dp"
+                            android:paddingEnd="13dp" android:paddingRight="13dp">
+
+                            <TextView
+                                android:id="@+id/am_hero_stop_cap"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="9dp"
+                                android:layout_marginRight="9dp"
+                                android:minWidth="24dp"
+                                android:minHeight="24dp"
+                                android:gravity="center"
+                                android:text="X"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/am_danger"
+                                android:background="@drawable/am_action_cap"
+                                android:paddingStart="7dp" android:paddingLeft="7dp"
+                                android:paddingEnd="7dp" android:paddingRight="7dp"
+                                android:alpha="0.85" />
+
+                            <TextView
+                                android:id="@+id/am_hero_stop"
+                                style="@style/AmHeroBtn"
+                                android:background="@null"
+                                android:text="@string/am_hero_stop"
+                                android:textColor="@color/am_danger"
+                                android:layout_marginEnd="0dp"
+                                android:layout_marginRight="0dp"
+                                android:paddingStart="0dp" android:paddingLeft="0dp"
+                                android:paddingEnd="0dp" android:paddingRight="0dp" />
+                        </LinearLayout>
+                    </FrameLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>

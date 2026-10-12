@@ -105,6 +105,27 @@ public class AppsRowAdapter extends BaseAdapter {
         return focused;
     }
 
+    /**
+     * Fills the art cache for the whole page in one pass.
+     *
+     * ⚠️ Without this the rows are on their own: a row asks for its cover as it binds, the load is
+     * a network fetch that takes seconds, and by the time it lands the row has been recycled and
+     * the reference is gone — which is why the boxes stayed blank while Nik scrolled (12 Oct 2026).
+     * The desktop preloads the library's art for the same reason. queueCacheLoad checks memory,
+     * then disk, then the network, and never touches a view.
+     */
+    public void prefetchCovers() {
+        if (items == null) {
+            return;
+        }
+        for (Item item : items) {
+            if (item.isHeading() || item.row == null || item.row.app == null) {
+                continue;
+            }
+            loader.queueCacheLoad(item.row.app);
+        }
+    }
+
     /** The store the host said this entry comes from, in words (AppsScreen.qml focusedStore). */
     public String storeFor(String appName) {
         String store = stores.get(appName);
