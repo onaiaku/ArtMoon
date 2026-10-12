@@ -53,7 +53,7 @@ with my own eyes yet.
 | §88 scale | everything the same size as Home | **PRESENT** — `AmScale` |
 | §95 the two columns | list left, spotlight right, blurred cover behind | **PRESENT** — `apps_page.xml` 0.52/0.48, `showAmbient` → `AppAmbientArtwork` |
 | §111 focus zones / boundaries | one zone, list focus, pad never stops on a button | **MISSING** — only lit/quiet rows exist |
-| §231 pad glyphs | real pad artwork by button *position* (Switch swaps A/B; Select is artwork, not a word) | **MINE** — printed letters: "A", "LB", "X", "Esc" |
+| §231 pad glyphs | real pad artwork by button *position* (Switch swaps A/B; Select is artwork, not a word) | **PRESENT** — the picker's prompts now register with the shared `PromptBar` (commit `08c5b547`); Home's footer already did. Open: Home's host-strip arrows still print PgUp/PgDn and listen on LB/RB, where the desktop uses **LT/RT** (`HomeScreen.qml:1853`) — that pair is Nik's call |
 | §239 the game in the spotlight | cover, name, state, store | **PRESENT** — `updateHero` |
 | §250 play time in the spotlight | hours + sessions for the focused game | **PRESENT** — `PlaytimeManager`; was frozen on row 0 until tonight |
 | §285 pinned | pinned heading + mark on the row | **PRESENT**, but reached by long-press menu, not Start/P |
@@ -62,7 +62,7 @@ with my own eyes yet.
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" | **MISSING** |
 | §916 the configuration line | host link speed + your stream settings | **PRESENT** — `fillConfigLine` + `addCfgChip` |
 | §1047 the game (launch screen) | the segue into a launch | **NOT PORTED** — Moonlight's own launch UI |
-| §1095 action row | the verb's pill, per-game settings, Stop | **PARTIAL** — launch + Stop only; **no per-game settings entry**; letters not artwork |
+| §1095 action row | the verb's pill, per-game settings, Stop | **PARTIAL** — launch + Stop only, and both now carry real artwork; **no per-game settings entry** (SELECT/G, `AppsScreen.qml:1117`) |
 | §1331 Continue | the last thing played sits on top | **PRESENT** — `SECTION_CONTINUE`, row 0 only |
 | §1537 thumbnail | box art in the row | **PRESENT** — after the prefetch; was losing a race on every load |
 | §1571 title + store | name, store in words under it | **PRESENT** |
