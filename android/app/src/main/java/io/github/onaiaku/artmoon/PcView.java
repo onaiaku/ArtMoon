@@ -1752,22 +1752,15 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         return months <= 1 ? "a month ago" : months + " months ago";
     }
 
-    /** The running game's name, if the host's app list is already cached here; null if not. */
+    /**
+     * The running game's name, if the host's app list is already cached here; null if not. Delegates to
+     * NvHTTP so the card and the poller's playtime record name a session by one implementation.
+     */
     private String runningAppName(ComputerDetails details) {
-        if (details == null || details.runningGameId == 0
-                || details.rawAppList == null || details.rawAppList.isEmpty()) {
+        if (details == null) {
             return null;
         }
-        try {
-            for (NvApp a : NvHTTP.getAppListByReader(new java.io.StringReader(details.rawAppList))) {
-                if (a.getAppId() == details.runningGameId) {
-                    return a.getAppName();
-                }
-            }
-        } catch (Exception e) {
-            LimeLog.info("panelStop: could not name the running app: " + e.getMessage());
-        }
-        return null;
+        return NvHTTP.appNameForId(details.rawAppList, details.runningGameId);
     }
 
     /** Sessions whose name and artwork are already being looked up, so a rebind does not re-ask. */

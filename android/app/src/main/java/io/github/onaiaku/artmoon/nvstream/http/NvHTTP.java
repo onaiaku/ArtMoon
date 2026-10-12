@@ -626,6 +626,29 @@ public class NvHTTP {
         return pm;
     }
     
+    /**
+     * The name of the app with this id in a raw app list, or null if the list does not hold it.
+     *
+     * <p>The pair (id, rawAppList) is what a poll leaves on ComputerDetails, so this is how a client
+     * names a session running on a host: the id alone is not a name, and both the hero card and the
+     * playtime record need one. One implementation, so the two can never name a session differently.</p>
+     */
+    public static String appNameForId(String rawAppList, int appId) {
+        if (rawAppList == null || rawAppList.isEmpty() || appId == 0) {
+            return null;
+        }
+        try {
+            for (NvApp a : getAppListByReader(new StringReader(rawAppList))) {
+                if (a.getAppId() == appId) {
+                    return a.getAppName();
+                }
+            }
+        } catch (Exception e) {
+            LimeLog.info("Could not name running app " + appId + ": " + e.getMessage());
+        }
+        return null;
+    }
+
     public static LinkedList<NvApp> getAppListByReader(Reader r) throws XmlPullParserException, IOException {
         XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
         factory.setNamespaceAware(true);

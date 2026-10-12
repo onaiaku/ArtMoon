@@ -23,6 +23,7 @@ import io.github.onaiaku.artmoon.nvstream.http.NvHTTP;
 import io.github.onaiaku.artmoon.nvstream.http.PairingManager;
 import io.github.onaiaku.artmoon.nvstream.mdns.MdnsComputer;
 import io.github.onaiaku.artmoon.nvstream.mdns.MdnsDiscoveryListener;
+import io.github.onaiaku.artmoon.settings.ObservedPlaytime;
 import io.github.onaiaku.artmoon.utils.CacheHelper;
 import io.github.onaiaku.artmoon.utils.NetHelper;
 import io.github.onaiaku.artmoon.utils.ServerHelper;
@@ -151,6 +152,16 @@ public class ComputerManagerService extends Service {
                 dbManager.updateComputer(details);
             }
         }
+
+        // A session this client did not start is still a session it watched — the hero card draws the
+        // whole thing off these same details. Recording it here, at the one place a poll becomes state,
+        // is what keeps the last-played block from going empty when another client stops the stream.
+        // ⚠️ Online only, and offline is a hold inside: a host that drops off the network has not ended
+        // its stream, and banking there would count one session twice.
+        ObservedPlaytime.onHostPolled(this, details.uuid,
+                                      details.state == ComputerDetails.State.ONLINE,
+                                      details.runningGameId,
+                                      NvHTTP.appNameForId(details.rawAppList, details.runningGameId));
 
         // Don't call the listener if this is a failed lookup of a new PC
         if ((!newPc || details.state == ComputerDetails.State.ONLINE) && listener != null) {

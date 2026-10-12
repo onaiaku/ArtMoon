@@ -29,6 +29,7 @@ import io.github.onaiaku.artmoon.nvstream.input.MouseButtonPacket;
 import io.github.onaiaku.artmoon.nvstream.jni.MoonBridge;
 import io.github.onaiaku.artmoon.preferences.GlPreferences;
 import io.github.onaiaku.artmoon.preferences.PreferenceConfiguration;
+import io.github.onaiaku.artmoon.settings.ObservedPlaytime;
 import io.github.onaiaku.artmoon.settings.PlaytimeManager;
 import io.github.onaiaku.artmoon.ui.GameGestures;
 import io.github.onaiaku.artmoon.ui.StreamView;
@@ -2311,6 +2312,10 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             return;
         }
 
+        // The watcher's clock must never count a session this client owns: that host's observation
+        // stands down, after banking whatever it watched before the takeover.
+        ObservedPlaytime.ownSessionStarted(this, playtimeUuid);
+
         playtimeTracking = true;
         playtimeFlushedSecs = 0;
         playtimeStartMs = SystemClock.elapsedRealtime();
@@ -2350,6 +2355,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         playtimeTracking = false;
         playtimeHandler.removeCallbacks(playtimeFlush);
+        ObservedPlaytime.ownSessionEnded(playtimeUuid);
 
         final long elapsed = (SystemClock.elapsedRealtime() - playtimeStartMs) / 1000;
         final long unbanked = Math.max(0, elapsed - playtimeFlushedSecs);
