@@ -305,6 +305,12 @@ public class AppsPageView extends ArtMoonActivity {
         registerForContextMenu(grid);
 
         wireHero();
+        // The ring belongs to the list and starts there. Everything else on this page is drawn to
+        // be read and touched, not walked to.
+        grid.setItemsCanFocus(false);
+        grid.setFocusableInTouchMode(true);
+        grid.requestFocus();
+
         wireFoot();
 
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
@@ -1150,69 +1156,106 @@ public class AppsPageView extends ArtMoonActivity {
      * <p>The d-pad is deliberately NOT here: the list already walks it, and the spotlight follows.
      */
     @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        // Classify first, exactly as PcView does: this overrides the base class, which is where the
-        // mode is normally noted, so without this call the mode is read one press stale.
-        if (event.getAction() == KeyEvent.ACTION_DOWN || event.getAction() == KeyEvent.ACTION_UP) {
-            io.github.onaiaku.artmoon.artlight.InputModeManager.get().notifyKeyEvent(event);
+        public boolean dispatchKeyEvent(KeyEvent event) {
+        // The mode is only for drawing (which glyph, which letter). It does NOT decide whether a
+        // press is handled — that gate is what let every button through to the framework below.
+        io.github.onaiaku.artmoon.artlight.InputModeManager.get().notifyKeyEvent(event);
+
+        final int kc = event.getKeyCode();
+        final int act = event.getAction();
+        if (act != KeyEvent.ACTION_DOWN && act != KeyEvent.ACTION_UP) {
+            return super.dispatchKeyEvent(event);
         }
-        boolean gamepad = io.github.onaiaku.artmoon.artlight.InputModeManager.get().getMode()
-                == io.github.onaiaku.artmoon.artlight.InputModeManager.Mode.GAMEPAD;
-        if (gamepad) {
-            switch (event.getKeyCode()) {
-                case KeyEvent.KEYCODE_BUTTON_A:
-                case KeyEvent.KEYCODE_BUTTON_B:
-                case KeyEvent.KEYCODE_BUTTON_X:
-                case KeyEvent.KEYCODE_BUTTON_Y:
-                case KeyEvent.KEYCODE_BUTTON_SELECT:
-                case KeyEvent.KEYCODE_DEL:
-                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                        return true;
-                    }
-                    break;
-                default:
-                    break;
-            }
+        final boolean down = act == KeyEvent.ACTION_DOWN;
+
+        switch (kc) {
+            /*
+             * ── The pad, owned outright ───────────────────────────────────────────────
+             *
+             * ⚠️ Own means OWN: the DOWN half is swallowed here, including every repeat, so not one
+             * of these can reach a view. Without this an unhandled button falls through to the
+             * framework, and the framework's answer to a press is to activate whatever holds focus
+             * — on this page a row, whose click listener launches the session. That is Nik's
+             * "press y to open settings... launches stream": the prompt was right, the button was
+             * owned by nobody.
+             */
+            case KeyEvent.KEYCODE_BUTTON_A:
+            case KeyEvent.KEYCODE_BUTTON_B:
+            case KeyEvent.KEYCODE_BUTTON_X:
+            case KeyEvent.KEYCODE_BUTTON_Y:
+            case KeyEvent.KEYCODE_BUTTON_SELECT:
+            case KeyEvent.KEYCODE_BUTTON_START:
+            case KeyEvent.KEYCODE_BUTTON_L2:
+            case KeyEvent.KEYCODE_BUTTON_R2:
+            case KeyEvent.KEYCODE_BUTTON_MODE:
+            case KeyEvent.KEYCODE_BUTTON_THUMBL:
+            case KeyEvent.KEYCODE_BUTTON_THUMBR:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_DEL:          // this pad's stray companion to every X press
+                if (down) {
+                    return true;
+                }
+                break;
+
+            /*
+             * ── The ring stays in the list ────────────────────────────────────────────
+             *
+             * Up and down are the list's, and go through to it. Left and right are the page's —
+             * and they are swallowed, because the framework's geometric focus search is what walked
+             * the cursor sideways into the action pills and upward into the section tabs. Nothing
+             * on this page reaches the hero or the tabs by walking: LB/RB change tabs and the
+             * spotlight follows the list.
+             */
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                return true;
+
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_PAGE_UP:       // the keyboard's pair for the tabs
+            case KeyEvent.KEYCODE_PAGE_DOWN:
+                return super.dispatchKeyEvent(event);
+
+            default:
+                return super.dispatchKeyEvent(event);
         }
-        if (gamepad && event.getAction() == KeyEvent.ACTION_UP) {
-            switch (event.getKeyCode()) {
-                case KeyEvent.KEYCODE_BUTTON_X:
-                    // Stop, and only when there is something to stop — the desktop's
-                    // `if (focusedAppIsRunning) stopFocusedApp()`. quit() asks first, as every
-                    // quit in this app does.
-                    AppLibrary.Row runningRow = selectedRow();
-                    if (runningRow != null && runningRow.running) {
-                        quit(runningRow);
-                    }
-                    return true;
-                case KeyEvent.KEYCODE_BUTTON_A:
-                    // The hero's verb, on the button the hero's prompt names.
-                    launchSelected();
-                    return true;
-                case KeyEvent.KEYCODE_BUTTON_B:
-                    // Esc on a keyboard, and the same thing this page's back button does.
-                    finish();
-                    return true;
-                case KeyEvent.KEYCODE_BUTTON_Y:
-                    startActivity(new Intent(AppsPageView.this, StreamSettings.class));
-                    return true;
-                case KeyEvent.KEYCODE_BUTTON_SELECT:
-                    // Select is inert on the wire (the desktop sends Key_F13) and opens the
-                    // per-game menu here — the same one a long press opens on the row.
-                    if (grid != null) {
-                        grid.showContextMenu();
-                    }
-                    return true;
-                case KeyEvent.KEYCODE_DEL:
-                    // ⚠️ This pad sends DEL with BUTTON_X — 1-8ms apart, every press, 36 pairs in
-                    // one sitting (Nik's 045e:0b13 on the Fold, 12 Oct 2026). Nothing here binds
-                    // DEL; it is swallowed with the press it belongs to.
-                    return true;
-                default:
-                    break;
-            }
+
+        if (down) {
+            return super.dispatchKeyEvent(event);
         }
-        return super.dispatchKeyEvent(event);
+        switch (kc) {
+            case KeyEvent.KEYCODE_BUTTON_A:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+                // The hero's verb, on the button the hero's prompt names.
+                launchSelected();
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_X:
+                // Stop the session on the spotlight, and only when there is one — the desktop's
+                // `if (focusedAppIsRunning) stopFocusedApp()`. quit() asks first, as every quit
+                // in this app does. Nothing running: nothing happens.
+                AppLibrary.Row runningRow = selectedRow();
+                if (runningRow != null && runningRow.running) {
+                    quit(runningRow);
+                }
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_B:
+                finish();
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_Y:
+                startActivity(new Intent(AppsPageView.this, StreamSettings.class));
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_SELECT:
+                if (grid != null) {
+                    grid.showContextMenu();
+                }
+                return true;
+            default:
+                // BUTTON_START, the triggers, the sticks, the pads' extra buttons and the stray
+                // DEL: owned and deliberately silent, which is the whole point.
+                return true;
+        }
     }
 
     @Override
