@@ -147,13 +147,28 @@ wouldnt be a thing if things were ported properly)"*. He is right about the caus
 answer is a list, not a promise. Two items he has just found are **still broken** — they are first
 because they are live, not because they are the biggest.
 
-### Still broken (his, tonight)
-- **The selected row's artwork does not appear until the list is scrolled.** My fix (`ca0a30ba`) —
-  re-binding the rows when the host's app list arrives — did not change it. That was reasoned from
-  the loader's code, not watched working, and it is the second guess in a row on this one.
-- **The first item is selected on entry only sometimes.** Real cause, now named: the lit row needs
-  `listFocused`, and in touch mode a ListView cannot take focus until a key press arrives — so entry
-  from the main screen lands lit or quiet depending on what the phone last did.
+### Both live faults, one cause — found in the code, 12 Oct 2026, late
+
+**A section heading is a list ITEM on this page. On the desktop it is not** — the desktop's sections
+belong to the ListView (`section.property` / `section.delegate`), so its `currentIndex` only ever
+addresses a real row and its spotlight can never be handed a heading. Everything below follows from
+that one divergence:
+
+- **The artwork that only appears after a scroll.** `selectedRow()` fell back to position 0 when
+  nothing was focused, position 0 is usually a heading, `rowAt(heading)` is null, and `updateHero()`
+  answers a null row by clearing the cover. One scroll moved the cursor onto a real row and the art
+  appeared. The fix is the desktop's rule, one item-type check wide: the cursor only ever addresses
+  rows, so `selectedRow()` walks down to the first real entry rather than answering null.
+- **The first entry selected only sometimes.** The landing was retried on a timer (24 × 120 ms) for
+  the wait before the host answers, and gave up. A list that arrived after the retries ran out left
+  the page with nothing selected. The rows now land the cursor the moment they are in (`fillPage()`),
+  which is the event that actually matters — not a clock.
+- **And the d-pad stopped dead on a heading.** `moveCursor()` stepped one index, `selectRow()` rightly
+  refused the heading, and the list's own selection had already gone there — so the next press tried
+  the same refusal. It now walks past headings in the pressed direction and clamps at the ends.
+
+None of the three is proven on the phone yet: that is Nik's eyes, and the fixes are on the build. My
+two earlier attempts at (1) were both reasoned at the loader; the loader was never the fault.
 
 ### Missing in the picker (desktop section → what Android doesn't have)
 

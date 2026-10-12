@@ -747,8 +747,22 @@ public class AppsPageView extends ArtMoonActivity {
             grid.setSelection(current);
             return;
         }
-        int next = Math.max(0, Math.min(count - 1, current + dir));
-        if (next != current) {
+        // ⚠️ Walk past the section headings rather than stopping on one. A heading is a list item on
+        // this page; the desktop's sections are the ListView's own, so its cursor can never land on
+        // one. Moving onto one here stopped the cursor dead — selectRow() rightly refuses it, while
+        // the list's own selection had already gone there — and the next press tried the same refuse.
+        int next = current;
+        while (true) {
+            final int candidate = next + dir;
+            if (candidate < 0 || candidate >= count) {
+                break;              // clamped at both ends: an edge is just an edge
+            }
+            next = candidate;
+            if (adapter.getItemViewType(next) != 1) {
+                break;              // a real entry
+            }
+        }
+        if (next != current && adapter.getItemViewType(next) != 1) {
             grid.setSelection(next);
             selectRow(next);
         }
@@ -852,6 +866,14 @@ public class AppsPageView extends ArtMoonActivity {
         if (position < 0) {
             position = grid.getSelectedItemPosition() >= 0 ? grid.getSelectedItemPosition() : 0;
         }
+        // ⚠️ Answering null for a heading is what left the spotlight empty and its cover blank the
+        // moment the page opened — and the row the eye is on is the first real entry under it. The
+        // cursor only ever addresses ROWS on the desktop, because its sections belong to the list
+        // rather than sitting in it; this is that rule, one item type check wide.
+        if (position >= 0 && position < adapter.getCount()
+                && adapter.getItemViewType(position) == 1) {
+            position = firstSelectableRow();
+        }
         return adapter.rowAt(position);
     }
 
@@ -926,6 +948,12 @@ public class AppsPageView extends ArtMoonActivity {
         // The library's art, fetched once for the page rather than raced for by every recycled row.
         adapter.prefetchCovers();
         grid.setVisibility(page.rows.isEmpty() ? View.GONE : View.VISIBLE);
+
+        // The rows are here, so the cursor can be put on the first real entry now. The delayed
+        // retries in landCursorOnFirstRow are for the wait before the host answers; a list that
+        // arrives after they have run out used to leave the page with nothing selected at all,
+        // which is the inconsistency Nik kept hitting.
+        landCursorOnFirstRow();
 
         TextView empty = (TextView) findViewById(R.id.am_empty);
         empty.setVisibility(page.rows.isEmpty() ? View.VISIBLE : View.GONE);
