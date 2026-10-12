@@ -136,4 +136,53 @@ real artwork is what proves the host's side was never the problem. Called from `
 
 **Still open, and still his to mark:** whether the preview and the strip *look* right with the pad
 in his hand, and whether a game with no artwork on the host should keep the blue frame (it does
-today) or be hidden the way `PcGridAdapter` hides a source-less cover.
+139|today) or be hidden the way `PcGridAdapter` hides a source-less cover.
+
+---
+
+## 12 Oct 2026, 21:20 — the remaining list, straight after Nik asked
+
+He asked the right question: *"whats left to implement from porting (because a lot of this shit
+wouldnt be a thing if things were ported properly)"*. He is right about the cause, and the honest
+answer is a list, not a promise. Two items he has just found are **still broken** — they are first
+because they are live, not because they are the biggest.
+
+### Still broken (his, tonight)
+- **The selected row's artwork does not appear until the list is scrolled.** My fix (`ca0a30ba`) —
+  re-binding the rows when the host's app list arrives — did not change it. That was reasoned from
+  the loader's code, not watched working, and it is the second guess in a row on this one.
+- **The first item is selected on entry only sometimes.** Real cause, now named: the lit row needs
+  `listFocused`, and in touch mode a ListView cannot take focus until a key press arrives — so entry
+  from the main screen lands lit or quiet depending on what the phone last did.
+
+### Missing in the picker (desktop section → what Android doesn't have)
+| Desktop § | Missing |
+|---|---|
+| §446 host notices | "that finished" vs "launch again within 60s to confirm" — not there at all |
+| §1095 action row | the per-game settings entry (SELECT / G, `AppsScreen.qml:1117`); launch + Stop only |
+| §1799 dialogs | only the quit confirm exists — no per-game settings dialog, no pin prompt, no launch confirm |
+| §111 focus zones | partially: nothing else is focusable and the ring starts on the list, but unproven with the pad in hand |
+| §1571 store, in artwork | the seven store SVGs exist on the desktop (`GameFacts.qml:63`) and not on Android |
+| §285/§367 pin and move | reached by long-press menu only; the desktop's pad pair (Start/P, M or right-stick) is not ported |
+| §1047 the launch segue | not ported — Android hands off to Moonlight's own launch UI |
+
+### No Android screen at all
+- per-game settings ("Customize") — the word does not occur anywhere in the Android tree.
+- host profiles (desktop `HostProfilesDialog`), pad shortcut capture (`ShortcutCaptureDialog`),
+  `GamepadCaptureDialog`, `StageBackgroundDialog`, `AppSettingsDialog`.
+- the desktop's own on-screen keyboard (`OnScreenKeyboard.qml`) — Android uses the system keyboard,
+  which may be the right answer rather than a gap.
+- ArtMoon's own update prompt (the desktop has one; I cannot point at an Android one).
+
+### Parked on Nik (decisions, not work)
+- Home's host-strip arrows: LB/RB as they are, or the desktop's LT/RT (`HomeScreen.qml:1853`).
+- Hidden apps / ShowHiddenApps — Android-only, inherited from the old picker: keep or drop.
+- The finger-scroll rule that settles the cursor on the middle row — mine, the desktop has none.
+- 66 commits on local `main`, unpushed.
+- The desktop watcher-playtime fix (`6f358ea0`) still waiting for his word before it is pushed or
+  built on the z13.
+
+**And the cause he named is the cause.** The page was built by layering on the old picker rather than
+porting it, which is why the faults keep arriving one at a time instead of all at once. This file
+exists so each item is **marked by him**, never claimed by me.
+
