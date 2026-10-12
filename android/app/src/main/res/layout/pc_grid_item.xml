@@ -600,13 +600,27 @@
 
                  It grows UPWARD (Resume on top, Stop below) rather than downward — downward
                  would draw it over the footer prompts, and the desktop's lastPanel measures its
-                 available height from the top of this stack for exactly that reason. -->
+                 available height from the top of this stack for exactly that reason.
+
+                 ⚠️ ITS HORIZONTAL CENTRE IS THE PICTURE'S CENTRE, and that is what the two
+                 insets below are for. The desktop puts the pair on the block's own axis —
+                 HostStage.qml:1866, `anchors.horizontalCenter: lastPanel.horizontalCenter` —
+                 and the block is inset from the right edge by _px(46). Centring this stack in
+                 the PANEL instead (which is what `layout_gravity="bottom|center_horizontal"`
+                 and a wrap_content width did) puts it half of that inset — 23dp — to the right
+                 of the cover and the title above it. Nik, 12 October, with it boxed on the
+                 Fold: "its not centered its off to one side, it should be centered in relation
+                 to the image". match_parent + the same 46dp end inset gives this stack the
+                 SAME content box the column has, so the two axes are the same axis by
+                 construction rather than by a number that has to be kept in step. -->
             <LinearLayout
                 android:id="@+id/am_panel_action_stack"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom|center_horizontal"
+                android:layout_gravity="bottom"
                 android:layout_marginBottom="30dp"
+                android:paddingEnd="46dp"
+                android:paddingRight="46dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
                 android:visibility="gone">

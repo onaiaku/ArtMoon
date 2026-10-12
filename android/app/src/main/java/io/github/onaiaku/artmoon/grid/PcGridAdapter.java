@@ -106,11 +106,12 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             // sits in. The desktop's ramp runs along x.
             View ramp = v.findViewById(R.id.am_stage_ramp);
             if (ramp != null) {
-                AmBackdropRamp drawable = new AmBackdropRamp();
-                // 6.0.0: the backdrop is thinned so the app's floor shows through
-                // (stage.backdropOpacity, HostStage.qml:197 defaults to 0.90).
+                AmBackdropRamp drawable = AmBackdropRamp.noPicture();
                 drawable.setAlpha(Math.round(0.90f * 255f));
                 ramp.setBackground(drawable);
+                // NOTE: bindHeroBackground() re-sets this on every bind, because which recipe is
+                // right depends on whether the host has a picture — see the two stops sets in
+                // AmBackdropRamp. This is the no-picture default for a freshly inflated row.
             }
             // The action buttons' bodies, built here for the same reason: a radius inside a
             // selector inside a ripple cannot be scaled, and a fixed 28dp radius on a 58dp
@@ -515,24 +516,32 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                     int others = col.getHeight() - cv.getHeight();
                     io.github.onaiaku.artmoon.ui.AmScale st =
                             io.github.onaiaku.artmoon.ui.AmScale.ofStage(context);
-                    // ⚠️ THE BUTTON'S ROOM COMES OUT OF THE BLOCK, NOT OUT OF THE CARD. The
-                    // desktop measures lastPanel.availableHeight from the TOP of that stack, so
-                    // the cover and the title give the room up and the button never leaves the
-                    // card — which is the thing that was happening here: the stack sat over the
-                    // block's last line with nothing accounting for it.
-                    // ⚠️ Units again: these are PIXEL APIs, so lengthPx() and not dp(). With the
-                    // dp numbers the reserve came out at 19+11 = 30px where the block's own
-                    // spacing is 30dp+18dp = 106px, and the floor at 56px against the desktop's
-                    // _px(90) = 198px. The cover was therefore allowed ~76px more height than
-                    // the block can give it — and the room it took was the room the title and
-                    // the Resume button live in, which is what put the button on top of them.
-                    int reserve = 0;
+                    // ⚠️ THE BUTTON'S ROOM COMES OUT OF THE BLOCK, NOT OUT OF THE CARD, and
+                    // the block ends where the button BEGINS. The button is pinned to the
+                    // floor, so the room it gives up is its own height PLUS the margin it sits
+                    // above that floor by, PLUS the gap the desktop leaves between the two:
+                    //
+                    //   HostStage.qml:1649
+                    //     availableHeight: panelActionStack.y - y - stage._px(16)
+                    //
+                    // `y` there is the block's own top, which here is the column's
+                    // layout_marginTop. Reserving only the stack's height — and not its 30dp
+                    // bottom margin, and not the _px(16) — left the cover about 55px too tall,
+                    // and the room came out of the last thing under it. Nik, 12 October, with
+                    // the two boxed on the Fold: "the play again button is still cutting into
+                    // the text". Measured on the screen: the title's descenders and the pill's
+                    // top edge were on the same pixel row.
+                    int colTop = st.lengthPx(30f, context);            // am_facts_col marginTop
+                    int stackH = 0;
                     View stack = panel.findViewById(R.id.am_panel_action_stack);
                     if (stack != null && stack.getVisibility() == View.VISIBLE) {
-                        reserve = stack.getHeight();
+                        stackH = stack.getHeight();
                     }
-                    int room = panel.getHeight() - st.lengthPx(30f, context)
-                            - st.lengthPx(18f, context) - others - reserve;
+                    int stackBottom = st.lengthPx(30f, context);       // the stack's own margin
+                    int gap = st.lengthPx(16f, context);               // HostStage.qml:1649
+                    int available =
+                            panel.getHeight() - colTop - stackH - stackBottom - gap;
+                    int room = available - others;
                     int h = Math.max(st.lengthPx(90f, context), room);
                     // 2:3, and capped by the column it lives in — GameFacts.qml:150-156 does the
                     // same in the other direction (its height is capped by `width * 3 / 2`), and
@@ -649,6 +658,30 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 heroBg.setImageDrawable(null);
                 heroBg.setVisibility(View.GONE);
             }
+
+            // ⚠️ THE LAYER OVER THE CARD CHANGES WITH THE PICTURE, and this is the only place
+            // that knows which case we are in. Two different recipes, both from HostStage.qml:
+            //
+            //   no picture   the baked ramp, thinned by backdropOpacity (0.90)
+            //   a picture    the SCRIM — dense on the left where the name and the fields are,
+            //                fully transparent at the right edge so the artwork is not washed
+            //                out (HostStage.qml:674-695). The ramp is NOT drawn over a picture;
+            //                there it is only what shows while the art loads.
+            //
+            // Painting the baked ramp over the user's own artwork at 90% is what made Nik's
+            // background invisible: "ive just added a bakground and can hardly see it" — and
+            // the desktop has the case separated for exactly that reason.
+            View ramp = parentView.findViewById(R.id.am_stage_ramp);
+            if (ramp != null) {
+                if (bgBmp != null) {
+                    ramp.setBackground(AmBackdropRamp.overPicture());
+                } else {
+                    AmBackdropRamp drawable = AmBackdropRamp.noPicture();
+                    drawable.setAlpha(Math.round(0.90f * 255f));
+                    ramp.setBackground(drawable);
+                }
+            }
+
             parentView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
