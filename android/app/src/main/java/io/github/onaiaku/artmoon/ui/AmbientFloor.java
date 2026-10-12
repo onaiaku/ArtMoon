@@ -71,6 +71,22 @@ public class AmbientFloor extends View {
     private static final float SPEED_IDLE = 1f;
     private static final float SPEED_STREAMING = 2f;
 
+    /*
+     * ⚠️ PHONE ONLY, and a deliberate departure from the desktop's alphas — the one place this
+     * port overrides a number AmbientWaves gave us.
+     *
+     * The desktop's crest peaks at 0.20 of the accent, and the accent is a DARK navy (#102A44).
+     * Measured on the Fold, that moves a channel by about 4 levels: on a monitor, read at a
+     * distance, that is a wave. On a phone held at max brightness it is nothing — "i can see fuck
+     * all because its to faint" (Nik, 12 Oct 2026), and he was right.
+     *
+     * The crest carries it and the fills stay a body tint, so the visible motion costs as little
+     * blue cast as possible: at these gains the near crest moves a channel ~23 levels, and the
+     * five fills stacked at the foot come to ~0.33 instead of ~0.17.
+     */
+    private static final float CREST_GAIN = 3.5f;
+    private static final float FILL_GAIN = 2.0f;
+
     private static final int[] BAYER = {
              0, 32,  8, 40,  2, 34, 10, 42,
             48, 16, 56, 24, 50, 18, 58, 26,
@@ -314,8 +330,8 @@ public class AmbientFloor extends View {
 
             mCrest[i] = crest;
             mFill[i] = fill;
-            mFillColor[i] = withAlpha(accent, 0.022f + 0.022f * depth);
-            mCrestColor[i] = withAlpha(accent, 0.07f + 0.13f * depth);
+            mFillColor[i] = withAlpha(accent, (0.022f + 0.022f * depth) * FILL_GAIN);
+            mCrestColor[i] = withAlpha(accent, (0.07f + 0.13f * depth) * CREST_GAIN);
         }
         buildWash(w, h, accent);
         invalidate();
