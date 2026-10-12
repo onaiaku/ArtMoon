@@ -158,10 +158,19 @@ public class ComputerManagerService extends Service {
         // is what keeps the last-played block from going empty when another client stops the stream.
         // ⚠️ Online only, and offline is a hold inside: a host that drops off the network has not ended
         // its stream, and banking there would count one session twice.
+        // ⚠️ And a poll that cannot NAME the running game banks nobody. Hosts that answer serverinfo
+        // without an app list — ArtLight among them, which is why ApplistPoller exists at all — leave
+        // rawAppList empty, so the id is all we have and ObservedPlaytime has nothing it can track.
+        // The last list this host gave us is on disk, and the picker already reads it for exactly the
+        // same reason (AppsPageView:145-160, populateAppGridWithCache before it).
+        String runningName = NvHTTP.appNameForId(details.rawAppList, details.runningGameId);
+        if (runningName == null || runningName.isEmpty()) {
+            runningName = appNameFromCache(details.uuid, details.runningGameId);
+        }
         ObservedPlaytime.onHostPolled(this, details.uuid,
                                       details.state == ComputerDetails.State.ONLINE,
                                       details.runningGameId,
-                                      NvHTTP.appNameForId(details.rawAppList, details.runningGameId));
+                                      runningName);
 
         // Don't call the listener if this is a failed lookup of a new PC
         if ((!newPc || details.state == ComputerDetails.State.ONLINE) && listener != null) {
@@ -170,6 +179,33 @@ public class ComputerManagerService extends Service {
 
         releaseLocalDatabaseReference();
         return true;
+    }
+
+    /**
+     * The running game's name, from the app list ApplistPoller last wrote to disk.
+     *
+     * <p>Only asked of the disk when the live poll could not name it. Nothing cached yet returns
+     * null and leaves the watcher exactly as it was before — silent, rather than wrong.
+     */
+    private String appNameFromCache(String uuid, int gameId) {
+        if (gameId == 0 || uuid == null || uuid.isEmpty()) {
+            return null;
+        }
+        try {
+            java.io.InputStream in = CacheHelper.openCacheFileForInput(getCacheDir(), "applist", uuid);
+            if (in == null) {
+                return null;
+            }
+            String raw = CacheHelper.readInputStreamToString(in);
+            if (raw == null || raw.isEmpty()) {
+                return null;
+            }
+            return NvHTTP.appNameForId(raw, gameId);
+        }
+        catch (IOException e) {
+            // Nothing cached for this host yet: the live poll is the only way, and it could not.
+            return null;
+        }
     }
 
     private Thread createPollingThread(final PollingTuple tuple) {
