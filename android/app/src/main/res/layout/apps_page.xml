@@ -604,6 +604,51 @@
                     android:layout_marginRight="0dp"
                     android:text="@string/am_label_hosts" />
             </LinearLayout>
+
+            <!-- 6.0.0 (AppsScreen.qml:285-291, AppShell.qml:533-545): Start / P pins the selected
+                 game. In the bar rather than on the spotlight's buttons, by the desktop's decision
+                 — and NOT drawn at all unless a game is under the cursor, because the APPS tab has
+                 nothing to pin. The word follows the row: Unpin on a pinned game. -->
+            <LinearLayout
+                android:id="@+id/am_pill_pin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:baselineAligned="false"
+                android:layout_marginStart="16dp"
+                android:layout_marginLeft="16dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:clickable="true"
+                android:focusable="false"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/am_key_pin_cap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp"
+                    android:minWidth="24dp"
+                    android:minHeight="24dp"
+                    android:gravity="center"
+                    android:text="@string/am_key_p"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text"
+                    android:background="@drawable/am_action_cap"
+                    android:paddingStart="7dp" android:paddingLeft="7dp"
+                    android:paddingEnd="7dp" android:paddingRight="7dp"
+                    android:alpha="0.85" />
+
+                <TextView
+                    android:id="@+id/am_key_pin"
+                    style="@style/AmKeyHint"
+                    android:layout_marginEnd="0dp"
+                    android:layout_marginRight="0dp"
+                    android:text="@string/am_label_pin" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

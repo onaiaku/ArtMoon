@@ -527,6 +527,19 @@ public class AppsPageView extends ArtMoonActivity {
         promptBar.registerById(R.id.am_hero_stop_cap, "stop");
         promptBar.registerById(R.id.am_key_settings_cap, R.id.am_key_settings, "settings");
         promptBar.registerById(R.id.am_key_hosts_cap, R.id.am_key_hosts, "hosts");
+        promptBar.registerById(R.id.am_key_pin_cap, R.id.am_key_pin, "pin");
+
+        // Tappable, like the two beside it. A pad-first page must not hide an action behind a
+        // button only a controller has — the pill is the prompt and the door at the same time.
+        View pinPill = findViewById(R.id.am_pill_pin);
+        if (pinPill != null) {
+            pinPill.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    togglePinFocused();
+                }
+            });
+        }
         promptBar.attach();
     }
 
@@ -842,6 +855,48 @@ public class AppsPageView extends ArtMoonActivity {
         return adapter.rowAt(position);
     }
 
+    /**
+     * Pins or unpins the selected game and keeps the cursor on it — the desktop's own
+     * {@code togglePinFocused} (AppsScreen.qml:541-557), copied rather than re-derived.
+     *
+     * <p>⚠️ By app id, after the call. Pinning moves the row — up under PINNED, or back down into
+     * ALL GAMES — and the page is rebuilt, so the position the list held now points at whatever
+     * slid into that place. The desktop carries the same warning and the same cure.
+     */
+    private void togglePinFocused() {
+        final AppLibrary.Row row = selectedRow();
+        // Only games can be pinned: on the APPS tab there is nothing to pin, and the desktop's
+        // toggle returns early for an entry that is an app (AppsScreen.qml:544).
+        if (row == null || row.isApp) {
+            return;
+        }
+        PlaytimeManager.setPinned(this, uuidString, row.name, !row.pinned);
+        rebuildPageKeeping(row.appId);
+    }
+
+    /**
+     * The pin prompt, which follows the row rather than the action: Pin, or Unpin on a game that is
+     * already pinned — and not drawn at all unless a game is under the cursor (AppShell.qml:533-545,
+     * "the APPS tab has nothing to pin, so there the prompt is not drawn").
+     *
+     * <p>Hidden is not enough on its own: a prompt that is invisible and still carries a click
+     * target is a trap this page has already paid for once, so the pill stops being clickable with it.
+     */
+    private void updatePinPrompt() {
+        final AppLibrary.Row row = selectedRow();
+        final boolean pinnable = row != null && !row.isApp;
+
+        final View pill = findViewById(R.id.am_pill_pin);
+        if (pill != null) {
+            pill.setVisibility(pinnable ? View.VISIBLE : View.GONE);
+            pill.setClickable(pinnable);
+        }
+        if (promptBar != null) {
+            promptBar.setLabel("pin", pinnable && row.pinned
+                    ? getString(R.string.am_label_unpin) : null);
+        }
+    }
+
     private void fillPage() {
         if (isFinishing()) {
             return;
@@ -956,6 +1011,10 @@ public class AppsPageView extends ArtMoonActivity {
      * is in, what has been played on it, and the verbs.
      */
     private void updateHero() {
+        // The pin prompt follows the row, so it is refreshed with the spotlight — the same moment
+        // the cursor is read for the hero.
+        updatePinPrompt();
+
         AppLibrary.Row row = selectedRow();
         ImageView cover = (ImageView) findViewById(R.id.am_hero_cover);
         TextView title = (TextView) findViewById(R.id.am_hero_title);
@@ -1335,6 +1394,12 @@ public class AppsPageView extends ArtMoonActivity {
                     grid.showContextMenu();
                 }
                 return true;
+            case KeyEvent.KEYCODE_BUTTON_START:
+                // 6.0.0, the desktop's own row (AppShell.qml:533-545): Start pins the selected
+                // game. Until now it fell through to the silent default — owned, and doing
+                // nothing at all, which is exactly what a pad in the hand found.
+                togglePinFocused();
+                return true;
             default:
                 // BUTTON_START, the triggers, the sticks, the pads' extra buttons and the stray
                 // DEL: owned and deliberately silent, which is the whole point.
@@ -1353,6 +1418,13 @@ public class AppsPageView extends ArtMoonActivity {
         }
         if (keyCode == KeyEvent.KEYCODE_BUTTON_R1 || keyCode == KeyEvent.KEYCODE_PAGE_DOWN) {
             switchTab(1);
+            return true;
+        }
+
+        // The desktop's own key for the pin (AppShell.qml:536: key "P"), the keyboard half of the
+        // same prompt the pad reaches with Start.
+        if (keyCode == KeyEvent.KEYCODE_P) {
+            togglePinFocused();
             return true;
         }
         return super.onKeyDown(keyCode, event);

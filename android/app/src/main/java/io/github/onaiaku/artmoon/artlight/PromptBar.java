@@ -36,6 +36,16 @@ public final class PromptBar {
     }
 
     private final Map<String, Pill> pills = new LinkedHashMap<>();
+    /**
+     * A word the page has moved for a prompt that follows the row rather than the action.
+     *
+     * 6.0.0: the desktop's pin prompt says Unpin on a pinned game and Pin on any other
+     * (AppShell.qml:539-545) — one action, two words, and only the page knows which, because
+     * only the page knows the row under the cursor. Held here so a mode change restores the
+     * right word instead of snapping back to the action's default.
+     */
+    private final java.util.Map<String, String> labelOverrides = new java.util.HashMap<String, String>();
+
     // Resting state per action, restored when leaving gamepad mode
     private final Map<String, android.graphics.drawable.Drawable> origKeycapBg = new LinkedHashMap<>();
     private final Map<String, Integer> origKeycapColor = new LinkedHashMap<>();
@@ -108,7 +118,7 @@ public final class PromptBar {
             if (p.label != null) {
                 // Label always shows the real name — restore the string
                 // resource in case anything ever overwrote it.
-                p.label.setText(labelFor(p.action));
+                p.label.setText(labelTextFor(p.action));
             }
 
             if (p.keycap == null) {
@@ -226,6 +236,11 @@ public final class PromptBar {
         if ("nextHost".equals(action)) {
             return "RT";
         }
+        // 6.0.0, the desktop's own hint row (AppShell.qml:533-545): Start / P pins the selected
+        // game. Start, not Select — Select is the per-game Customize on that page.
+        if ("pin".equals(action)) {
+            return "START";
+        }
         return "A";
     }
 
@@ -248,7 +263,29 @@ public final class PromptBar {
         if ("nextTab".equals(action) || "nextHost".equals(action)) {
             return "PgDn";
         }
+        if ("pin".equals(action)) {
+            return "P";
+        }
         return "Enter";
+    }
+
+    /** Moves a prompt's word for a state the page owns. Null puts the action's own word back. */
+    public void setLabel(String action, String text) {
+        if (text == null) {
+            labelOverrides.remove(action);
+        }
+        else {
+            labelOverrides.put(action, text);
+        }
+        final Pill p = pills.get(action);
+        if (p != null && p.label != null) {
+            p.label.setText(labelTextFor(action));
+        }
+    }
+
+    private String labelTextFor(String action) {
+        final String over = labelOverrides.get(action);
+        return over != null ? over : labelFor(action);
     }
 
     private static String labelFor(String action) {
@@ -266,6 +303,9 @@ public final class PromptBar {
         }
         if ("exit".equals(action) || "back".equals(action)) {
             return "Exit";
+        }
+        if ("pin".equals(action)) {
+            return "Pin";
         }
         return action;
     }

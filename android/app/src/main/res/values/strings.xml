@@ -333,6 +333,8 @@
     <string name="am_key_enter">Enter</string>
     <string name="am_key_esc">Esc</string>
     <string name="am_key_p">P</string>
+    <string name="am_label_pin">Pin</string>
+    <string name="am_label_unpin">Unpin</string>
     <string name="am_key_s">S</string>
     <string name="am_key_g">G</string>
     <string name="am_key_y">Y</string>
