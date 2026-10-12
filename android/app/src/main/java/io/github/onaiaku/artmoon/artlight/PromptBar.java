@@ -241,6 +241,11 @@ public final class PromptBar {
         if ("pin".equals(action)) {
             return "START";
         }
+        // 6.1.0, the same hint row (AppShell.qml:547-548): btn "RS", key "M". The right stick, not
+        // a shoulder — the shoulders belong to this page's tabs.
+        if ("move".equals(action)) {
+            return "RS";
+        }
         return "A";
     }
 
@@ -265,6 +270,9 @@ public final class PromptBar {
         }
         if ("pin".equals(action)) {
             return "P";
+        }
+        if ("move".equals(action)) {
+            return "M";
         }
         return "Enter";
     }
@@ -306,6 +314,9 @@ public final class PromptBar {
         }
         if ("pin".equals(action)) {
             return "Pin";
+        }
+        if ("move".equals(action)) {
+            return "Move";
         }
         return action;
     }

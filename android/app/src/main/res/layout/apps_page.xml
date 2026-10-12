@@ -649,6 +649,54 @@
                     android:layout_marginRight="0dp"
                     android:text="@string/am_label_pin" />
             </LinearLayout>
+
+            <!-- 6.1.0 (AppsScreen.qml:374-379, :517-521, AppShell.qml:547-548): the right stick,
+                 or M, moves the selected entry to the other tab. RS on the pad and M on a keyboard
+                 are the desktop's own pair, and PromptBar draws the real vendor stick glyph for it
+                 (pad_xbox_rs / pad_switch_rs) exactly as it does for the other buttons.
+                 NOT drawn on ALL — where both halves are shown together "the other tab" means
+                 nothing — and never for a host control, which is not an application. The word
+                 follows the row: an app moves to GAMES, a game moves to APPS. -->
+            <LinearLayout
+                android:id="@+id/am_pill_move"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:baselineAligned="false"
+                android:layout_marginStart="16dp"
+                android:layout_marginLeft="16dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:clickable="true"
+                android:focusable="false"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/am_key_move_cap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp"
+                    android:minWidth="24dp"
+                    android:minHeight="24dp"
+                    android:gravity="center"
+                    android:text="@string/am_key_m"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text"
+                    android:background="@drawable/am_action_cap"
+                    android:paddingStart="7dp" android:paddingLeft="7dp"
+                    android:paddingEnd="7dp" android:paddingRight="7dp"
+                    android:alpha="0.85" />
+
+                <TextView
+                    android:id="@+id/am_key_move"
+                    style="@style/AmKeyHint"
+                    android:layout_marginEnd="0dp"
+                    android:layout_marginRight="0dp"
+                    android:text="@string/am_label_move" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

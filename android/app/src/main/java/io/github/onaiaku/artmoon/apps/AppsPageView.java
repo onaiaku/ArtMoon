@@ -533,6 +533,7 @@ public class AppsPageView extends ArtMoonActivity {
         promptBar.registerById(R.id.am_key_settings_cap, R.id.am_key_settings, "settings");
         promptBar.registerById(R.id.am_key_hosts_cap, R.id.am_key_hosts, "hosts");
         promptBar.registerById(R.id.am_key_pin_cap, R.id.am_key_pin, "pin");
+        promptBar.registerById(R.id.am_key_move_cap, R.id.am_key_move, "move");
 
         // Tappable, like the two beside it. A pad-first page must not hide an action behind a
         // button only a controller has — the pill is the prompt and the door at the same time.
@@ -672,11 +673,10 @@ public class AppsPageView extends ArtMoonActivity {
                 return true;
 
             case MOVE_APP_ID:
-                // The desktop sets its "chosen by the user" flag BEFORE the call. Moving an entry is
-                // the strongest statement of which tab is wanted, and it has to survive the rebuild.
-                tabChosenByUser = true;
-                PlaytimeManager.setCategoryOverride(this, uuidString, row.name, !row.isApp, false);
-                rebuildPageKeeping(row.appId);
+                // One door, one implementation: the pad's right stick and M land on this same
+                // method, so the two can never drift apart (the desktop has one moveFocused() for
+                // both, AppsScreen.qml:388).
+                moveFocused();
                 return true;
 
             case START_OR_RESUME_ID:
@@ -917,10 +917,79 @@ public class AppsPageView extends ArtMoonActivity {
         if (pill != null) {
             pill.setVisibility(pinnable ? View.VISIBLE : View.GONE);
             pill.setClickable(pinnable);
+            // It was drawn pressable with nothing behind it (see updateMovePrompt). A game under
+            // the cursor is what makes it a button; otherwise it is not one.
+            pill.setOnClickListener(pinnable ? new android.view.View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    togglePinFocused();
+                }
+            } : null);
         }
         if (promptBar != null) {
             promptBar.setLabel("pin", pinnable && row.pinned
                     ? getString(R.string.am_label_unpin) : null);
+        }
+    }
+
+    /**
+     * Moves the focused entry to the other tab — the desktop's own {@code moveFocused()}
+     * (AppsScreen.qml:381-402), which until now this page reached only through the long-press
+     * menu. That was half a port: the desktop's everyday door is the pad's right stick or M, and
+     * the prompt beside it says so.
+     *
+     * <p><b>The tab is marked as chosen by hand BEFORE the move.</b> Moving an entry changes the
+     * counts, and this page picks a tab from the counts when the tab was never chosen by hand —
+     * which would put ALL on top before this method got to say where to go. The desktop carries the
+     * same warning in the same words.
+     *
+     * <p><b>Only on GAMES or APPS, and only for an entry the user owns.</b> "Not on ALL, where both
+     * halves are shown together and 'the other tab' means nothing, and never for a host control —
+     * those are not applications and stay on APPS" (AppsScreen.qml:369-379).
+     */
+    private void moveFocused() {
+        final AppLibrary.Row row = selectedRow();
+        if (row == null || !row.movable || category == null
+                || AppLibrary.CAT_ALL.equals(category)) {
+            return;
+        }
+
+        tabChosenByUser = true;
+        PlaytimeManager.setCategoryOverride(this, uuidString, row.name, !row.isApp, false);
+        rebuildPageKeeping(row.appId);
+    }
+
+    /**
+     * The move prompt, following the row exactly as the pin prompt does — the desktop pushes it
+     * only when the page's own label is non-empty (AppShell.qml:547-548), and the label is the
+     * gate read out loud: "Move to GAMES" on an app, "Move to APPS" on a game, nothing on ALL or on
+     * an entry that cannot move (AppsScreen.qml:374-379).
+     *
+     * <p>The tap is real. The pin prompt was drawn pressable and had no listener, so a tap on it
+     * did nothing at all — a prompt that looks like a button and is not one is the trap this page
+     * has already paid for once. Both pills now do what they say, by hand as well as by pad.
+     */
+    private void updateMovePrompt() {
+        final AppLibrary.Row row = selectedRow();
+        final boolean movable = row != null && row.movable
+                && category != null && !AppLibrary.CAT_ALL.equals(category);
+
+        final View pill = findViewById(R.id.am_pill_move);
+        if (pill != null) {
+            pill.setVisibility(movable ? View.VISIBLE : View.GONE);
+            pill.setClickable(movable);
+            pill.setOnClickListener(movable ? new android.view.View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    moveFocused();
+                }
+            } : null);
+        }
+        if (promptBar != null) {
+            promptBar.setLabel("move", movable
+                    ? getString(row.isApp ? R.string.am_label_move_games
+                                          : R.string.am_label_move_apps)
+                    : null);
         }
     }
 
@@ -1047,6 +1116,7 @@ public class AppsPageView extends ArtMoonActivity {
         // The pin prompt follows the row, so it is refreshed with the spotlight — the same moment
         // the cursor is read for the hero.
         updatePinPrompt();
+        updateMovePrompt();
 
         AppLibrary.Row row = selectedRow();
         ImageView cover = (ImageView) findViewById(R.id.am_hero_cover);
@@ -1388,7 +1458,6 @@ public class AppsPageView extends ArtMoonActivity {
             case KeyEvent.KEYCODE_BUTTON_R2:
             case KeyEvent.KEYCODE_BUTTON_MODE:
             case KeyEvent.KEYCODE_BUTTON_THUMBL:
-            case KeyEvent.KEYCODE_BUTTON_THUMBR:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_DEL:          // this pad's stray companion to every X press
@@ -1396,6 +1465,24 @@ public class AppsPageView extends ArtMoonActivity {
                     return true;
                 }
                 break;
+
+            /*
+             * ── Move to the other tab ─────────────────────────────────────────────────
+             *
+             * The right stick, or M on a keyboard — the desktop's pair, both halves
+             * (AppsScreen.qml:517-521: "right stick click (Key_F19), M on the keyboard") and
+             * the pair its own hint row names (AppShell.qml:548, btn "RS", key "M").
+             *
+             * The right stick used to sit in the swallow list below with nothing to do, which
+             * was the right call while nothing owned it: a press that does nothing beats a press
+             * that leaks to the framework and launches a stream. Now it does the thing.
+             */
+            case KeyEvent.KEYCODE_BUTTON_THUMBR:
+            case KeyEvent.KEYCODE_M:
+                if (down) {
+                    moveFocused();
+                }
+                return true;
 
             /*
              * ── The ring stays in the list ────────────────────────────────────────────

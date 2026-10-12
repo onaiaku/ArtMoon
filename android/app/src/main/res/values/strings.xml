@@ -334,6 +334,12 @@
     <string name="am_key_esc">Esc</string>
     <string name="am_key_p">P</string>
     <string name="am_label_pin">Pin</string>
+    <string name="am_key_m">M</string>
+    <string name="am_label_move">Move</string>
+    <!-- The prompt's own wording, not the menu's: the desktop's status bar says
+         "Move to GAMES" / "Move to APPS" (AppsScreen.qml:379) where its menu says "Move to apps". -->
+    <string name="am_label_move_games">Move to GAMES</string>
+    <string name="am_label_move_apps">Move to APPS</string>
     <string name="am_label_unpin">Unpin</string>
     <string name="am_key_s">S</string>
     <string name="am_key_g">G</string>
