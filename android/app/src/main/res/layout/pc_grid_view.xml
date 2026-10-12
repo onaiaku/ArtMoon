@@ -22,6 +22,20 @@
     clipToPadding stays FALSE. With the padding as insets, clipping to them would cut the card's
     own rounded corners off against the padding edge; the desktop lets the stage's contents sit
     inside its margins and so does this.
+     *
+     * THE SIDE INSET IS 25dp — which is this file's own rule finally applied to itself. The
+     * stage's insets come from HomeScreen.qml:1975 as _px(44)/_px(14)/_px(18): desktop UNITS,
+     * which scale with uiScale like every other number the port carries. Here they were written
+     * as raw dp, and because AmScale.applyTo runs in onCreate — before this GridView exists —
+     * they never scaled at all. On the Fold's cover screen (uiScale 0.565) that spent 44dp =
+     * 116px, 5.9% of the width, where the desktop's stage spends 3.3%: "a massive black gap to
+     * the left of the hero card" (Nik, 12 Oct 2026). 44 x 0.565 = 24.8, hence 25dp = 65px, which
+     * is the desktop's proportion — an inset, not a chasm. Do not take this to 0: he wants a
+     * margin, just not that one.
+     *
+     * The VERTICAL insets (14dp/18dp above and below) are still raw and still owe the same
+     * treatment; they are left alone here because the card's height and the action row's foot
+     * inset are tuned around them.
 -->
 <GridView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/fragmentView"
@@ -31,10 +45,10 @@
     android:numColumns="1"
     android:stretchMode="columnWidth"
     android:verticalSpacing="0dp"
-    android:paddingStart="44dp"
-    android:paddingLeft="44dp"
-    android:paddingEnd="44dp"
-    android:paddingRight="44dp"
+    android:paddingStart="25dp"
+    android:paddingLeft="25dp"
+    android:paddingEnd="25dp"
+    android:paddingRight="25dp"
     android:paddingTop="14dp"
     android:paddingBottom="18dp"
     android:clipToPadding="false"
