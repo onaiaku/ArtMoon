@@ -62,14 +62,14 @@ with my own eyes yet.
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" | **MISSING** |
 | §916 the configuration line | host link speed + your stream settings | **PRESENT** — `fillConfigLine` + `addCfgChip` |
 | §1047 the game (launch screen) | the segue into a launch | **NOT PORTED** — Moonlight's own launch UI |
-| §1095 action row | the verb's pill, per-game settings, Stop | **PARTIAL** — launch + Stop only, and both now carry real artwork; **no per-game settings entry** (SELECT/G, `AppsScreen.qml:1117`) |
+| §1095 action row | the verb's pill, per-game settings, Stop | **PRESENT** — launch + Stop, both with real artwork. Per-game settings is **not** counted as missing: Android does not use the desktop's settings page (Nik, 12 Oct 2026), so that entry would be Android's own surface to build, not this page's port |
 | §1331 Continue | the last thing played sits on top | **PRESENT** — `SECTION_CONTINUE`, row 0 only |
 | §1537 thumbnail | box art in the row | **PRESENT** — after the prefetch; was losing a race on every load |
 | §1571 title + store | name, store in words under it | **PRESENT** |
 | §1572 pinned mark | the pin on the row | **PRESENT** |
 | §1638 the running session | the lit pill on the entry that's streaming | **PRESENT** |
 | §1782 empty state | what it says when there's nothing | **PRESENT** — after I got it wrong twice |
-| §1799 dialogs | per-game settings, pin prompt, launch confirm | **PARTIAL** — quit confirm only |
+| §1799 dialogs | per-game settings, pin prompt, launch confirm | **PARTIAL** — quit confirm only; the per-game settings dialog is not counted (see above) |
 
 ## 2. The little things — your actual complaint
 
@@ -159,15 +159,18 @@ because they are live, not because they are the biggest.
 | Desktop § | Missing |
 |---|---|
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" — not there at all |
-| §1095 action row | the per-game settings entry (SELECT / G, `AppsScreen.qml:1117`); launch + Stop only |
-| §1799 dialogs | only the quit confirm exists — no per-game settings dialog, no pin prompt, no launch confirm |
+| §1095 action row | **nothing** — launch + Stop, and per-game settings is not a port item (see the note below) |
+| §1799 dialogs | only the quit confirm exists — no pin prompt, no launch confirm |
 | §111 focus zones | partially: nothing else is focusable and the ring starts on the list, but unproven with the pad in hand |
 | §1571 store, in artwork | the seven store SVGs exist on the desktop (`GameFacts.qml:63`) and not on Android |
 | §285/§367 pin and move | reached by long-press menu only; the desktop's pad pair (Start/P, M or right-stick) is not ported |
 | §1047 the launch segue | not ported — Android hands off to Moonlight's own launch UI |
 
 ### No Android screen at all
-- per-game settings ("Customize") — the word does not occur anywhere in the Android tree.
+- per-game settings — **not a port item, Nik's ruling (12 Oct 2026): "we can have per game settings as
+  we dont use the desktops settings page".** Android's own stream settings page is what a per-game
+  entry would sit on, so if that is ever built it is Android's surface, not the desktop's dialog
+  ported across. Removed from this list.
 - host profiles (desktop `HostProfilesDialog`), pad shortcut capture (`ShortcutCaptureDialog`),
   `GamepadCaptureDialog`, `StageBackgroundDialog`, `AppSettingsDialog`.
 - the desktop's own on-screen keyboard (`OnScreenKeyboard.qml`) — Android uses the system keyboard,
