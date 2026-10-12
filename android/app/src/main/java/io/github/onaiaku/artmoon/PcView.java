@@ -197,10 +197,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             footerShutdown.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    ComputerObject hero = getHeroComputer();
-                    if (hero != null) {
-                        doArtLightPowerMenu(hero.details);
-                    }
+                    powerForHero();
                 }
             });
         }
@@ -248,6 +245,13 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         promptBar.registerById(R.id.am_footer_kb_shutdown, R.id.am_footer_shutdown, "shutdown");
         promptBar.registerById(R.id.am_footer_kb_settings, R.id.am_footer_settings, "settings");
         promptBar.registerById(R.id.am_footer_kb_exit, R.id.am_footer_exit, "exit");
+        // The strip's own pair. Registers as a keycap on its own: the chip carries the key and
+        // there is no second view to write a word into. In gamepad mode it draws LT/RT — the
+        // triggers, because that is what pages the stage (see dispatchKeyEvent) — and in touch
+        // and keyboard modes the chip reads PgUp/PgDn, the desktop's own legend for that pair
+        // (HomeScreen.qml:1855, `{ btn: "LT", key: "PgUp", dir: -1 }`).
+        promptBar.registerById(R.id.am_pg_up_cap, "prevHost");
+        promptBar.registerById(R.id.am_pg_dn_cap, "nextHost");
         promptBar.attach();
 
         getFragmentManager().beginTransaction()
@@ -1432,7 +1436,22 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 Math.max(11, Math.round(size * 0.46f)));
     }
 
-    /** The LT/RT shoulders (and PgUp/PgDn) page the stage one host at a time. */
+    /**
+     * The POWER chooser for the host the stage is showing.
+     *
+     * <p>Named because two things reach it: the footer's Shutdown prompt, and X on a pad — which is
+     * what the desktop binds that button to on this screen (AppShell.qml:515,
+     * {@code { btn: "X", key: "P", act: "Power", kind: "shutdownHost" }}). Android answered X with
+     * nothing at all until 12 Oct 2026.
+     */
+    private void powerForHero() {
+        ComputerObject hero = getHeroComputer();
+        if (hero != null) {
+            doArtLightPowerMenu(hero.details);
+        }
+    }
+
+    /** The LT/RT triggers (and PgUp/PgDn) page the stage one host at a time. */
     private void cycleHost(int dir) {
         pageHostList(dir);
         if (pcGridView != null) {
@@ -1958,6 +1977,12 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 case KeyEvent.KEYCODE_BUTTON_Y:
                 case KeyEvent.KEYCODE_BUTTON_B:
                 case KeyEvent.KEYCODE_BUTTON_A:
+                case KeyEvent.KEYCODE_BUTTON_X:
+                case KeyEvent.KEYCODE_BUTTON_L1:
+                case KeyEvent.KEYCODE_BUTTON_R1:
+                case KeyEvent.KEYCODE_BUTTON_L2:
+                case KeyEvent.KEYCODE_BUTTON_R2:
+                case KeyEvent.KEYCODE_DEL:
                 case KeyEvent.KEYCODE_ENTER:
                 case KeyEvent.KEYCODE_DPAD_CENTER:
                 case KeyEvent.KEYCODE_DPAD_UP:
@@ -2000,11 +2025,42 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 case KeyEvent.KEYCODE_DPAD_LEFT:
                     movePadAction(-1);
                     return true;
-                case KeyEvent.KEYCODE_BUTTON_L1:
+                // ⚠️ THE TRIGGERS PAGE THE STAGE, NOT THE SHOULDERS.
+                //
+                // This listened on L1/R1 while the comment above it said LT/RT, and the desktop
+                // is explicit: "Triggers → previous / next host on the Home screen", edge-detected
+                // on the axis with hysteresis (sdlgamepadkeynavigation.cpp:521-556). The shoulders
+                // send Key_F16/F17 there and cycle the host's streaming PROFILE — that file's own
+                // note at 392-400 records what happened when they sent PageUp/PageDown instead:
+                // "the shoulders were delivered straight into the host handler and the profile
+                // cycle became unreachable from the pad". Binding hosts to LB/RB here would repeat
+                // that bug rather than fix it.
+                case KeyEvent.KEYCODE_BUTTON_L2:
                     cycleHost(-1);
                     return true;
-                case KeyEvent.KEYCODE_BUTTON_R1:
+                case KeyEvent.KEYCODE_BUTTON_R2:
                     cycleHost(1);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_L1:
+                case KeyEvent.KEYCODE_BUTTON_R1:
+                    // Owned and deliberately inert, as the desktop's own inert keys are: this is
+                    // where the host's profile cycle belongs, and it cannot be wired here yet —
+                    // the Android client has no profile support to call (no cycleHostProfile
+                    // equivalent anywhere in the tree). Swallowed rather than passed on, so the
+                    // framework's geometric focus search cannot light up a tab behind our back.
+                    return true;
+                case KeyEvent.KEYCODE_DEL:
+                    // ⚠️ Not the Backspace key, as far as this app is concerned: this pad sends it
+                    // WITH BUTTON_X. Nik's Xbox controller (045e:0b13, Bluetooth, on the Fold)
+                    // emits KEYCODE_BUTTON_X and KEYCODE_DEL 1-8 ms apart on one physical press,
+                    // every press — 36 of each in a single sitting on 12 Oct 2026, paired exactly.
+                    // Nothing in this client binds DEL, so in gamepad mode it is swallowed with
+                    // the press it belongs to instead of falling through to the framework.
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_X:
+                    // Power, as on the desktop (AppShell.qml:515). Android did nothing at all
+                    // with X on this screen until now.
+                    powerForHero();
                     return true;
                 default:
                     break;

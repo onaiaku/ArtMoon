@@ -209,11 +209,22 @@ public final class PromptBar {
         }
         // The picker's two shoulders, drawn at the ends of its tab strip (AppsScreen.qml:1226-1246
         // and the same pair on Settings, AppShell.qml _hintsSettings).
+        // Two strips, two different pairs, and the desktop keeps them apart on purpose.
+        // The app picker's library tabs are the SHOULDERS (AppsScreen.qml:1226). The home
+        // strip is the TRIGGERS — sdlgamepadkeynavigation.cpp:521-556, "Triggers → previous /
+        // next host on the Home screen" — and the shoulders there cycle the host's streaming
+        // profile instead (F16/F17).
         if ("prevTab".equals(action)) {
             return "LB";
         }
         if ("nextTab".equals(action)) {
             return "RB";
+        }
+        if ("prevHost".equals(action)) {
+            return "LT";
+        }
+        if ("nextHost".equals(action)) {
+            return "RT";
         }
         return "A";
     }
@@ -231,10 +242,10 @@ public final class PromptBar {
         if ("exit".equals(action) || "back".equals(action) || "hosts".equals(action)) {
             return "Esc";
         }
-        if ("prevTab".equals(action)) {
+        if ("prevTab".equals(action) || "prevHost".equals(action)) {
             return "PgUp";
         }
-        if ("nextTab".equals(action)) {
+        if ("nextTab".equals(action) || "nextHost".equals(action)) {
             return "PgDn";
         }
         return "Enter";
