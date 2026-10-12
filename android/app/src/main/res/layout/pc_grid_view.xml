@@ -3,6 +3,25 @@
     ArtMoon main screen: the STAGE. One host per screenful, exactly like the desktop's
     HomeScreen — the strip fronts a single full-height stage (HomeScreen.qml:1975) and
     HostStage.qml:555 makes the card the left 55% of it. Shoulders page between hosts.
+
+    ⚠️ THE STAGE'S INSETS LIVE HERE, ON THE LIST, NOT ON THE ITEM. HomeScreen.qml:1975 anchors
+    HostStage with _px(44) to the sides, _px(14) to the top and _px(18) to the bottom — those
+    are the STAGE's insets.
+
+    They were on the item (pc_grid_item.xml's root) and that is the whole reason the page
+    scrolled when it should not: PcGridAdapter.getView sets each item's height to the GridView's
+    own height, and a margin on the item ADDS to that rather than coming off it. 14 + 18 of
+    them made the grid's content 32dp taller than its viewport, so the grid scrolled by exactly
+    32dp — and the last 32dp of the card, which is where the action row sits, sat below the
+    fold. Insets belong to the box holding the list; the rows inside it fill that box.
+
+    Scrolling is off as well as impossible: with the item exactly the viewport's height there
+    is no range to scroll, and turning the scrollbar and the overscroll glow off is what keeps
+    it that way if a taller item ever appears rather than leaving a silent 32dp of travel.
+
+    clipToPadding stays FALSE. With the padding as insets, clipping to them would cut the card's
+    own rounded corners off against the padding edge; the desktop lets the stage's contents sit
+    inside its margins and so does this.
 -->
 <GridView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/fragmentView"
@@ -12,8 +31,14 @@
     android:numColumns="1"
     android:stretchMode="columnWidth"
     android:verticalSpacing="0dp"
-    android:paddingTop="0dp"
-    android:focusable="true"
-   
+    android:paddingStart="44dp"
+    android:paddingLeft="44dp"
+    android:paddingEnd="44dp"
+    android:paddingRight="44dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="18dp"
     android:clipToPadding="false"
-    android:gravity="fill_horizontal"/>
+    android:scrollbars="none"
+    android:overScrollMode="never"
+    android:focusable="true"
+    android:gravity="fill_horizontal" />

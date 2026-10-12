@@ -5,6 +5,8 @@ import io.github.onaiaku.artmoon.artlight.HostBackgroundManager;
 import io.github.onaiaku.artmoon.artlight.HostMetricsPoller.GameCover;
 import android.view.View;
 
+import io.github.onaiaku.artmoon.ui.AmActionPill;
+import io.github.onaiaku.artmoon.ui.AmBackdropRamp;
 import io.github.onaiaku.artmoon.ui.AmScale;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -97,16 +99,45 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                     card.setBackground(g);
                 }
             }
+            // The backdrop ramp (HostStage.qml:113-185). A Drawable rather than a shape in the
+            // layout because its five stops are a function of the host's colour pair, and because
+            // AmScale would have to be taught about it anyway — the version that lived in XML was
+            // a VERTICAL scrim, densest at the bottom, which darkened the strip the action row
+            // sits in. The desktop's ramp runs along x.
+            View ramp = v.findViewById(R.id.am_stage_ramp);
+            if (ramp != null) {
+                AmBackdropRamp drawable = new AmBackdropRamp();
+                // 6.0.0: the backdrop is thinned so the app's floor shows through
+                // (stage.backdropOpacity, HostStage.qml:197 defaults to 0.90).
+                drawable.setAlpha(Math.round(0.90f * 255f));
+                ramp.setBackground(drawable);
+            }
+            // The action buttons' bodies, built here for the same reason: a radius inside a
+            // selector inside a ripple cannot be scaled, and a fixed 28dp radius on a 58dp
+            // button is what sliced them down the middle.
+            AmActionPill.apply((android.widget.TextView) v.findViewById(R.id.am_action_open), s, false);
+            AmActionPill.apply((android.widget.TextView) v.findViewById(R.id.am_action_options), s, false);
+            AmActionPill.apply((android.widget.TextView) v.findViewById(R.id.am_panel_resume), s, false);
+            AmActionPill.apply((android.widget.TextView) v.findViewById(R.id.am_panel_stop), s, true);
         }
         // NOTE: PcView.paintPadFocus is the SINGLE writer of activated state.
         // The adapter previously painted the row here too, producing a second
         // ring around the whole hero card on top of the pill ring (Nik saw
         // Open and Options 'both selected at once'). Do not re-add.
-        if (parent != null && parent.getHeight() > 0
-                && v.getLayoutParams().height != parent.getHeight()) {
-            android.view.ViewGroup.LayoutParams lp = v.getLayoutParams();
-            lp.height = parent.getHeight();
-            v.setLayoutParams(lp);
+        //
+        // ⚠️ The viewport here is the GridView's CONTENT box, not its bounds. The stage's insets
+        // are its padding, and padding is not part of the area a GridView gives an item — so an
+        // item set to getHeight() is 32dp taller than it can ever be shown, which is 32dp of
+        // silent scroll travel and a card whose bottom edge is below the fold. That was the
+        // "still slightly scrollable" and it was also why the action row at the card's foot was
+        // the part that disappeared.
+        if (parent != null && parent.getHeight() > 0) {
+            int viewport = parent.getHeight() - parent.getPaddingTop() - parent.getPaddingBottom();
+            if (v.getLayoutParams().height != viewport) {
+                android.view.ViewGroup.LayoutParams lp = v.getLayoutParams();
+                lp.height = viewport;
+                v.setLayoutParams(lp);
+            }
         }
         PcView.ComputerObject obj = (PcView.ComputerObject) getItem(position);
         if (obj != null) {
@@ -432,6 +463,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         }
         if (title.isEmpty()) {
             col.setVisibility(View.GONE);
+            hidePanelStack(v);
             return;
         }
 
@@ -461,6 +493,16 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
 
         col.setVisibility(View.VISIBLE);
 
+        // Resume / Play again, under the cover and the title (HostStage.qml:1694-1896). It is
+        // reachable exactly when the block is: with no game named there is nothing to play
+        // again, and the desktop's `_panelActionReachable` says the same. The desktop also
+        // draws Stop under it WHILE SOMETHING IS STREAMING — Android's poller does not carry a
+        // running-session flag yet, so that half stays hidden rather than being guessed at.
+        View stack = v.findViewById(R.id.am_panel_action_stack);
+        if (stack != null) {
+            stack.setVisibility(View.VISIBLE);
+        }
+
         // coverHeight (GameFacts.qml:147-156): whatever the panel has left once the block's own
         // text has taken its share, floored at _px(90). Two passes, because the text's height is
         // only real after layout has run.
@@ -477,7 +519,17 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                     int others = col.getHeight() - cv.getHeight();
                     io.github.onaiaku.artmoon.ui.AmScale st =
                             io.github.onaiaku.artmoon.ui.AmScale.ofStage(context);
-                    int room = panel.getHeight() - st.dp(30) - st.dp(18) - others;
+                    // ⚠️ THE BUTTON'S ROOM COMES OUT OF THE BLOCK, NOT OUT OF THE CARD. The
+                    // desktop measures lastPanel.availableHeight from the TOP of that stack, so
+                    // the cover and the title give the room up and the button never leaves the
+                    // card — which is the thing that was happening here: the stack sat over the
+                    // block's last line with nothing accounting for it.
+                    int reserve = 0;
+                    View stack = panel.findViewById(R.id.am_panel_action_stack);
+                    if (stack != null && stack.getVisibility() == View.VISIBLE) {
+                        reserve = stack.getHeight();
+                    }
+                    int room = panel.getHeight() - st.dp(30) - st.dp(18) - others - reserve;
                     int h = Math.max(st.dp(90), room);
                     // 2:3, and capped by the column it lives in — GameFacts.qml:150-156 does the
                     // same in the other direction (its height is capped by `width * 3 / 2`), and
@@ -497,6 +549,18 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                     }
                 }
             });
+        }
+    }
+
+    /**
+     * The panel pair goes with the block it belongs to. With no game named there is nothing to
+     * play again (HostStage.qml:1694, `_panelActionReachable`), and a button standing under
+     * nothing is worse than no button.
+     */
+    private void hidePanelStack(View row) {
+        View stack = row.findViewById(R.id.am_panel_action_stack);
+        if (stack != null) {
+            stack.setVisibility(View.GONE);
         }
     }
 

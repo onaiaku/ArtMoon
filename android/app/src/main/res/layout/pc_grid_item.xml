@@ -23,14 +23,19 @@
     Gone from the old card, because the desktop does not have them: the 56sp fixed title, the
     second HOST LINK block, and the full-bleed hero background.
 -->
+<!--
+    ⚠️ THE STAGE'S INSETS ARE NOT HERE. They live on the GridView (pc_grid_view.xml: padding
+    44 / 14 / 44 / 18), because this item's height is set to the GridView's own height at bind
+    time (PcGridAdapter.getView). Margins on the ITEM add to that height instead of coming off
+    it: 14 + 18 of them made the grid's content 32dp taller than its viewport, which is why the
+    page scrolled a little when it should not scroll at all — and why the bottom of the card,
+    where the action row sits, was the part below the fold. Insets belong to the box that holds
+    the list, not to the rows inside it.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/am_hero_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:layout_marginStart="44dp"
-    android:layout_marginEnd="44dp"
-    android:layout_marginTop="14dp"
-    android:layout_marginBottom="18dp">
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -54,10 +59,17 @@
                 android:visibility="gone"
                 android:contentDescription="@null" />
 
+            <!-- The backdrop ramp. Its stops are a function of the host's colour pair
+                 (HostStage.qml:113-185), so it is a Drawable built in code — AmBackdropRamp —
+                 not a shape in here. It runs along X: flat for the first 55% of the card at
+                 what the composite produced, then falling away to #05080a, so the identity
+                 block has something to sit on and the right of the card still reads as a
+                 colour. The VERTICAL scrim this replaced darkened the strip the action row
+                 lives in and left the left of the card lighter than the desktop. -->
             <View
+                android:id="@+id/am_stage_ramp"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/am_hero_scrim" />
+                android:layout_height="match_parent" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -405,7 +417,23 @@
                     android:layout_height="0dp"
                     android:layout_weight="1" />
 
-                <!-- HostStage.qml:1402-1567 — the action row at the card's foot -->
+                <!-- HostStage.qml:1424-1477 — the action row at the card's foot. One row of
+                     controls on ONE baseline; the panel pair under the cover and the title
+                     (am_panel_action_stack, right column) sits on this same line, so the card
+                     has one row of controls that spans both halves rather than two rows at two
+                     heights.
+
+                     height _px(58) · radius _px(10) · width = content + _px(54) · _px(12)
+                     between buttons. ⚠️ radius _px(10), NOT a full-round pill: 10 is the
+                     desktop's number and a 28dp radius on a 58dp-tall button is what drew the
+                     two end caps through each other.
+
+                     ⚠️ THE BACKGROUND IS NOT HERE. A button is #14ffffff with a 1px
+                     Theme.lineHigh border when nothing is lit, and its own colour only while
+                     focused or hovered (1471-1477). Both are built in code because the radius
+                     has to come down with the button: a shape inside a ripple/selector is not a
+                     GradientDrawable, so AmScale cannot reach its corners, and those fixed
+                     28dp corners were the sliced pill. -->
                 <LinearLayout
                     android:id="@+id/am_action_row"
                     android:layout_width="wrap_content"
@@ -420,12 +448,10 @@
                         android:gravity="center"
                         android:text="@string/am_action_open"
                         android:textSize="19sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/am_on_accent"
-                        android:background="@drawable/am_pill_accent_sel"
-                        android:paddingStart="26dp"
-                        android:paddingEnd="26dp"
-                        android:layout_marginEnd="10dp" />
+                        android:textColor="@color/am_text"
+                        android:paddingStart="27dp"
+                        android:paddingEnd="27dp"
+                        android:layout_marginEnd="12dp" />
 
                     <TextView
                         android:id="@+id/am_action_options"
@@ -435,11 +461,9 @@
                         android:gravity="center"
                         android:text="@string/am_action_options"
                         android:textSize="19sp"
-                        android:textStyle="bold"
                         android:textColor="@color/am_text"
-                        android:background="@drawable/am_pill_soft_sel"
-                        android:paddingStart="26dp"
-                        android:paddingEnd="26dp" />
+                        android:paddingStart="27dp"
+                        android:paddingEnd="27dp" />
                 </LinearLayout>
             </LinearLayout>
         </FrameLayout>
@@ -561,6 +585,58 @@
                 android:textColor="@color/am_text" />
         </LinearLayout>
 
+
+            <!-- ══════ the panel pair — HostStage.qml:1694-1896 ══════
+
+                 Resume/Play again, and Stop under it while something is streaming. This is the
+                 half Nik could not find: it is NOT in the action row, and that is the point of
+                 the arrangement — "down there it read as a generic verb next to Open and
+                 Profiles, with the game it refers to a card's width away. Under the cover and
+                 the title, 'Play again' has already been told what it plays."
+
+                 Same body, same height _px(58) and same radius _px(10) as the action row, and
+                 anchored so its BOTTOM sits on that row's line: the card has one row of
+                 controls that happens to span both halves rather than two rows at two heights.
+
+                 It grows UPWARD (Resume on top, Stop below) rather than downward — downward
+                 would draw it over the footer prompts, and the desktop's lastPanel measures its
+                 available height from the top of this stack for exactly that reason. -->
+            <LinearLayout
+                android:id="@+id/am_panel_action_stack"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="30dp"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/am_panel_resume"
+                    android:focusable="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="58dp"
+                    android:gravity="center"
+                    android:text="@string/am_panel_play_again"
+                    android:textSize="19sp"
+                    android:textColor="@color/am_text"
+                    android:paddingStart="27dp"
+                    android:paddingEnd="27dp" />
+
+                <TextView
+                    android:id="@+id/am_panel_stop"
+                    android:focusable="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="58dp"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="@string/am_stop"
+                    android:textSize="19sp"
+                    android:textColor="@color/am_danger"
+                    android:paddingStart="27dp"
+                    android:paddingEnd="27dp"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <!-- kept so the adapter's existing binding keeps working; the desktop has no
                  glyph well on the stage, so it stays gone unless there is something to say -->

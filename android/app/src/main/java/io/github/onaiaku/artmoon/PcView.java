@@ -165,6 +165,11 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_settings), 26f);
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_exit), 26f);
 
+        // Edge-to-edge is not optional at targetSdk 36 on Android 15+ — the window runs under
+        // the status bar and the navigation bar whether the app asks to or not, so the app owes
+        // those insets back to its own content. See applySystemBarInsets.
+        applySystemBarInsets();
+
         // Allow floating expanded PiP overlays while browsing PCs
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             setShouldDockBigOverlays(false);
@@ -1214,6 +1219,86 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
     }
 
     /**
+     * Hand the system bars their own strip of the screen back.
+     *
+     * <p>targetSdk 36 with Android 15+ means edge-to-edge is enforced: the window is laid out
+     * under the status bar and under the navigation/gesture bar, and the app is the only one who
+     * can keep its content out from under them. Nothing in this app asked for edge-to-edge, and
+     * nothing handled it — so the footer's band sat with its bottom edge ON the window's bottom
+     * edge, which on the Fold is behind the gesture bar: "almost falling off the screen". The
+     * brand row had the mirror of it at the top, under the status bar.
+     *
+     * <p>The desktop has no equivalent and the port should not invent one: AppShell draws its
+     * footer prompts 44px from the bottom of a window the app owns outright. So this is the one
+     * place where Android's answer is right and the QML has nothing to say — the port's job is
+     * to put the desktop's 44dp band at the bottom of the area the app actually has.
+     *
+     * <p>Two rules, and both matter:
+     *
+     * <ul>
+     *   <li>The footer GROWS by the bottom inset and then pads it back out. Padding alone would
+     *       squash the prompts into whatever sliver was left of a 31dp band.</li>
+     *   <li>The brand row's own top margin stays the desktop's {@code _px(22)} and the status
+     *       bar's height is added to it — scaling is not re-run, this is a one-off offset.</li>
+     * </ul>
+     */
+    private void applySystemBarInsets() {
+        final View root = findViewById(R.id.am_home_root);
+        final View brand = findViewById(R.id.am_brand_row);
+        final View footer = findViewById(R.id.am_footer);
+        if (root == null || brand == null || footer == null) {
+            return;
+        }
+
+        final int brandTopBase = (brand.getLayoutParams()
+                instanceof android.view.ViewGroup.MarginLayoutParams)
+                ? ((android.view.ViewGroup.MarginLayoutParams) brand.getLayoutParams()).topMargin
+                : brand.getPaddingTop();
+        final int footerHeightBase = footer.getLayoutParams().height;
+
+        root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public android.view.WindowInsets onApplyWindowInsets(View v, android.view.WindowInsets insets) {
+                int top;
+                int bottom;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    android.graphics.Insets bars =
+                            insets.getInsets(android.view.WindowInsets.Type.systemBars());
+                    top = bars.top;
+                    bottom = bars.bottom;
+                } else {
+                    top = insets.getSystemWindowInsetTop();
+                    bottom = insets.getSystemWindowInsetBottom();
+                }
+
+                if (brand.getLayoutParams()
+                        instanceof android.view.ViewGroup.MarginLayoutParams) {
+                    android.view.ViewGroup.MarginLayoutParams lp =
+                            (android.view.ViewGroup.MarginLayoutParams) brand.getLayoutParams();
+                    int want = brandTopBase + top;
+                    if (lp.topMargin != want) {
+                        lp.topMargin = want;
+                        brand.setLayoutParams(lp);
+                    }
+                }
+
+                android.view.ViewGroup.LayoutParams flp = footer.getLayoutParams();
+                int h = footerHeightBase + bottom;
+                if (flp.height != h) {
+                    flp.height = h;
+                    footer.setLayoutParams(flp);
+                }
+                if (footer.getPaddingBottom() != bottom) {
+                    footer.setPadding(footer.getPaddingLeft(), footer.getPaddingTop(),
+                            footer.getPaddingRight(), bottom);
+                }
+                return insets;
+            }
+        });
+        root.requestApplyInsets();
+    }
+
+    /**
      * ActionHint's cap letter — ActionHint.qml:79:
      *
      *     font.pixelSize: Math.max(11, Math.round(hint.size * 0.46))   // bold
@@ -1312,6 +1397,31 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     // (NPE in ViewParent.showContextMenuForChild).
                     if (v != null && v.isAttachedToWindow()) {
                         openContextMenu(v);
+                    }
+                }
+            });
+        }
+        // The panel pair — Resume/Play again, under the cover and the title
+        // (HostStage.qml:1876-1895). It is the other half of the same row of controls the two
+        // above are in, which is why it fires the same flow as Open: on the desktop `Play
+        // again` starts the game the block names, and this client's route to a game is the app
+        // list. Stop is the second half of the pair and stays hidden until the poller can tell
+        // us something is streaming.
+        View resume = cardView.findViewById(R.id.am_panel_resume);
+        if (resume != null) {
+            resume.setOnFocusChangeListener((v, hasFocus) -> v.setActivated(hasFocus));
+            resume.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (computer.details.state == ComputerDetails.State.UNKNOWN ||
+                        computer.details.state == ComputerDetails.State.OFFLINE) {
+                        if (v != null && v.isAttachedToWindow()) {
+                            openContextMenu(v);
+                        }
+                    } else if (computer.details.pairState != PairState.PAIRED) {
+                        doPair(computer.details);
+                    } else {
+                        doAppList(computer.details, false, false);
                     }
                 }
             });
