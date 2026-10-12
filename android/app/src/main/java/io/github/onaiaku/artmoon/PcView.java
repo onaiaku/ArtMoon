@@ -1519,6 +1519,26 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         final String lastGame = pcGridAdapter != null
                 ? pcGridAdapter.lastGameNameFor(computer.details.uuid) : null;
 
+        // The block picks between the running session and the last game for the badge, the title
+        // and the cover (HostStage.qml:1616-1681), so it needs the running one as well as the gate.
+        // The id is immediate; the name and the artwork come from the host's own list, and a session
+        // Nik can already see running on the PC should not wait for the metrics poll to be named.
+        final int runningId = running ? computer.details.runningGameId : 0;
+        if (pcGridAdapter != null) {
+            if (pcGridAdapter.runningGameIdFor(computer.details.uuid) != runningId) {
+                LimeLog.info("running gate: " + computer.details.uuid + " runningId=" + runningId
+                        + " (was " + pcGridAdapter.runningGameIdFor(computer.details.uuid) + ")");
+                // Session changed, or ended: drop the old name and cover with it. Ending is the
+                // one that matters — the block must go back to the last game, not keep the
+                // running one's picture over the words "Last played".
+                pcGridAdapter.setRunningGameByUuid(computer.details.uuid, runningId, null, null);
+            }
+            if (runningId != 0
+                    && !pcGridAdapter.hasRunningGameInfo(computer.details.uuid, runningId)) {
+                fetchRunningGame(computer.details, runningId);
+            }
+        }
+
         View resume = cardView.findViewById(R.id.am_panel_resume);
         if (resume instanceof android.widget.TextView) {
             ((android.widget.TextView) resume).setText(
@@ -1627,6 +1647,42 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             LimeLog.info("panelStop: could not name the running app: " + e.getMessage());
         }
         return null;
+    }
+
+    /** Sessions whose name and artwork are already being looked up, so a rebind does not re-ask. */
+    private final java.util.Set<String> runningFetchInFlight = new java.util.HashSet<>();
+
+    /**
+     * Name and box art for the session the host has running, off the UI thread, once per session.
+     * A rebind does not re-fetch: the adapter remembers the pair against the id, and this set
+     * catches the shorter race — a bind landing again before the first answer has come back.
+     */
+    private void fetchRunningGame(final ComputerDetails details, final int gameId) {
+        final String key = details.uuid + "#" + gameId;
+        if (!runningFetchInFlight.add(key)) {
+            return;
+        }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final ServerHelper.RunningAppInfo info =
+                        ServerHelper.runningAppInfo(PcView.this, details, managerBinder, gameId);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        runningFetchInFlight.remove(key);
+                        // Only paint it if that is still the session: the host can end one and
+                        // start another while the lookup is in the air, and the adapter's own
+                        // guard is the id it was asked for.
+                        if (pcGridAdapter != null && info != null
+                                && details.runningGameId == gameId) {
+                            pcGridAdapter.setRunningGameByUuid(details.uuid, gameId,
+                                                               info.name, info.cover);
+                        }
+                    }
+                });
+            }
+        }).start();
     }
 
     /**

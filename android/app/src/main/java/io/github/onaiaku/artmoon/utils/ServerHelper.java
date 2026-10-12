@@ -238,6 +238,71 @@ public class ServerHelper {
         return null;
     }
 
+    /** A running game's name and cover — the desktop's runningApp is those two fields. */
+    public static final class RunningAppInfo {
+        public final String name;
+        public final android.graphics.Bitmap cover;
+
+        RunningAppInfo(String name, android.graphics.Bitmap cover) {
+            this.name = name;
+            this.cover = cover;
+        }
+    }
+
+    /**
+     * The name and the box art of the game the host has running — HostStage.qml:239-251, whose
+     * runningApp (name and cover) ComputerModel fills from the host's own app list, the same list
+     * this reads. One session, one fetch: the list, then the artwork for the entry in it.
+     *
+     * A network call — run it off the UI thread. Returns null when the host will not name the id;
+     * the caller then leaves the block on what it already had rather than inventing a title.
+     */
+    public static RunningAppInfo runningAppInfo(Activity parent, ComputerDetails computer,
+                                                ComputerManagerService.ComputerManagerBinder managerBinder,
+                                                int gameId) {
+        if (computer == null || gameId == 0) {
+            return null;
+        }
+        try {
+            NvHTTP http = new NvHTTP(getCurrentAddressFromComputer(computer), computer.httpsPort,
+                    managerBinder != null ? managerBinder.getUniqueId() : null,
+                    computer.serverCert, PlatformBinding.getCryptoProvider(parent));
+            String raw = http.getAppListRaw();
+            if (raw == null || raw.isEmpty()) {
+                return null;
+            }
+            computer.rawAppList = raw;
+
+            NvApp app = null;
+            for (NvApp a : NvHTTP.getAppListByReader(new java.io.StringReader(raw))) {
+                if (a.getAppId() == gameId) {
+                    app = a;
+                    break;
+                }
+            }
+            if (app == null) {
+                io.github.onaiaku.artmoon.LimeLog.info("runningAppInfo: id " + gameId
+                        + " is not among the host's apps");
+                return null;
+            }
+
+            android.graphics.Bitmap cover = null;
+            try {
+                cover = android.graphics.BitmapFactory.decodeStream(http.getBoxArt(app));
+            } catch (Exception e) {
+                // A name with no picture still beats the last game's picture with its own name.
+                io.github.onaiaku.artmoon.LimeLog.info("runningAppInfo: box art failed: "
+                        + e.getMessage());
+            }
+            io.github.onaiaku.artmoon.LimeLog.info("runningAppInfo: id " + gameId + " -> \""
+                    + app.getAppName() + "\", cover=" + (cover != null));
+            return new RunningAppInfo(app.getAppName(), cover);
+        } catch (Exception e) {
+            io.github.onaiaku.artmoon.LimeLog.info("runningAppInfo: " + e.getMessage());
+            return null;
+        }
+    }
+
     public static void doQuit(final Activity parent,
                               final ComputerDetails computer,
                               final NvApp app,

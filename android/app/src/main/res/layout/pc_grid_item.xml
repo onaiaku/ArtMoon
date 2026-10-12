@@ -543,6 +543,21 @@
                 android:paddingRight="13dp"
                 android:visibility="gone">
 
+                <!-- HostStage.qml:1666 — badgeDot: Theme.accent while a session is running,
+                     and nothing at all when one is not ("transparent"). It pulses on the
+                     900ms rhythm of the host page's STREAMING tag (AppsScreen.qml:1655-1665);
+                     the pulse is PcGridAdapter.paintLiveDot's, and it holds still when the
+                     system asks animations off. -->
+                <View
+                    android:id="@+id/am_facts_badge_dot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="9dp"
+                    android:layout_marginRight="9dp"
+                    android:background="@drawable/am_dot_live"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/am_facts_badge_main"
                     android:layout_width="wrap_content"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The badge's live dot: Theme.accent, and only while a session is running
+     (HostStage.qml:1666 — badgeDot: stage._hasRunning ? Theme.accent : "transparent").
+     am_accent is the accent itself, per this palette's own note. The pulse lives in
+     PcGridAdapter.paintLiveDot — 1.0 <-> 0.45 over 900ms each way, the rhythm of the host
+     page's STREAMING tag (AppsScreen.qml:1655-1665). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="@color/am_accent" />
+    <size android:width="8dp" android:height="8dp" />
+</shape>

@@ -473,8 +473,125 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
      * (HostStage.qml:215-216), and there is no empty state behind it: "the card simply goes back
      * to what it looks like without one" (1611-1613).
      */
+    /* ── What the host is streaming, and what it last played ───────────────────────────────
+     *
+     * HostStage.qml:1616: "Every field below picks between the two, and only those fields: the
+     * geometry is one, so the running session is sized, scaled and aligned by exactly the rules
+     * that were already tuned for Last played." The block shows the running session when there is
+     * one and the last game when there is not (_hasPanel: _hasRunning || _hasLastPlayed), and the
+     * ONLY fields that change are the badge's words and its dot, the title, and the cover.
+     */
+    private static final class RunningGame {
+        final int gameId;
+        final String name;
+        final android.graphics.Bitmap cover;
+
+        RunningGame(int gameId, String name, android.graphics.Bitmap cover) {
+            this.gameId = gameId;
+            this.name = name;
+            this.cover = cover;
+        }
+    }
+
+    private static final class LastFacts {
+        String ago;
+        String duration;
+        java.util.List<GameCover> games;
+    }
+
+    private final java.util.HashMap<String, RunningGame> runningGames = new java.util.HashMap<>();
+    private final java.util.HashMap<String, LastFacts> lastFactsByUuid = new java.util.HashMap<>();
+
+    /** True while the host has a session running — the same gate the label and Stop ride. */
+    public boolean isRunning(String uuid) {
+        RunningGame rg = uuid == null ? null : runningGames.get(uuid);
+        return rg != null && rg.gameId != 0;
+    }
+
+    /** The running game we already know about, so a bind does not re-fetch what we have. */
+    public int runningGameIdFor(String uuid) {
+        RunningGame rg = uuid == null ? null : runningGames.get(uuid);
+        return rg == null ? 0 : rg.gameId;
+    }
+
+    /** Name AND cover in hand for this session — the desktop's runningApp is both or neither. */
+    public boolean hasRunningGameInfo(String uuid, int gameId) {
+        RunningGame rg = uuid == null ? null : runningGames.get(uuid);
+        return rg != null && rg.gameId == gameId
+                && rg.name != null && rg.cover != null;
+    }
+
+    /**
+     * Tell the block what the host is streaming. gameId 0 clears it and the block goes back to the
+     * last game — the desktop's own fallback order. It repaints at once from the facts we were last
+     * given, so the block does not sit on the last game until the metrics poll happens to catch up
+     * with a session Nik can already see running on the PC.
+     */
+    public void setRunningGameByUuid(String uuid, int gameId, String name,
+                                     android.graphics.Bitmap cover) {
+        if (uuid == null) {
+            return;
+        }
+        if (gameId == 0) {
+            runningGames.remove(uuid);
+        } else {
+            runningGames.put(uuid, new RunningGame(gameId, name, cover));
+        }
+        LastFacts lf = lastFactsByUuid.get(uuid);
+        if (lf != null) {
+            updateGameFactsByUuid(uuid, lf.ago, lf.duration, lf.games);
+        }
+    }
+
+    /**
+     * The badge's live dot. Theme.accent while a session runs and not drawn at all when one does
+     * not (HostStage.qml:1666 — badgeDot is "transparent"), pulsing 1.0 <-> 0.45 over 900ms each
+     * way with an easing in and out, which is the rhythm of the host page's STREAMING tag
+     * (AppsScreen.qml:1655-1665). It holds still when the system has animations switched off, and
+     * a recycled card's pulse is cancelled before a new one starts, so one animator rides one card.
+     */
+    private void paintLiveDot(View card, boolean running) {
+        View dot = card.findViewById(R.id.am_facts_badge_dot);
+        if (dot == null) {
+            return;
+        }
+        Object previous = dot.getTag(R.id.am_facts_badge_dot);
+        if (previous instanceof android.animation.Animator) {
+            ((android.animation.Animator) previous).cancel();
+            dot.setTag(R.id.am_facts_badge_dot, null);
+        }
+        dot.setAlpha(1f);
+        dot.setVisibility(running ? View.VISIBLE : View.GONE);
+        if (!running) {
+            return;
+        }
+        float scale = android.provider.Settings.Global.getFloat(context.getContentResolver(),
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
+        if (scale == 0f) {
+            return;
+        }
+        android.animation.ObjectAnimator pulse =
+                android.animation.ObjectAnimator.ofFloat(dot, "alpha", 1f, 0.45f);
+        pulse.setDuration(900);
+        pulse.setRepeatMode(android.animation.ValueAnimator.REVERSE);
+        pulse.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        pulse.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+        pulse.start();
+        dot.setTag(R.id.am_facts_badge_dot, pulse);
+    }
+
     public void updateGameFactsByUuid(String uuid, String ago, String duration,
                                       java.util.List<GameCover> games) {
+        if (uuid != null) {
+            LastFacts lf = lastFactsByUuid.get(uuid);
+            if (lf == null) {
+                lf = new LastFacts();
+                lastFactsByUuid.put(uuid, lf);
+            }
+            lf.ago = ago;
+            lf.duration = duration;
+            lf.games = games;
+        }
         View v = boundViews.get(uuid);
         if (v == null) {
             return;
@@ -484,30 +601,45 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             return;
         }
 
+        final RunningGame rg = uuid == null ? null : runningGames.get(uuid);
+        final boolean running = rg != null && rg.gameId != 0;
+
         String title = "";
         android.graphics.Bitmap art = null;
-        if (games != null && !games.isEmpty() && games.get(0) != null) {
+        if (running) {
+            // The session, not the last game. The badge below says "Streaming now" and the title
+            // and the artwork are the running app's (HostStage.qml:1671-1681).
+            title = rg.name == null ? "" : rg.name;
+            art = rg.cover;
+        } else if (games != null && !games.isEmpty() && games.get(0) != null) {
             GameCover gc = games.get(0);
             if (gc.name != null) {
                 title = gc.name;
             }
             art = decodeCover(gc.cover);
         }
-        if (title.isEmpty()) {
+        // No name, no block (HostStage.qml:215-216, 1611-1613) — except while a session is
+        // running: the badge names the state before the host's list has told us the game's name,
+        // so the block stays up rather than blinking out for the second the lookup takes.
+        if (!running && title.isEmpty()) {
             col.setVisibility(View.GONE);
             hidePanelStack(v);
             return;
         }
 
         bindText(v, R.id.am_facts_badge_main,
-                (ago == null || ago.isEmpty())
-                        ? context.getString(R.string.am_last_played)
-                        : context.getString(R.string.am_last_played_ago, ago));
+                running ? context.getString(R.string.am_streaming_now)
+                        : (ago == null || ago.isEmpty()
+                           ? context.getString(R.string.am_last_played)
+                           : context.getString(R.string.am_last_played_ago, ago)));
+        // No figure beside it while running: "the host does not say how long the session has run,
+        // nor whose it is" (HostStage.qml:1663-1665 — badgeMuted is empty).
         bindText(v, R.id.am_facts_badge_muted, "");
         View badge = v.findViewById(R.id.am_facts_badge);
         if (badge != null) {
             badge.setVisibility(View.VISIBLE);
         }
+        paintLiveDot(v, running);
 
         bindText(v, R.id.am_facts_title, title);
 
