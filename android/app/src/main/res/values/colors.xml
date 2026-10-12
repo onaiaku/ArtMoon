@@ -1,31 +1,110 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ArtMoon token set (desktop theme.cpp port). Accent = logo navy #102A44. -->
+<!--
+  ArtMoon token set — the REAL one.
+
+  Every value below is taken from the desktop, which is the design source of truth:
+  app/settings/theme.cpp (Theme) in /projects/ArtMoon. Nothing here is invented.
+
+  What this replaces: the 2026-09-05 cobble palette, which had the accent and the ground
+  right and made up everything else — different greys (#0D1117 against the desktop's
+  #0F1519), white text where the desktop has an off-white (#FFFFFF against #F3F7F8), a
+  green that was not the desktop's green (#2ECC71 against #4ADE80), a red sitting where
+  the desktop's GREY "offline" belongs (#E74C3C against #5B6C75), and a separate blue for
+  the ArtLight authorized badge that the desktop does not have — the desktop colours that
+  badge with the accent itself (HostStage.qml:526).
+
+  Old cobble names are kept as aliases at the bottom, re-pointed at the real values, so
+  nothing breaks while the screens are rebuilt one at a time. Each is marked with what it
+  maps to and gets deleted as its call sites are rebuilt.
+-->
 <resources>
-    <color name="am_accent">#102A44</color>
-    <!-- Accent lifted one step: primary buttons, focus glow, selected row. -->
-    <color name="am_accent_hi">#24345A</color>
-    <!-- Accent at 16% alpha (desktop accentSoft()). -->
-    <color name="am_accent_soft">#29102A44</color>
-    <!-- Ground: #06080A blended 4% toward the accent (desktop ground()). -->
-    <color name="am_ground">#06090C</color>
-    <color name="am_surface">#0D1117</color>
-    <color name="am_surface_high">#161C26</color>
-    <color name="am_border">#232B38</color>
-    <color name="am_border_high">#2E3947</color>
-    <!-- Text hierarchy. -->
-    <color name="am_text_primary">#FFFFFF</color>
-    <color name="am_text_secondary">#B8C2CF</color>
-    <color name="am_text_tertiary">#5C6875</color>
-    <!-- Semantic colours: never the accent. -->
-    <color name="am_online">#2ECC71</color>
-    <color name="am_offline">#E74C3C</color>
-    <color name="am_pairing">#F39C12</color>
-    <!-- ArtLight authorized badge blue (distinct from the navy accent). -->
-    <color name="am_auth">#3D7BFF</color>
-    <!-- On-accent text (desktop onAccent()). -->
-    <color name="am_on_accent">#FFFFFF</color>
-    <!-- Ripple that reads on the navy accent. -->
-    <color name="am_ripple">#3D4E63</color>
-    <!-- Telemetry bar track (white @ 14%). -->
+
+    <!-- ============================================================
+         Accent. theme.cpp: DefaultAccent = #102a44, the logo's own navy.
+         User-changeable on the desktop; everything derived from it is derived here.
+         ============================================================ -->
+    <color name="am_accent">#FF102A44</color>
+
+    <!-- theme.cpp onAccent(): relativeLuminance(#102a44) = 0.022, below the 0.42
+         threshold, so white. Dark text is only for a light accent — amber, lime. -->
+    <color name="am_on_accent">#FFFFFFFF</color>
+
+    <!-- Accent fills at the ratios the desktop writes inline:
+         0.07 ghost pill (PillButton.qml:19), 0.16 selected row (AppsScreen.qml:1526),
+         0.20 focused dialog button (AddHostDialog.qml:114),
+         0.30 text selection (AddHostDialog.qml:66). -->
+    <color name="am_accent_07">#12102A44</color>
+    <color name="am_accent_16">#29102A44</color>
+    <color name="am_accent_20">#33102A44</color>
+    <color name="am_accent_30">#4D102A44</color>
+
+    <!-- ============================================================
+         Ground. theme.cpp ground(): #06080a blended 4% toward the accent.
+         With the navy accent that lands on #06090C.
+         ============================================================ -->
+    <color name="am_ground">#FF06090C</color>
+
+    <!-- ============================================================
+         Structure. theme.h — fixed cool neutrals, deliberately NOT accent-derived,
+         or every surface would shift hue together and the accent would stop reading
+         as an accent.
+         ============================================================ -->
+    <color name="am_card">#FF0F1519</color>        <!-- Theme.card -->
+    <color name="am_card_high">#FF161F25</color>   <!-- Theme.cardHigh -->
+    <color name="am_line">#14FFFFFF</color>        <!-- Theme.line,     white @ 8%  -->
+    <color name="am_line_high">#30FFFFFF</color>   <!-- Theme.lineHigh, white @ 19% -->
+
+    <!-- Type. -->
+    <color name="am_text">#FFF3F7F8</color>        <!-- Theme.text  -->
+    <color name="am_text2">#FFA2B2BA</color>       <!-- Theme.text2 -->
+    <color name="am_text3">#FF758790</color>       <!-- Theme.text3 -->
+
+    <!-- What a modal lays over the page behind it (Overlay.modal). -->
+    <color name="am_scrim">#CC000000</color>
+
+    <!-- ============================================================
+         Semantics. Fixed on purpose — they never follow the accent, or a user who
+         picked red would read "online" in red and the colour would stop meaning
+         anything. The accent says where you are; the semantics say how it is.
+         ============================================================ -->
+    <color name="am_online">#FF4ADE80</color>      <!-- Theme.online  -->
+    <color name="am_warning">#FFF5A623</color>     <!-- Theme.warning — online but unpaired; link change pending -->
+    <color name="am_danger">#FFF87171</color>      <!-- Theme.danger  — Shut down, destructive -->
+    <color name="am_offline">#FF5B6C75</color>     <!-- Theme.offline — "this host is off". A grey, not a red. -->
+
+    <!-- ============================================================
+         Aliases — the cobble's names, re-pointed at the real values.
+         Delete each one as its call sites are rebuilt.
+         ============================================================ -->
+    <color name="am_surface">#FF0F1519</color>          <!-- was #0D1117 → am_card -->
+    <color name="am_surface_high">#FF161F25</color>     <!-- was #161C26 → am_card_high -->
+    <color name="am_border">#14FFFFFF</color>           <!-- was #232B38 → am_line -->
+    <color name="am_border_high">#30FFFFFF</color>      <!-- was #2E3947 → am_line_high -->
+    <color name="am_text_primary">#FFF3F7F8</color>     <!-- was #FFFFFF → am_text -->
+    <color name="am_text_secondary">#FFA2B2BA</color>   <!-- was #B8C2CF → am_text2 -->
+    <color name="am_text_tertiary">#FF758790</color>    <!-- was #5C6875 → am_text3 -->
+
+    <!-- The desktop has no "lifted" accent: the focus ring and the selected border ARE
+         Theme.accent (HoverState.qml:13, AppsScreen.qml:1530). #24345A does not exist
+         upstream. -->
+    <color name="am_accent_hi">#FF102A44</color>        <!-- was #24345A → am_accent -->
+    <color name="am_accent_soft">#29102A44</color>      <!-- already correct = am_accent_16 -->
+
+    <!-- The desktop colours the ArtLight authorized badge with the accent
+         (HostStage.qml:526), not a separate blue.
+         ⚠️ VERIFY ON DEVICE: navy on the near-black ground is low contrast, and the
+         desktop draws this over the hero card's own surface. If it reads badly the fix
+         is the card treatment, not a new colour. -->
+    <color name="am_auth">#FF102A44</color>             <!-- was #3D7BFF → am_accent -->
+
+    <!-- Hover is Theme.lineHigh, and it changes colour only, never width
+         (HoverState.qml:24). -->
+    <color name="am_ripple">#30FFFFFF</color>           <!-- was #3D4E63 → am_line_high -->
+
+    <color name="am_pairing">#FFF5A623</color>          <!-- = am_warning -->
+
+    <!-- Telemetry bar track. ⚠️ NOT YET VERIFIED against the desktop's bar drawing —
+         carried over from the cobble unchanged. Left as-is rather than guessed at. -->
     <color name="am_bar_track">#24FFFFFF</color>
+
 </resources>

@@ -8,14 +8,14 @@
                 <shape android:shape="rectangle">
                     <solid android:color="@color/am_accent_hi" />
                     <corners android:radius="28dp" />
-                    <stroke android:width="3dp" android:color="#FF3D7BFF" />
+                    <stroke android:width="3dp" android:color="@color/am_accent" />
                 </shape>
                 </item>
                 <item android:state_activated="true">
                 <shape android:shape="rectangle">
                     <solid android:color="@color/am_accent_hi" />
                     <corners android:radius="28dp" />
-                    <stroke android:width="3dp" android:color="#FF3D7BFF" />
+                    <stroke android:width="3dp" android:color="@color/am_accent" />
                 </shape>
                 </item>
                 <item>

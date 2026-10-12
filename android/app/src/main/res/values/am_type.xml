@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The real type scale, from app/settings/theme.cpp.
+
+  A modular scale: base 16, minor third (1.2). Seven steps and nothing outside them —
+  11 · 13 · 16 · 19 · 23 · 28 · 34. The desktop's own note on why the scale exists:
+  the "other fourteen" sizes that had accumulated beside them (12, 14, 15, 17, 18, 20,
+  22, 26, 30) each existed in one or two files, a pixel or two from a neighbour, for no
+  reason anybody could state.
+
+  On the desktop every caller multiplies by Theme.uiScale — a window-width factor. Here
+  the equivalent is Android's own density and font scaling: sizes are in sp, so a user's
+  font-size preference moves them and density moves the rest. Do not hardcode px.
+
+  ⚠️ res/font is API 26+. On API 21–25 these attributes are ignored and the framework
+  falls back to its default family. The tokens that matter (scale, colour) still apply.
+-->
+<resources>
+
+    <style name="AmText.Caption" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/am_text3</item>
+    </style>
+
+    <style name="AmText.Small" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/am_text2</item>
+    </style>
+
+    <style name="AmText.Body" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/am_text</item>
+    </style>
+
+    <style name="AmText.Title" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:fontWeight">500</item>
+        <item name="android:textSize">19sp</item>
+        <item name="android:textColor">@color/am_text</item>
+    </style>
+
+    <style name="AmText.H2" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:fontWeight">500</item>
+        <item name="android:textSize">23sp</item>
+        <item name="android:textColor">@color/am_text</item>
+    </style>
+
+    <style name="AmText.H1" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:fontWeight">600</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:textColor">@color/am_text</item>
+    </style>
+
+    <style name="AmText.Display" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/dm_sans</item>
+        <item name="android:fontWeight">600</item>
+        <item name="android:textSize">34sp</item>
+        <item name="android:textColor">@color/am_text</item>
+    </style>
+
+    <!-- Uppercase section headers: the desktop's 11px caption, tracked out. -->
+    <style name="AmText.Section" parent="AmText.Caption">
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+
+    <!-- Monospace exists for exactly one job: the pairing PIN. theme.h — a 1 that looks
+         like an l is precisely the failure a monospaced face prevents. -->
+    <style name="AmText.Pin" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="android:textSize">34sp</item>
+        <item name="android:textColor">@color/am_text</item>
+        <item name="android:letterSpacing">0.12</item>
+    </style>
+
+</resources>
