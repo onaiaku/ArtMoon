@@ -30,6 +30,18 @@
     android:background="@color/am_ground"
     tools:context=".PcView">
 
+    <!--
+        The app's floor (desktop 6.0.0): the charcoal wash and the five wave layers that travel
+        across it — AmbientBackground.qml + AmbientWaves.qml, ported whole in ui/AmbientFloor.
+        First child, so it is the backmost thing on the screen; the stage in front of it carries
+        no background of its own, which is what lets the floor show in the margins the desktop
+        shows it in.
+    -->
+    <io.github.onaiaku.artmoon.ui.AmbientFloor
+        android:id="@+id/am_floor"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <!-- ══════ brand row — 44 sides / 22 top / 60 tall ══════ -->
     <LinearLayout
         android:id="@+id/am_brand_row"

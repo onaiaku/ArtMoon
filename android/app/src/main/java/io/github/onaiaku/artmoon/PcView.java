@@ -2255,6 +2255,29 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         }
     }
 
+    /**
+     * The floor travels twice as fast while a host is streaming — AmbientBackground.streaming, 6.0.0
+     * (AppShell.qml hands it "any host streaming", HomeScreen.qml:669). The port already answers
+     * that per card for the badge's live dot, so this asks it of every host, not just the one on
+     * screen. Cheap: the host poll already rebuilds the rows every few seconds, and this rides the
+     * same data-set change.
+     */
+    private void updateFloorStreaming() {
+        View floor = findViewById(R.id.am_floor);
+        if (!(floor instanceof io.github.onaiaku.artmoon.ui.AmbientFloor) || pcGridAdapter == null) {
+            return;
+        }
+        boolean anyStreaming = false;
+        for (int i = 0; i < pcGridAdapter.getCount(); ++i) {
+            ComputerObject co = pcGridAdapter.hostAt(i);
+            if (co != null && co.details != null && pcGridAdapter.isRunning(co.details.uuid)) {
+                anyStreaming = true;
+                break;
+            }
+        }
+        ((io.github.onaiaku.artmoon.ui.AmbientFloor) floor).setStreaming(anyStreaming);
+    }
+
     public void receiveAbsListView(AbsListView listView) {
         listView.setAdapter(pcGridAdapter);
         pcGridView = listView;
@@ -2268,8 +2291,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 if (pcGridView != null) {
                     pcGridView.post(PcView.this::paintPadFocus);
                 }
+                updateFloorStreaming();
             }
         });
+        updateFloorStreaming();
 
         // Desktop FocusFrame parity: D-pad focus moves the accent ring, driven
         // through the adapter (same deterministic path as the picker's band).
