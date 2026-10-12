@@ -52,7 +52,7 @@ with my own eyes yet.
 | §34 props / host identity | the page knows which host it's on | **PRESENT** — intent uuid + ComputerManager, not AppShell |
 | §88 scale | everything the same size as Home | **PRESENT** — `AmScale` |
 | §95 the two columns | list left, spotlight right, blurred cover behind | **PRESENT** — `apps_page.xml` 0.52/0.48, `showAmbient` → `AppAmbientArtwork` |
-| §111 focus zones / boundaries | one zone, list focus, pad never stops on a button | **MISSING** — only lit/quiet rows exist |
+| §111 focus zones / boundaries | one zone, list focus, pad never stops on a button | **PORTED, unproven** — the ring starts on the list, nothing on that page but the list is focusable, and a d-pad press at an edge is swallowed instead of being thrown to the framework (`AppsPageView:1409-1423`: "an edge is then just an edge"). No pad has driven the page since the rewrite, so it is not marked |
 | §231 pad glyphs | real pad artwork by button *position* (Switch swaps A/B; Select is artwork, not a word) | **PRESENT** — the picker's prompts now register with the shared `PromptBar` (commit `08c5b547`); Home's footer already did. Open: Home's host-strip arrows still print PgUp/PgDn and listen on LB/RB, where the desktop uses **LT/RT** (`HomeScreen.qml:1853`) — that pair is Nik's call |
 | §239 the game in the spotlight | cover, name, state, store | **PRESENT** — `updateHero` |
 | §250 play time in the spotlight | hours + sessions for the focused game | **PRESENT** — `PlaytimeManager`; was frozen on row 0 until tonight |
@@ -78,7 +78,7 @@ with my own eyes yet.
 | Row selection indicator | lit vs quiet row | **PRESENT** — `am_row_lit` / `am_row_quiet` |
 | What happens to the cursor when you finger-scroll | the cursor is the selection, full stop | **MINE** — I settle it on the middle row. The desktop has no such rule and I described it as "like the desktop" |
 | Tab counts | `_countFor()` drives which tab *opens* | **PRESENT** (tonight) — in the label, as the old screen printed it |
-| Store logos | seven SVGs in `app/res/` (`store_steam/gog/epic/ea/ubisoft/battlenet/xbox.svg`), drawn by `GameFacts.qml:63` | **MISSING** app-wide. The picker says the store in words on the desktop too, but the artwork exists and I told you it didn't |
+| Store logos | seven SVGs in `app/res/` (`store_steam/gog/epic/ea/ubisoft/battlenet/xbox.svg`), drawn by `GameFacts.qml:63` | **PRESENT** (`2b793eda`) — seven marks, path for path from the desktop's own SVGs, tinted with the line's colour. Nik, 12 Oct 2026: "the store logos are working too". The **MISSING** here was mine twice over: the artwork existed and I told you it didn't |
 | Foot key hints | swap with the input in your hand | **MINE** — keyboard letters only |
 | Ambient backdrop | focused cover, blurred | **PRESENT** |
 | Host chips (link / online / profile) | yes | **PRESENT** — `paintChips`; profile + tailscale chips are hidden today |
@@ -87,7 +87,7 @@ with my own eyes yet.
 
 ## 3. What I can't tell you without your eyes
 
-- Whether the covers actually appear now (the fetch needs the host and the list in front of you).
+- ~~Whether the covers actually appear now~~ — answered 12 Oct 2026. The main screen's last-played cover: "confirmed its showing now" (`b3b570de`). The picker's own row covers and the spotlight preview: still unconfirmed.
 - Whether the bottom prompts sit right in landscape.
 - How any of it *feels* — deadzones, scroll, the ring between zones.
 - Which of the **MINE** items you'd accept as-is rather than a straight port.
@@ -179,14 +179,14 @@ is really true on the phone.
 
 | Desktop § | Missing |
 |---|---|
-| **Last played** — `HostStage.qml:199-260` (the block, `lastPlayedFor()`), `appmodel.cpp:364-380` (the section rule) | the rule is ported faithfully (`AppLibrary.java:196-200`: only row 0 can be Continue; APPS excluded in `lastPlayedForSort`) and the block is ported (`_panelPlaceholder` / `lastPlayedHint`). **But nothing lights the heading on the phone:** it is fed by this client's own last-game pointer (`PlaytimeManager.lastPlayedOn` → `SER_LASTGAME`), which only a **banked** session writes, and `endSession` refuses anything under 60 seconds (`kMinSessionSeconds`). The watcher's half (`ObservedPlaytime`) can never name a running game, so nothing of another client's session is ever observed. Nik sees no LAST PLAYED heading, and he is right. |
+| **Last played** — `HostStage.qml:199-260` (the block, `lastPlayedFor()`), `appmodel.cpp:364-380` (the section rule) | the rule is ported faithfully (`AppLibrary.java:196-200`: only row 0 can be Continue; APPS excluded in `lastPlayedForSort`) and the block is ported (`_panelPlaceholder` / `lastPlayedHint`). **But nothing lights the heading on the phone:** it is fed by this client's own last-game pointer (`PlaytimeManager.lastPlayedOn` → `SER_LASTGAME`), which only a **banked** session writes, and `endSession` refuses anything under 60 seconds (`kMinSessionSeconds`). The watcher's half (`ObservedPlaytime`) could not name a running game when this was written; it can since `5f4551e3`, where the poll falls back to the host's cached app list for the name. **Nik sees it now.** 12 Oct 2026: "Last played confirmed working!" — and on the cover, which showed inconsistently, "confirmed its showing now". The heading is lit by a banked session (over 60 s, `kMinSessionSeconds`); the block's blank was a hidden `ImageView` and its delay was an app list the main screen never had — both fixed in `b3b570de`. |
 | **Pinned** — `AppsScreen.qml:285-291`, `:541-557` (toggle), `:1382` (the PINNED caption), `:1572-1578` (the mark on the row), `AppShell.qml:533-542` (the pad prompt flipping Pin/Unpin) | **PRESENT and marked.** The model was ported rule for rule, and the door — Start/P, and the prompt that follows the row — is now ported too (`AppsPageView.togglePinFocused` / `updatePinPrompt`). It refuses an app, re-snaps by app id after the call because pinning moves the row, and is not drawn at all on the APPS tab, which is the desktop's own rule. Nik, 12 Oct 2026: "yep pins work". |
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" — **PORTED 12 Oct 2026, awaiting his mark.** Written up in `references/host-notices.md`. Not a new mechanism: Android already made the launch in Java and threw the 410's own sentence away as a generic error toast; now the sentence is shown, and the "again within" case is asked as a Yes/No and answered by launching the same entry again. |
 | §1095 action row | **nothing** — launch + Stop, and per-game settings is not a port item (see the note below) |
 | §1799 dialogs | only the quit confirm exists — no pin prompt, no launch confirm |
 | §111 focus zones | partially: nothing else is focusable and the ring starts on the list, but unproven with the pad in hand |
-| §1571 store, in artwork | the seven store SVGs exist on the desktop (`GameFacts.qml:63`) and not on Android |
-| §285/§367 pin and move | reached by long-press menu only; the desktop's pad pair (Start/P, M or right-stick) is not ported |
+| §1571 store, in artwork | **PRESENT** (`2b793eda`) — the seven marks, path for path, drawn where the desktop draws them |
+| §285/§367 pin and move | pin: **PRESENT and marked** — Start/P, with the prompt flipping with the row (Nik: "yep pins work"). move: long-press menu only; the desktop's pad pair (**M / right stick**) is still missing, and it is next |
 | §1047 the launch segue | not ported — Android hands off to Moonlight's own launch UI |
 
 ### No Android screen at all
