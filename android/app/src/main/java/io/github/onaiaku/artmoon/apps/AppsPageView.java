@@ -8,7 +8,11 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.graphics.drawable.Drawable;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
+import android.text.style.ImageSpan;
 import android.view.ContextMenu;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -51,6 +55,7 @@ import io.github.onaiaku.artmoon.settings.PlaytimeManager;
 import io.github.onaiaku.artmoon.utils.ShortcutHelper;
 import io.github.onaiaku.artmoon.utils.CacheHelper;
 import io.github.onaiaku.artmoon.utils.ServerHelper;
+import io.github.onaiaku.artmoon.utils.StoreMarks;
 import io.github.onaiaku.artmoon.utils.UiHelper;
 
 /**
@@ -1069,7 +1074,7 @@ public class AppsPageView extends ArtMoonActivity {
 
         boolean running = row.running;
 
-        StringBuilder parts = new StringBuilder();
+        SpannableStringBuilder parts = new SpannableStringBuilder();
         if (running) {
             parts.append(getString(R.string.am_pick_running));
         }
@@ -1080,6 +1085,8 @@ public class AppsPageView extends ArtMoonActivity {
             if (parts.length() > 0) {
                 parts.append("  ·  ");
             }
+            appendStoreMark(parts, store,
+                    getResources().getColor(running ? R.color.am_online : R.color.am_text2));
             parts.append(store);
         }
         if (row.overridden) {
@@ -1088,7 +1095,7 @@ public class AppsPageView extends ArtMoonActivity {
             }
             parts.append(getString(R.string.am_meta_custom_settings));
         }
-        meta.setText(parts.toString());
+        meta.setText(parts);
         meta.setVisibility(parts.length() == 0 ? View.GONE : View.VISIBLE);
         meta.setTextColor(getResources().getColor(running ? R.color.am_online : R.color.am_text2));
 
@@ -1249,6 +1256,39 @@ public class AppsPageView extends ArtMoonActivity {
      * The store each entry came from, in words, from the host itself. Best effort: an older host, or
      * one that is not ArtLight, simply has nothing to say and the meta line goes without it.
      */
+    /*
+     * The store's mark, inline just before its name — the desktop draws it at 19 design px with
+     * 8 px of air either side (GameFacts.qml:317-335), for the reason it gives itself: the mark
+     * "earns its place by being recognisable before the word beside it is read".
+     *
+     * An ImageSpan and not a compound drawable, because on the phone's line the store sits in the
+     * middle (after the running state) and a compound drawable can only sit at a line's edge.
+     * Nothing is drawn for a store with no mark — the desktop's own answer to a name it does not
+     * know — so the line simply reads as it did before.
+     */
+    private void appendStoreMark(SpannableStringBuilder out, String store, int color) {
+        int res = StoreMarks.drawableFor(store);
+        if (res == 0) {
+            return;
+        }
+
+        Drawable mark = getResources().getDrawable(res, null);
+        if (mark == null) {
+            return;
+        }
+
+        int size = (int) (19 * getResources().getDisplayMetrics().density);
+        mark.setBounds(0, 0, size, size);
+        mark.setTint(color);
+
+        // The span takes the place of the space it is set on.
+        int at = out.length();
+        out.append(" ");
+        out.setSpan(new ImageSpan(mark, ImageSpan.ALIGN_BOTTOM), at, at + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        out.append(" ");
+    }
+
     private void requestStores(final String uniqueId) {
         if (computer == null) {
             return;

@@ -59,7 +59,7 @@ with my own eyes yet.
 | §285 pinned | pinned heading + mark on the row | **PRESENT** — Start/P toggles it, the prompt flips Pin/Unpin with the row, and the mark is the desktop's pin (AppsScreen.qml:1584). Nik, 12 Oct 2026: "yep pins work" — and, on the first cut, "you used the wrong icon, you used a gold start when the desktop uses a actual pin symble", now fixed |
 | §300 GAMES / APPS tabs | three tabs, ring wraps, last choice remembered, **counts**, and the two corrections | **PRESENT** (tonight) |
 | §367 GAMES / APPS by hand | move one entry between the tabs | **PRESENT** — via the menu; desktop uses M / right-stick |
-| §446 host notices | "that finished" vs "launch again within 60s to confirm" | **MISSING** |
+| §446 host notices | "that finished" vs "launch again within 60s to confirm" | **PORTED 12 Oct 2026**, awaiting his mark — see `references/host-notices.md` |
 | §916 the configuration line | host link speed + your stream settings | **PRESENT** — `fillConfigLine` + `addCfgChip` |
 | §1047 the game (launch screen) | the segue into a launch | **NOT PORTED** — Moonlight's own launch UI |
 | §1095 action row | the verb's pill, per-game settings, Stop | **PRESENT** — launch + Stop, both with real artwork. Per-game settings is **not** counted as missing: Android does not use the desktop's settings page (Nik, 12 Oct 2026), so that entry would be Android's own surface to build, not this page's port |
