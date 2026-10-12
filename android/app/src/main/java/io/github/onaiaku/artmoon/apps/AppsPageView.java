@@ -2,6 +2,8 @@ package io.github.onaiaku.artmoon.apps;
 
 import android.content.ComponentName;
 import android.content.Intent;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -23,6 +25,8 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -323,6 +327,90 @@ public class AppsPageView extends ArtMoonActivity {
         };
         findViewById(R.id.am_hero_stop).setOnClickListener(stop);
         findViewById(R.id.am_key_stop).setOnClickListener(stop);
+
+        View.OnClickListener customize = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openGamePanel();
+            }
+        };
+        findViewById(R.id.am_hero_customize).setOnClickListener(customize);
+        findViewById(R.id.am_key_customize).setOnClickListener(customize);
+    }
+
+    /**
+     * This game's own panel.
+     *
+     * <p>The desktop's panel is per-game stream overrides — resolution, codec, bitrate, HDR — and
+     * this client has no per-game settings model to override, so porting that panel would mean
+     * shipping a screen whose controls changed nothing. What it does have of its own per game is
+     * what this shows: what has been played on it, when, and the two things the user can decide for
+     * one entry and no other — whether it is pinned, and which tab it sits in. Reset gives the hours
+     * back, which is the desktop's own feature on the same panel.
+     *
+     * <p>The desktop's chrome around it — the cover in the header, the section tabs, the rows — is
+     * waiting for something to put in it. This is the panel's content, not its frame.
+     */
+    private void openGamePanel() {
+        final AppLibrary.Row row = selectedRow();
+        if (row == null) {
+            return;
+        }
+
+        final PlaytimeManager.PlaytimeRecord rec =
+                PlaytimeManager.recordFor(this, uuidString, row.name);
+        final boolean hasPlaytime = rec != null && rec.valid && (rec.totalSeconds > 0 || rec.sessionCount > 0);
+
+        StringBuilder body = new StringBuilder();
+        if (row.isApp) {
+            body.append("An app on this host.");
+        }
+        else if (hasPlaytime) {
+            body.append(PlaytimeManager.formatDuration(rec.totalSeconds)).append(" played");
+            body.append("  ·  ").append(rec.sessionCount == 1 ? "1 session"
+                    : rec.sessionCount + " sessions");
+            if (rec.lastPlayedUtc > 0) {
+                body.append("\nLast played ")
+                        .append(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                                .format(new Date(rec.lastPlayedUtc)));
+            }
+        }
+        else {
+            body.append("Nothing played on this host yet.");
+        }
+        body.append("\n\n");
+        body.append(row.pinned ? "Pinned to the top of the library." : "Not pinned.");
+        body.append("\n");
+        body.append(row.isApp ? "Listed under APPS." : "Listed under GAMES.");
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle(row.name)
+                .setMessage(body.toString())
+                .setNegativeButton("Close", null);
+
+        // Pin and unpin belong here as much as on the long press — it is the same decision, and a
+        // panel about one game is where a user looks for it.
+        builder.setNeutralButton(row.pinned ? "Unpin" : "Pin", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                PlaytimeManager.setPinned(AppsPageView.this, uuidString, row.name, !row.pinned);
+                rebuildPageKeeping(row.appId);
+            }
+        });
+
+        if (hasPlaytime) {
+            builder.setPositiveButton("Reset play time", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    PlaytimeManager.reset(AppsPageView.this, uuidString, row.name);
+                    // The hours are gone, so both the row's meta line and — if this was the last
+                    // played game — the order and the heading change with it.
+                    rebuildPageKeeping(row.appId);
+                }
+            });
+        }
+
+        builder.show();
     }
 
     /**
