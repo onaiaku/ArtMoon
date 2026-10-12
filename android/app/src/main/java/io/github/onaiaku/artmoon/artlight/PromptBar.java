@@ -230,11 +230,22 @@ public final class PromptBar {
         if ("nextTab".equals(action)) {
             return "RB";
         }
+        // ⚠️ THE HOST STRIP IS THE SHOULDERS ON THE PHONE — Nik's call, not a reading of the
+        // desktop. The desktop prints LT/RT at the ends of that strip (HomeScreen.qml:1853, 1949)
+        // and pages with the trigger AXES, edge-detected with hysteresis
+        // (sdlgamepadkeynavigation.cpp:525-554). On Android that is a pair that does not arrive:
+        // a trigger is delivered as AXIS_LTRIGGER / AXIS_RTRIGGER motion events on many pads, never
+        // as KEYCODE_BUTTON_L2 / R2, so there is no key event to handle — which is exactly what
+        // "they dont do anything" looks like from the other side of the screen. The shoulders are
+        // buttons on every pad. His words, 12 Oct 2026: "they sould be LB and RB".
+        //
+        // The keyboard half is untouched and unchanged: PgUp/PgDn (keyboardKey below), the same
+        // pair the desktop prints on those arrows.
         if ("prevHost".equals(action)) {
-            return "LT";
+            return "LB";
         }
         if ("nextHost".equals(action)) {
-            return "RT";
+            return "RB";
         }
         // 6.0.0, the desktop's own hint row (AppShell.qml:533-545): Start / P pins the selected
         // game. Start, not Select — Select is the per-game Customize on that page.

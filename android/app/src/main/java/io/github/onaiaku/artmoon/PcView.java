@@ -1077,10 +1077,12 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             rtHint.setVisibility(hosts >= 1 ? View.VISIBLE : View.GONE);
         }
 
-        // The shoulders draw an ActionHint, not the letters "LT"/"RT": HomeScreen.qml:1861 and
-        // 1957 put one at size _px(28) inside the 44x30 box. With a pad it is the vendor glyph,
-        // without one it is the key chip reading the keyboard equivalent — which is what these
-        // two carry (PgUp/PgDn, HomeScreen.qml:1853 and 1949).
+        // The arrows draw an ActionHint, not a typed "LB"/"RB": HomeScreen.qml:1861 and 1957 put one
+        // at size _px(28) inside the 44x30 box. With a pad it is the vendor glyph (pad_*_lb /
+        // pad_*_rb), without one it is the key chip reading the keyboard equivalent — which is what
+        // these two carry (PgUp/PgDn, HomeScreen.qml:1853 and 1949). The desktop's own arrows name
+        // LT/RT; the pair moved to the shoulders on Nik's word, 12 Oct 2026, and PromptBar's
+        // comment carries the whole of that.
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_pg_up_cap), 28f);
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_pg_dn_cap), 28f);
 
@@ -1444,7 +1446,12 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         }
     }
 
-    /** The LT/RT triggers (and PgUp/PgDn) page the stage one host at a time. */
+    /**
+     * Pages the stage one host at a time. Three doors, all of them the desktop's or Nik's:
+     * <b>LB/RB</b> (his call, 12 Oct 2026 — the pair that always arrives from a pad),
+     * the <b>triggers</b> as LT/RT (the desktop's own, sdlgamepadkeynavigation.cpp:525-554), and
+     * <b>PgUp/PgDn</b> on a keyboard (HomeScreen.qml:1853, 1949).
+     */
     private void cycleHost(int dir) {
         pageHostList(dir);
         if (pcGridView != null) {
@@ -2047,13 +2054,20 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 case KeyEvent.KEYCODE_BUTTON_R2:
                     cycleHost(1);
                     return true;
+                // ⚠️ LB/RB PAGE THE STAGE. They used to be owned and deliberately inert — the
+                // desktop keeps its shoulders for the host's streaming PROFILE cycle, and this
+                // client has no profile support to call, so they did nothing at all.
+                //
+                // Nik, 12 Oct 2026: "the LT and RT on the main page, they sould be LB and RB and
+                // they need wiring up because they dont do anything". The triggers stay wired below
+                // as the desktop's own mechanism — but they are the pair that never arrives from a
+                // phone's pad (axes, not button keycodes), which is why the strip could not be paged
+                // from a controller at all. The shoulders are the pair that always arrives.
                 case KeyEvent.KEYCODE_BUTTON_L1:
+                    cycleHost(-1);
+                    return true;
                 case KeyEvent.KEYCODE_BUTTON_R1:
-                    // Owned and deliberately inert, as the desktop's own inert keys are: this is
-                    // where the host's profile cycle belongs, and it cannot be wired here yet —
-                    // the Android client has no profile support to call (no cycleHostProfile
-                    // equivalent anywhere in the tree). Swallowed rather than passed on, so the
-                    // framework's geometric focus search cannot light up a tab behind our back.
+                    cycleHost(1);
                     return true;
                 case KeyEvent.KEYCODE_DEL:
                     // ⚠️ Not the Backspace key, as far as this app is concerned: this pad sends it
@@ -2072,6 +2086,26 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     break;
             }
         }
+        // ── The keyboard's pair for the same paging ───────────────────────────────
+        //
+        // The arrows have carried "PgUp"/"PgDn" as their key label since they were drawn
+        // (HomeScreen.qml:1853, 1949) and the keys did nothing at all: the hint promised something
+        // the page never honoured. Not gated on input mode — this IS the keyboard's door, and a
+        // keyboard press has already flipped the mode to KEYBOARD by the time we get here (see the
+        // classify call at the top), which is what turns those two caps back into PgUp/PgDn.
+        if (!gamepad && event.getAction() == KeyEvent.ACTION_DOWN) {
+            switch (event.getKeyCode()) {
+                case KeyEvent.KEYCODE_PAGE_UP:
+                    cycleHost(-1);
+                    return true;
+                case KeyEvent.KEYCODE_PAGE_DOWN:
+                    cycleHost(1);
+                    return true;
+                default:
+                    break;
+            }
+        }
+
         return super.dispatchKeyEvent(event);
     }
 
