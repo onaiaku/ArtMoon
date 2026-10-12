@@ -420,4 +420,17 @@
     <string name="am_hero_bg_removed">Background removed</string>
     <string name="am_key_pgup">PgUp</string>
     <string name="am_key_pgdn">PgDn</string>
+    <!-- The picker's tabs, and the headings its list groups rows under. The headings are
+         lower case here and upper-cased by textAllCaps, so a translator never has to shout. -->
+    <string name="am_tab_all">All</string>
+    <string name="am_tab_games">Games</string>
+    <string name="am_tab_apps">Apps</string>
+    <string name="am_sec_last_played">Last played</string>
+    <string name="am_sec_pinned">Pinned</string>
+    <string name="am_sec_all_games">All games</string>
+    <string name="am_sec_all_apps">All apps</string>
+    <string name="am_sec_all">All</string>
+    <string name="am_meta_custom_settings">custom settings</string>
+    <string name="am_meta_sep">  ·  </string>
 </resources>
+

@@ -16,6 +16,34 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <!-- The three tabs, as the desktop has them: a pill each, the count inside the label,
+             opening on the host's saved tab. -->
+        <LinearLayout
+            android:id="@+id/am_pick_tabs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:baselineAligned="false"
+            android:paddingStart="14dp"
+            android:paddingLeft="14dp"
+            android:paddingEnd="14dp"
+            android:paddingRight="14dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="2dp">
+
+            <TextView
+                android:id="@+id/am_tab_all"
+                style="@style/AmTab" />
+
+            <TextView
+                android:id="@+id/am_tab_games"
+                style="@style/AmTab" />
+
+            <TextView
+                android:id="@+id/am_tab_apps"
+                style="@style/AmTab" />
+        </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
