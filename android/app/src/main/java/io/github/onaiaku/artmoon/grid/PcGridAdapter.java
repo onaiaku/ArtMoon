@@ -401,10 +401,6 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             }
         }
 
-        private int dp(float v) {
-            return Math.round(v * context.getResources().getDisplayMetrics().density);
-        }
-
         /** "#RRGGBB" -> int; returns 0 when the string is not a colour. */
         private static int parseColorHex(String s) {
             if (s == null || s.isEmpty() || !s.startsWith("#")) {
@@ -524,13 +520,20 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                     // the cover and the title give the room up and the button never leaves the
                     // card — which is the thing that was happening here: the stack sat over the
                     // block's last line with nothing accounting for it.
+                    // ⚠️ Units again: these are PIXEL APIs, so lengthPx() and not dp(). With the
+                    // dp numbers the reserve came out at 19+11 = 30px where the block's own
+                    // spacing is 30dp+18dp = 106px, and the floor at 56px against the desktop's
+                    // _px(90) = 198px. The cover was therefore allowed ~76px more height than
+                    // the block can give it — and the room it took was the room the title and
+                    // the Resume button live in, which is what put the button on top of them.
                     int reserve = 0;
                     View stack = panel.findViewById(R.id.am_panel_action_stack);
                     if (stack != null && stack.getVisibility() == View.VISIBLE) {
                         reserve = stack.getHeight();
                     }
-                    int room = panel.getHeight() - st.dp(30) - st.dp(18) - others - reserve;
-                    int h = Math.max(st.dp(90), room);
+                    int room = panel.getHeight() - st.lengthPx(30f, context)
+                            - st.lengthPx(18f, context) - others - reserve;
+                    int h = Math.max(st.lengthPx(90f, context), room);
                     // 2:3, and capped by the column it lives in — GameFacts.qml:150-156 does the
                     // same in the other direction (its height is capped by `width * 3 / 2`), and
                     // HeroCover derives the width from the height. A cover stretched to the full

@@ -74,12 +74,37 @@ public final class AmScale {
     }
 
     /**
-     * {@code _px(n)} — the QML call this exists to mirror. Returns dp; apply it with
-     * {@code setTextSize(TypedValue.COMPLEX_UNIT_DIP, ...)} or
-     * {@code ViewGroup.LayoutParams} in dp.
+     * {@code _px(n)} as a scaled dp NUMBER — the QML's own arithmetic, in the unit QML measures
+     * in.
+     *
+     * <p>⚠️ This is a dp number, NOT pixels. It is right for exactly one kind of call:
+     * {@code setTextSize(TypedValue.COMPLEX_UNIT_DIP, dp(n))}, because that API converts
+     * dp to px itself. It is WRONG for {@code setPadding}, {@code setMargins} and
+     * {@code ViewGroup.LayoutParams} — those take PHYSICAL PIXELS, and a dp number handed to
+     * one makes the box {@code density}x too small (2.2x on the Fold). That mistake is how a
+     * 19dp-tall tab becomes 13 pixels tall, too short for its own 19dp label, so the text
+     * overflows the pill and the pill appears to cut through it.
+     *
+     * <p>Anything that is not a text size wants {@link #lengthPx}.
      */
     public int dp(float base) {
         return Math.round(base * uiScale);
+    }
+
+    /**
+     * {@code _px(n)} in PHYSICAL PIXELS — what {@code setPadding}, {@code setMargins} and
+     * {@code ViewGroup.LayoutParams} actually take, and the only correct way to size a view
+     * built in code.
+     *
+     * <p>Same rule as {@link #radiusPx}, same rule layouts get for free: the inflation carries
+     * the QML's base numbers as real dp, {@code applyTo} multiplies those PIXELS by uiScale, and
+     * this is that same result arrived at from a base number instead of from a layout.
+     * Verified against a layout: {@code lengthPx(40)} and a {@code 40dp} tab in XML both come
+     * out as 62px on the Fold at uiScale 0.70 / density 2.2.
+     */
+    public int lengthPx(float base, Context c) {
+        return Math.round(Math.round(base * uiScale)
+                * c.getResources().getDisplayMetrics().density);
     }
 
     /** {@code _px(Theme.fontX)} — a text size in dp, same unit the QML scales. */
@@ -190,10 +215,11 @@ public final class AmScale {
 
     /**
      * A QML {@code _px(n)} corner radius, in physical px, for a {@link GradientDrawable} built in
-     * code. Same rule {@link #dp} applies, in the unit a drawable wants.
+     * code. Same rule {@link #lengthPx} applies; radii are just lengths a drawable wants as a
+     * float.
      */
     public float radiusPx(float baseRadius, Context c) {
-        return Math.round(baseRadius * uiScale) * c.getResources().getDisplayMetrics().density;
+        return lengthPx(baseRadius, c);
     }
 
     /** The corner radius a QML {@code _px(n)} radius becomes — radii scale too. */

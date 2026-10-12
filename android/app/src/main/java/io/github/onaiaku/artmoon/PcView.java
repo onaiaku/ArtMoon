@@ -1135,6 +1135,14 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         add.setId(R.id.manuallyAddPcText);
         add.setText("+  " + getString(R.string.am_picker_add));
         add.setGravity(android.view.Gravity.CENTER);
+        // ⚠️ UNITS — this block is why "+ Add a host" survived two rounds of fixes. Every box
+        // dimension below feeds a PIXEL API (setPadding, LayoutParams, margins), so it goes
+        // through AmScale.lengthPx(). It used to go through AmScale.dp(), which returns a *dp
+        // number*: on the Fold that made the tab 28 PIXELS tall where the QML's _px(40) is 62px
+        // — less than half the height of every tab beside it and shorter than its own 19dp
+        // label, so the label overflowed its box and the pill read as a shape cutting through
+        // the text. THE TEXT SIZE IS THE ONE EXCEPTION: COMPLEX_UNIT_DIP converts dp to px
+        // itself, so that call is correct on dp() and must stay on it.
         add.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, s.dp(19));
         add.setTextColor(getResources().getColor(R.color.am_text3));
         // Base look: no background. tabIndex never lands on "Add a host" — clicking it opens the
@@ -1152,10 +1160,11 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         });
         android.widget.LinearLayout.LayoutParams alp =
                 new android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, s.dp(40));
-        alp.leftMargin = s.dp(8);
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        s.lengthPx(40f, this));
+        alp.leftMargin = s.lengthPx(8f, this);
         add.setLayoutParams(alp);
-        add.setPadding(s.dp(20), 0, s.dp(20), 0);
+        add.setPadding(s.lengthPx(20f, this), 0, s.lengthPx(20f, this), 0);
         row.addView(add);
 
         updateTabSelection();
@@ -1184,38 +1193,69 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
     }
 
     /**
-     * One tab's background. HomeScreen.qml:1893-1900:
+     * A tab's body — HomeScreen.qml:1893-1900.
      *
-     *     radius: _px(9)
-     *     color:  _selected || _hovered ? Theme.cardHigh : "transparent"
-     *     border.color: _focused ? Theme.accent : _selected ? Theme.lineHigh : "transparent"
+     * <pre>
+     *   height: _px(40)   radius: _px(9)
+     *   color:        _selected || _hovered ? Theme.cardHigh : "transparent"
+     *   border.width: _focused ? 2 : 1
+     *   border.color: _focused ? Theme.accent : _selected ? Theme.lineHigh : "transparent"
+     * </pre>
      *
-     * ⚠️ AN UNSELECTED TAB DRAWS NOTHING AT ALL — no fill, no border. A strip of hosts is a row
-     * of words until you look at one, and only the one you are looking at is a pill. Every tab
-     * here used to carry a bordered, filled capsule whether or not it was the current host.
+     * <p>Three states, and the "+  Add a host" tab carries all three of them. On the desktop the
+     * add tab is a TAB LIKE ANY OTHER: pick it and it is drawn cardHigh with a border, exactly
+     * as a host tab is. It must not be special-cased out of having a body — a bare word is a
+     * different screen from every other platform.
      *
-     * The radius is built here rather than in a drawable because it has to scale: _px(9) at a
-     * phone width is about 6, and a fixed 20 on a 28-tall tab is what drew the end caps through
-     * each other and sliced the pill across the middle.
+     * <p>This is the fix for what Nik has been pointing at for three rounds. The port drew a
+     * real pill here (`am_picker_pill`, radius <em>20dp</em>) on a tab whose height had been
+     * computed with the wrong unit and came out 28 <em>pixels</em> tall. A 44px radius on a 28px
+     * box is a radius past half the height, which is precisely the shape that draws its two end
+     * caps through each other — a pill sliced across the middle with the label hanging out of
+     * it. Two commits ago the tablet was removed instead of resized, so the label has been
+     * sitting there bare since, and nothing about it changed when it was "fixed".
+     *
+     * <p>Now the box is the QML's _px(40) — see the units note in rebuildHostTabs — so the body
+     * goes back on, and the pad's target lights it through {@code setActivated}, the same
+     * mechanism every other control on this screen uses.
      */
     private void applyTabBackground(View tab, boolean selected) {
         if (tab == null) {
             return;
         }
-        io.github.onaiaku.artmoon.ui.AmScale sc = io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
+        io.github.onaiaku.artmoon.ui.AmScale sc =
+                io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
+        float radius = sc.radiusPx(9f, this);
+        int cardHigh = getResources().getColor(R.color.am_card_high);
+        int lineHigh = getResources().getColor(R.color.am_line_high);
+        int accent = getResources().getColor(R.color.am_accent);
+        // _px(1) / _px(2), in px, never below a hairline.
+        int hair = Math.max(1, sc.lengthPx(1f, this));
+        int lit = Math.max(2, sc.lengthPx(2f, this));
+
+        android.graphics.drawable.GradientDrawable rest = tabShape(
+                android.graphics.Color.TRANSPARENT, radius, 0,
+                android.graphics.Color.TRANSPARENT);
+        android.graphics.drawable.GradientDrawable on = selected
+                ? tabShape(cardHigh, radius, hair, lineHigh) : rest;
+
+        android.graphics.drawable.StateListDrawable states =
+                new android.graphics.drawable.StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_activated},
+                tabShape(cardHigh, radius, lit, accent));
+        states.addState(new int[]{}, on);
+        tab.setBackground(states);
+    }
+
+    private android.graphics.drawable.GradientDrawable tabShape(
+            int fill, float radius, int strokeWidth, int strokeColor) {
         android.graphics.drawable.GradientDrawable gd =
                 new android.graphics.drawable.GradientDrawable();
         gd.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-        gd.setCornerRadius(sc.radiusPx(9f, this));
-        if (selected) {
-            gd.setColor(getResources().getColor(R.color.am_card_high));
-            gd.setStroke(Math.max(1, Math.round(sc.uiScale())),
-                    getResources().getColor(R.color.am_line_high));
-        } else {
-            gd.setColor(android.graphics.Color.TRANSPARENT);
-            gd.setStroke(0, android.graphics.Color.TRANSPARENT);
-        }
-        tab.setBackground(gd);
+        gd.setCornerRadius(radius);
+        gd.setColor(fill);
+        gd.setStroke(strokeWidth, strokeColor);
+        return gd;
     }
 
     /**
