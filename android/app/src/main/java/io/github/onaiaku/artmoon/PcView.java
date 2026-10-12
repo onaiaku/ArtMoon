@@ -1692,6 +1692,9 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
      * block on every fresh visit. The launch falls back to the app list on resolution failure, which
      * is the desktop's own fallback.</p>
      */
+    /** The last resolution logged per host, so the record only speaks when its answer changes. */
+    private final java.util.HashMap<String, String> lastCoverLogged = new java.util.HashMap<>();
+
     private void pushLastPlayed(ComputerDetails details) {
         if (pcGridAdapter == null || details == null || details.uuid == null) {
             return;
@@ -1712,6 +1715,16 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         // (computermodel.cpp:1411-1417). No cached art means no art: HeroCover with no source
         // draws nothing, and a picture-shaped hole is not a picture.
         final android.graphics.Bitmap art = appId == 0 ? null : cachedBoxArt(details.uuid, appId);
+
+        // One line per change, not per poll: this runs on every card bind (1.5 s), and a log that
+        // repeats itself is a log nobody reads. It is here so a "still no art" report can be settled
+        // from the phone instead of from a description of the phone.
+        final String stamp = appId + "/" + (art != null ? "art" : "no-art");
+        if (!stamp.equals(lastCoverLogged.get(details.uuid))) {
+            lastCoverLogged.put(details.uuid, stamp);
+            LimeLog.info("lastPlayed: \"" + rec.name + "\" -> appId " + appId + ", cover "
+                    + (art != null ? "found on disk" : "not on disk"));
+        }
 
         pcGridAdapter.setLastPlayedByUuid(details.uuid, details.name, rec.name, art,
                 PlaytimeManager.formatDuration(rec.totalSeconds),

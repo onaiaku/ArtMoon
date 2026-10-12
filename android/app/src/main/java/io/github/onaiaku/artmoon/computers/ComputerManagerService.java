@@ -163,6 +163,18 @@ public class ComputerManagerService extends Service {
         // rawAppList empty, so the id is all we have and ObservedPlaytime has nothing it can track.
         // The last list this host gave us is on disk, and the picker already reads it for exactly the
         // same reason (AppsPageView:145-160, populateAppGridWithCache before it).
+        // The WHOLE list, not only the running game's name: the card's last-played cover is looked
+        // up by the host's id for the game, and an id cannot be found in a list nobody has. Filling
+        // it here — where a poll becomes the details every screen is handed — is what makes the main
+        // screen self-sufficient; the picker's own copy of this read stays as it is.
+        if (details.state == ComputerDetails.State.ONLINE
+                && (details.rawAppList == null || details.rawAppList.isEmpty())) {
+            String cached = appListFromCache(details.uuid);
+            if (cached != null) {
+                details.rawAppList = cached;
+            }
+        }
+
         String runningName = NvHTTP.appNameForId(details.rawAppList, details.runningGameId);
         if (runningName == null || runningName.isEmpty()) {
             runningName = appNameFromCache(details.uuid, details.runningGameId);
@@ -179,6 +191,54 @@ public class ComputerManagerService extends Service {
 
         releaseLocalDatabaseReference();
         return true;
+    }
+
+    /**
+     * The host's whole app list as last written to disk, read once per host and kept in memory.
+     *
+     * <p>&#9888; The poll reply does not carry it on every host — ArtLight answers serverinfo
+     * without an app list, which is what ApplistPoller exists for — so until now the list reached
+     * the UI only when a poll or a visit to the picker happened to fill it in. That is what Nik saw
+     * on 12 Oct 2026: the main screen's last-played cover stayed blank "until I go to the app
+     * picker and go back". The picker reads this same file for the same reason
+     * (AppsPageView:150-165); the service reads it here so the details every screen is handed
+     * already carry it, and an app id can be resolved on the first poll instead of after a detour.
+     *
+     * <p>Empty string means "looked, nothing on disk yet", so the file is opened once per host
+     * rather than on every 1.5 s poll. A live list always wins: this is only asked when the poll
+     * left rawAppList empty, and a poll — or ApplistPoller, which sets it directly — replaces it the
+     * moment the host answers.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<String, String> appListFromDisk =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private String appListFromCache(String uuid) {
+        if (uuid == null || uuid.isEmpty()) {
+            return null;
+        }
+
+        String known = appListFromDisk.get(uuid);
+        if (known != null) {
+            return known.isEmpty() ? null : known;
+        }
+
+        String raw = null;
+        try {
+            java.io.InputStream in = CacheHelper.openCacheFileForInput(getCacheDir(), "applist", uuid);
+            if (in != null) {
+                raw = CacheHelper.readInputStreamToString(in);
+            }
+        }
+        catch (IOException ignored) {
+            raw = null;
+        }
+
+        if (raw == null || raw.isEmpty()) {
+            appListFromDisk.put(uuid, "");
+            return null;
+        }
+        appListFromDisk.put(uuid, raw);
+        return raw;
     }
 
     /**

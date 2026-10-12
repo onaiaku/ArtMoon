@@ -356,6 +356,17 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         refreshGameFacts(uuid);
     }
 
+    /** The shared placeholder art, decoded once — R.drawable.no_app_image, as the app rows use. */
+    private android.graphics.Bitmap noAppImage;
+
+    private android.graphics.Bitmap noAppImage() {
+        if (noAppImage == null) {
+            noAppImage = android.graphics.BitmapFactory.decodeResource(
+                    context.getResources(), R.drawable.no_app_image);
+        }
+        return noAppImage;
+    }
+
     /** The game the card names for this host, or null when nothing has been played here. */
     public String lastGameNameFor(String uuid) {
         LastPlayed lp = uuid == null ? null : lastPlayedByUuid.get(uuid);
@@ -724,14 +735,19 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
 
         final ImageView cover = v.findViewById(R.id.am_facts_cover);
         if (cover != null) {
-            if (art != null) {
-                cover.setImageBitmap(art);
-                cover.setVisibility(View.VISIBLE);
-            } else {
-                // HeroCover with no source draws nothing. A framed, filled rectangle where the
-                // artwork should be is a picture-shaped hole, not a picture.
-                cover.setVisibility(View.GONE);
-            }
+            // The picture, or the shared placeholder — never a hole. That is the desktop's rule for
+            // BOTH halves of this block, in its own words: "the cache only, never a fetch, and the
+            // shared placeholder when the picture is not on disk" (computermodel.cpp:1476-1481, and
+            // the same sentence at :1411-1417 for the last-played record). This block already
+            // followed the first half; it answered the second by hiding the view, and a hidden view
+            // is the one thing the desktop never draws there. no_app_image.png is the placeholder
+            // "every other screen uses" — the app rows have always drawn it (AppsRowAdapter:85).
+            //
+            // ⚠️ Nik, 12 Oct 2026: "sometimes its just blank (showing no art) until i go to the app
+            // picker and go back". The blank was this line; the delay was the app list, and the
+            // service now fills that from disk (ComputerManagerService.appListFromCache).
+            cover.setImageBitmap(art != null ? art : noAppImage());
+            cover.setVisibility(View.VISIBLE);
         }
 
         col.setVisibility(View.VISIBLE);
