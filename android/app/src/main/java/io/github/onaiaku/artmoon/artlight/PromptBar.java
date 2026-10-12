@@ -109,8 +109,20 @@ public final class PromptBar {
                 continue;
             }
             if (mode == InputModeManager.Mode.TOUCH) {
-                // Touch: the pill IS the button — no fake keycap.
-                p.keycap.setVisibility(View.GONE);
+                // ⚠️ TOUCH USED TO HIDE THE CHIP, and that is the divergence this screen was
+                // showing: a footer prompt drawn as the WORD ALONE, in a capsule.
+                //
+                // The desktop has no such mode. ActionHint picks between the pad glyph and the
+                // key chip (ActionHint.qml:34) and there is no third option that draws nothing —
+                // AppShell gives every prompt both a button and a key (AppShell.qml:534-561), and
+                // the chip is the half that says which one it is. On a touchscreen it is also the
+                // only part of the prompt that looks pressable.
+                //
+                // So touch draws what a keyboard draws, and the word beside it goes back to
+                // being a plain word.
+                restoreKeycap(p);
+                p.keycap.setText(textFor(mode, p.action));
+                p.keycap.setVisibility(View.VISIBLE);
             } else {
                 p.keycap.setVisibility(View.VISIBLE);
                 if (gamepad) {

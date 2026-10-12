@@ -158,6 +158,13 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 findViewById(R.id.am_home_root),
                 io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this));
 
+        // The footer chips' letters, AFTER the tree has been scaled — ActionHint puts a floor of
+        // 11 under them that the scale must not touch (applyCapLetter). AppShell puts them at
+        // size _px(26) (AppShell.qml:601).
+        applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_shutdown), 26f);
+        applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_settings), 26f);
+        applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_exit), 26f);
+
         // Allow floating expanded PiP overlays while browsing PCs
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             setShouldDockBigOverlays(false);
@@ -1067,6 +1074,13 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             rtHint.setVisibility(hosts >= 1 ? View.VISIBLE : View.GONE);
         }
 
+        // The shoulders draw an ActionHint, not the letters "LT"/"RT": HomeScreen.qml:1861 and
+        // 1957 put one at size _px(28) inside the 44x30 box. With a pad it is the vendor glyph,
+        // without one it is the key chip reading the keyboard equivalent — which is what these
+        // two carry (PgUp/PgDn, HomeScreen.qml:1853 and 1949).
+        applyCapLetter((android.widget.TextView) findViewById(R.id.am_pg_up_cap), 28f);
+        applyCapLetter((android.widget.TextView) findViewById(R.id.am_pg_dn_cap), 28f);
+
         for (int i = 0; i < hosts; i++) {
             final int index = i;
             ComputerObject co = pcGridAdapter.hostAt(i);
@@ -1118,7 +1132,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         add.setGravity(android.view.Gravity.CENTER);
         add.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, s.dp(19));
         add.setTextColor(getResources().getColor(R.color.am_text3));
-        add.setBackgroundResource(R.drawable.am_picker_pill);
+        // Base look: no background. tabIndex never lands on "Add a host" — clicking it opens the
+        // add screen — so it is never the selected tab, and HomeScreen.qml:1896 gives an
+        // unselected tab `color: "transparent"`. applyTabBackground() keeps it that way.
+        applyTabBackground(add, false);
         add.setFocusable(false);
         add.setFocusableInTouchMode(false);
         add.setClickable(true);
@@ -1150,8 +1167,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             View child = row.getChildAt(i);
             boolean isTab = child.getId() != R.id.manuallyAddPcText;
             boolean selected = isTab && i == current;
-            child.setBackgroundResource(selected ? R.drawable.am_picker_pill_sel
-                                                 : R.drawable.am_picker_pill);
+            applyTabBackground(child, selected);
             if (isTab) {
                 android.widget.TextView label = child.findViewById(R.id.am_tab_label);
                 if (label != null) {
@@ -1160,6 +1176,60 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 }
             }
         }
+    }
+
+    /**
+     * One tab's background. HomeScreen.qml:1893-1900:
+     *
+     *     radius: _px(9)
+     *     color:  _selected || _hovered ? Theme.cardHigh : "transparent"
+     *     border.color: _focused ? Theme.accent : _selected ? Theme.lineHigh : "transparent"
+     *
+     * ⚠️ AN UNSELECTED TAB DRAWS NOTHING AT ALL — no fill, no border. A strip of hosts is a row
+     * of words until you look at one, and only the one you are looking at is a pill. Every tab
+     * here used to carry a bordered, filled capsule whether or not it was the current host.
+     *
+     * The radius is built here rather than in a drawable because it has to scale: _px(9) at a
+     * phone width is about 6, and a fixed 20 on a 28-tall tab is what drew the end caps through
+     * each other and sliced the pill across the middle.
+     */
+    private void applyTabBackground(View tab, boolean selected) {
+        if (tab == null) {
+            return;
+        }
+        io.github.onaiaku.artmoon.ui.AmScale sc = io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
+        android.graphics.drawable.GradientDrawable gd =
+                new android.graphics.drawable.GradientDrawable();
+        gd.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        gd.setCornerRadius(sc.radiusPx(9f, this));
+        if (selected) {
+            gd.setColor(getResources().getColor(R.color.am_card_high));
+            gd.setStroke(Math.max(1, Math.round(sc.uiScale())),
+                    getResources().getColor(R.color.am_line_high));
+        } else {
+            gd.setColor(android.graphics.Color.TRANSPARENT);
+            gd.setStroke(0, android.graphics.Color.TRANSPARENT);
+        }
+        tab.setBackground(gd);
+    }
+
+    /**
+     * ActionHint's cap letter — ActionHint.qml:79:
+     *
+     *     font.pixelSize: Math.max(11, Math.round(hint.size * 0.46))   // bold
+     *
+     * where {@code hint.size} is the button size ALREADY through {@code _px()}. The floor of 11
+     * is the whole reason this cannot be a number in the layout: AmScale would scale the floor
+     * down with everything else, and the desktop's floor does not move.
+     */
+    private void applyCapLetter(android.widget.TextView cap, float baseSize) {
+        if (cap == null) {
+            return;
+        }
+        io.github.onaiaku.artmoon.ui.AmScale sc = io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
+        int size = Math.round(baseSize * sc.uiScale());
+        cap.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP,
+                Math.max(11, Math.round(size * 0.46f)));
     }
 
     /** The LT/RT shoulders (and PgUp/PgDn) page the stage one host at a time. */

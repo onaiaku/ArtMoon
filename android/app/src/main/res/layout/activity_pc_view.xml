@@ -112,22 +112,37 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
-            <!-- Left trigger. HomeScreen.qml:1852 shows both triggers only when there is at
-                 least one host; PcView hides them at zero. -->
-            <TextView
+            <!-- Left trigger — HomeScreen.qml:1852-1874. Not a pill reading "LT": the desktop
+                 puts an ActionHint here at size _px(28) inside a 44x30 item, so what is drawn is
+                 the button itself — the key chip ("PgUp") with no pad, the vendor glyph with one.
+
+                 PcView shows/hides the whole 44x30 box, so the box is what carries the id and
+                 the click; the chip inside it is the drawing. -->
+            <FrameLayout
                 android:id="@+id/am_pg_up"
                 android:layout_width="44dp"
                 android:layout_height="30dp"
-                android:gravity="center"
                 android:clickable="true"
                 android:focusable="false"
-                android:text="LT"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/am_text3"
-                android:background="@drawable/am_picker_pill"
                 android:layout_marginEnd="14dp"
-                android:layout_marginRight="14dp" />
+                android:layout_marginRight="14dp">
+
+                <TextView
+                    android:id="@+id/am_pg_up_cap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:minWidth="24dp"
+                    android:text="@string/am_key_pgup"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text"
+                    android:background="@drawable/am_action_cap"
+                    android:paddingStart="7dp" android:paddingLeft="7dp"
+                    android:paddingEnd="7dp" android:paddingRight="7dp"
+                    android:alpha="0.85" />
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/am_tab_row"
@@ -136,21 +151,33 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical" />
 
-            <!-- Right trigger — next to the last tab, not parked at the screen edge. -->
-            <TextView
+            <!-- Right trigger — the strip's OTHER END, not the screen's: it follows the last
+                 tab (HomeScreen.qml:1947-1968). -->
+            <FrameLayout
                 android:id="@+id/am_pg_dn"
                 android:layout_width="44dp"
                 android:layout_height="30dp"
-                android:gravity="center"
                 android:clickable="true"
                 android:focusable="false"
-                android:text="RT"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/am_text3"
-                android:background="@drawable/am_picker_pill"
                 android:layout_marginStart="14dp"
-                android:layout_marginLeft="14dp" />
+                android:layout_marginLeft="14dp">
+
+                <TextView
+                    android:id="@+id/am_pg_dn_cap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:minWidth="24dp"
+                    android:text="@string/am_key_pgdn"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_text"
+                    android:background="@drawable/am_action_cap"
+                    android:paddingStart="7dp" android:paddingLeft="7dp"
+                    android:paddingEnd="7dp" android:paddingRight="7dp"
+                    android:alpha="0.85" />
+            </FrameLayout>
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -191,100 +218,144 @@
         </RelativeLayout>
     </RelativeLayout>
 
-    <!-- ══════ footer prompts — bottom LEFT (AppShell.qml), not centred ══════ -->
+    <!-- ══════ footer prompts — AppShell.qml:575-621 ══════
+
+         Structurally this is a ROW OF PAIRS, not three pills:
+
+             Row { spacing: _px(20)
+               delegate Item {                       // implicitWidth + _px(8) of slack
+                 Row { spacing: _px(9)
+                   ActionHint { size: _px(26) }      // the button: a key chip, 24 tall, radius 6
+                   Text { font.pixelSize: _px(Theme.fontBody); color: Theme.text }
+                 }
+               }
+             }
+
+         ⚠️ The WORD HAS NO BOX. It never did — on no platform, in no mode. The word is
+         Theme.text at fontBody and nothing else. What made this read as "three pills" was a
+         full-round bordered capsule drawn behind the word; the desktop's only bordered thing
+         here is the little key chip in front of it, and that is 24 tall against the word's 16.
+
+         A prompt's width is the pair plus _px(8) of slack, so with _px(20) between them the
+         visible gap is 28. Left margin _px(20) (AppShell.qml:578), bar height _px(44)
+         (AppShell.qml:470).
+
+         The chips are PromptBar's; it shows/hides and re-skins them per input mode and never
+         touches the word. -->
     <LinearLayout
         android:id="@+id/am_footer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
-        android:layout_marginStart="20dp"
-        android:layout_marginLeft="20dp"
         android:gravity="center_vertical|start"
         android:orientation="horizontal"
-        android:paddingTop="6dp"
-        android:paddingBottom="10dp">
+        android:paddingStart="20dp"
+        android:paddingLeft="20dp"
+        android:paddingEnd="20dp"
+        android:paddingRight="20dp">
 
-        <TextView
-            android:id="@+id/am_footer_kb_shutdown"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/am_footer_key_p"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/am_on_accent"
-            android:background="@drawable/am_footer_key"
-            android:minWidth="26dp"
-            android:paddingStart="9dp" android:paddingLeft="9dp"
-            android:paddingEnd="9dp" android:paddingRight="9dp"
-            android:paddingTop="6dp" android:paddingBottom="6dp"
-            android:layout_marginEnd="6dp" android:layout_marginRight="6dp"
-            android:visibility="gone" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/am_footer_shutdown"
+            <TextView
+                android:id="@+id/am_footer_kb_shutdown"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:minWidth="24dp"
+                android:gravity="center"
+                android:text="@string/am_footer_key_p"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text"
+                android:background="@drawable/am_action_cap"
+                android:paddingStart="7dp" android:paddingLeft="7dp"
+                android:paddingEnd="7dp" android:paddingRight="7dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/am_footer_shutdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/am_footer_shutdown"
+                android:textSize="16sp"
+                android:textColor="@color/am_text"
+                android:layout_marginStart="9dp"
+                android:layout_marginLeft="9dp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/am_footer_shutdown"
-            android:textSize="16sp"
-            android:textColor="@color/am_text2"
-            android:background="@drawable/am_footer_key"
-            android:paddingTop="6dp" android:paddingBottom="6dp"
-            android:layout_marginEnd="20dp" android:layout_marginRight="20dp" />
+            android:layout_marginStart="28dp"
+            android:layout_marginLeft="28dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/am_footer_kb_settings"
+            <TextView
+                android:id="@+id/am_footer_kb_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:minWidth="24dp"
+                android:gravity="center"
+                android:text="@string/am_footer_key_s"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text"
+                android:background="@drawable/am_action_cap"
+                android:paddingStart="7dp" android:paddingLeft="7dp"
+                android:paddingEnd="7dp" android:paddingRight="7dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/am_footer_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/am_footer_settings"
+                android:textSize="16sp"
+                android:textColor="@color/am_text"
+                android:layout_marginStart="9dp"
+                android:layout_marginLeft="9dp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/am_footer_key_s"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/am_on_accent"
-            android:background="@drawable/am_footer_key"
-            android:minWidth="26dp"
-            android:paddingStart="9dp" android:paddingLeft="9dp"
-            android:paddingEnd="9dp" android:paddingRight="9dp"
-            android:paddingTop="6dp" android:paddingBottom="6dp"
-            android:layout_marginEnd="6dp" android:layout_marginRight="6dp"
-            android:visibility="gone" />
+            android:layout_marginStart="28dp"
+            android:layout_marginLeft="28dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/am_footer_settings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/am_footer_settings"
-            android:textSize="16sp"
-            android:textColor="@color/am_text2"
-            android:background="@drawable/am_footer_key"
-            android:paddingTop="6dp" android:paddingBottom="6dp"
-            android:layout_marginEnd="20dp" android:layout_marginRight="20dp" />
+            <TextView
+                android:id="@+id/am_footer_kb_exit"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:minWidth="24dp"
+                android:gravity="center"
+                android:text="@string/am_footer_key_esc"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text"
+                android:background="@drawable/am_action_cap"
+                android:paddingStart="7dp" android:paddingLeft="7dp"
+                android:paddingEnd="7dp" android:paddingRight="7dp"
+                android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/am_footer_kb_exit"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/am_footer_key_esc"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/am_on_accent"
-            android:background="@drawable/am_footer_key"
-            android:minWidth="26dp"
-            android:paddingStart="9dp" android:paddingLeft="9dp"
-            android:paddingEnd="9dp" android:paddingRight="9dp"
-            android:paddingTop="6dp" android:paddingBottom="6dp"
-            android:layout_marginEnd="6dp" android:layout_marginRight="6dp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/am_footer_exit"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/am_footer_exit"
-            android:textSize="16sp"
-            android:textColor="@color/am_text2"
-            android:background="@drawable/am_footer_key"
-            android:paddingTop="6dp" android:paddingBottom="6dp" />
+            <TextView
+                android:id="@+id/am_footer_exit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/am_footer_exit"
+                android:textSize="16sp"
+                android:textColor="@color/am_text"
+                android:layout_marginStart="9dp"
+                android:layout_marginLeft="9dp" />
+        </LinearLayout>
     </LinearLayout>
+
 
 </RelativeLayout>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The GameFacts cover's clip outline — radius _px(10) (GameFacts.qml:224), and NOTHING else.
+
+    ⚠️ No fill and no border, on purpose. The cover is a picture: the desktop draws the artwork
+    with a shadow and there is no placeholder frame behind it, because `visible: stage._hasPanel`
+    means the whole block is absent when there is nothing to show. An outlined, filled rectangle
+    sitting where the art should be is the "blue box" — a picture-shaped hole that is not a
+    picture.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <corners android:radius="10dp" />
+</shape>

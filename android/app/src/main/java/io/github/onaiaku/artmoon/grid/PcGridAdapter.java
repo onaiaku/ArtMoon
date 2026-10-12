@@ -80,7 +80,9 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         // inflation only: a recycled row has already been through it, and scaling twice is
         // exactly how a layout drifts out of agreement with the other platforms.
         if (fresh) {
-            AmScale s = AmScale.ofScreen(context);
+            // The stage's scale, CLAMPED at 0.62 (HostStage.qml:315) — the card and everything on
+            // it stop shrinking with the window at the same width the desktop's do.
+            AmScale s = AmScale.ofStage(context);
             AmScale.applyTo(v, s);
             // HostStage.qml:556 — the stage card's radius is _px(16), so it scales with the
             // window like every other number. A shape drawable's radius cannot be expressed in
@@ -261,12 +263,20 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             if (panel == null) {
                 return;
             }
-            if (ago == null) {
+            if (ago == null || ago.isEmpty()) {
                 panel.setVisibility(View.GONE);
                 return;
             }
-            bindText(v, R.id.am_last_session_when,
-                    duration == null || duration.isEmpty() ? ago : ago + " \u00b7 " + duration);
+
+            // WHEN — a bordered badge carrying the static label and the age as two halves
+            // (HostStage.qml:1273-1292). The age is uppercased in its own view; it used to be
+            // concatenated onto the duration, which said how long without saying when.
+            bindText(v, R.id.am_last_session_when, context.getString(R.string.am_last_session));
+            bindText(v, R.id.am_last_session_ago, ago.toUpperCase(java.util.Locale.getDefault()));
+
+            // GRADE — the one value on this panel that keeps a frame, because it is a verdict
+            // and the colour is the point (HostStage.qml:1303-1323): height _px(42) from the
+            // layout, radius _px(8) here because it scales, and its colour at 16% behind it.
             TextView gradeTv = v.findViewById(R.id.am_last_session_grade);
             if (gradeTv != null) {
                 if (grade == null || grade.isEmpty()) {
@@ -274,28 +284,36 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 } else {
                     gradeTv.setVisibility(View.VISIBLE);
                     gradeTv.setText(grade);
-                    // Desktop parity: the grade pill is the grade colour at 16%
-                    // alpha with the text in that colour (HostStage.qml).
                     int color = parseColorHex(gradeColor);
                     if (color == 0) {
                         color = context.getResources().getColor(R.color.am_online);
                     }
                     gradeTv.setTextColor(color);
+                    io.github.onaiaku.artmoon.ui.AmScale st =
+                            io.github.onaiaku.artmoon.ui.AmScale.ofStage(context);
                     android.graphics.drawable.GradientDrawable pill =
                             new android.graphics.drawable.GradientDrawable();
-                    pill.setCornerRadius(dp(6));
+                    pill.setCornerRadius(st.radiusPx(8, context));   // _px(8)
                     pill.setColor((color & 0x00FFFFFF) | 0x29000000); // 16% alpha
                     gradeTv.setBackground(pill);
-                    gradeTv.setPadding(dp(12), dp(4), dp(12), dp(4));
                 }
             }
-            bindText(v, R.id.am_last_session_rtt, rttMs < 0 ? "\u2014" : rttMs + " ms");
-            bindText(v, R.id.am_last_session_hostlat, hostLatMs < 0 ? "\u2014" : hostLatMs + " ms");
-            bindText(v, R.id.am_last_session_drops,
-                    dropsPct < 0 ? "\u2014" : String.format(java.util.Locale.US, "%.1f%%", dropsPct));
 
-            // RTT caption: "11 peak" when the host measured a peak, plain "RTT"
-            // when it never did — byte-for-byte the desktop's HostStage logic.
+            // DURATION — plain, no frame: "a bordered box around a plain fact was a second
+            // frame this panel did not need" (HostStage.qml:1296-1298).
+            bindText(v, R.id.am_last_session_duration, duration == null ? "" : duration);
+
+            // THE THREE NUMBERS — a bare value plus a unit view, so the unit sits on the
+            // value's baseline and disappears when the host never measured the figure
+            // (HostStage.qml:1345-1391, `visible: modelData.value !== "—"`).
+            bindValueUnit(v, R.id.am_last_session_rtt, R.id.am_last_session_rtt_unit, rttMs, 0, "ms");
+            bindValueUnit(v, R.id.am_last_session_hostlat, R.id.am_last_session_hostlat_unit,
+                    hostLatMs, 1, "ms");
+            bindValueUnit(v, R.id.am_last_session_drops, R.id.am_last_session_drops_unit,
+                    dropsPct, 1, "%");
+
+            // RTT caption: "11 peak" when the host measured a peak, plain "RTT" when it never
+            // did — byte-for-byte the desktop's logic (HostStage.qml:1348-1350).
             TextView rttCap = v.findViewById(R.id.am_last_session_rtt_caption);
             if (rttCap != null) {
                 rttCap.setText(rttPeakMs < 0
@@ -303,78 +321,27 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                         : rttPeakMs + " " + context.getString(R.string.am_stat_peak));
             }
 
-            renderGameCovers(v, games, gamesTotal);
-
             panel.setVisibility(View.VISIBLE);
         }
 
-        /** The desktop's "+N" rule: games_total can exceed the capped list the host sends. */
-        private void renderGameCovers(View v, java.util.List<GameCover> games, int gamesTotal) {
-            LinearLayout covers = v.findViewById(R.id.am_last_session_covers);
-            if (covers == null) {
+        /**
+         * HostStage.qml:1244-1247 — {@code _num(v, decimals)}. A negative figure is the host
+         * saying "never measured", which is NOT the same as zero: a client that printed 0 ms
+         * would be inventing a result it was explicitly not given. So the value is an em dash and
+         * the unit goes away with it.
+         */
+        private void bindValueUnit(View v, int valueId, int unitId, double value,
+                                   int decimals, String unit) {
+            boolean missing = value < 0;
+            bindText(v, valueId, missing
+                    ? "\u2014"
+                    : String.format(java.util.Locale.US, "%." + decimals + "f", value));
+            TextView u = v.findViewById(unitId);
+            if (u == null) {
                 return;
             }
-            int shown = (games == null) ? 0 : Math.min(games.size(), 3);
-            if (shown == 0) {
-                covers.setVisibility(View.GONE);
-                return;
-            }
-            int[] tileIds = {
-                    R.id.am_last_session_cover0,
-                    R.id.am_last_session_cover1,
-                    R.id.am_last_session_cover2
-            };
-            int[] imgIds = {
-                    R.id.am_last_session_cover_img0,
-                    R.id.am_last_session_cover_img1,
-                    R.id.am_last_session_cover_img2
-            };
-            int[] nameIds = {
-                    R.id.am_last_session_cover_name0,
-                    R.id.am_last_session_cover_name1,
-                    R.id.am_last_session_cover_name2
-            };
-            for (int i = 0; i < 3; i++) {
-                View tile = v.findViewById(tileIds[i]);
-                if (tile == null) {
-                    continue;
-                }
-                ImageView img = v.findViewById(imgIds[i]);
-                TextView name = v.findViewById(nameIds[i]);
-                if (i < shown) {
-                    tile.setVisibility(View.VISIBLE);
-                    GameCover gc = games.get(i);
-                    android.graphics.Bitmap bmp = decodeCover(gc.cover);
-                    if (bmp != null && img != null) {
-                        img.setImageBitmap(bmp);
-                        img.setVisibility(View.VISIBLE);
-                        if (name != null) {
-                            name.setVisibility(View.GONE);
-                        }
-                    } else {
-                        if (img != null) {
-                            img.setVisibility(View.GONE);
-                        }
-                        if (name != null) {
-                            name.setText(gc.name);
-                            name.setVisibility(View.VISIBLE);
-                        }
-                    }
-                } else {
-                    tile.setVisibility(View.INVISIBLE);
-                }
-            }
-            TextView more = v.findViewById(R.id.am_last_session_more);
-            if (more != null) {
-                int extra = gamesTotal - shown;
-                if (extra > 0) {
-                    more.setText("+" + extra);
-                    more.setVisibility(View.VISIBLE);
-                } else {
-                    more.setVisibility(View.GONE);
-                }
-            }
-            covers.setVisibility(View.VISIBLE);
+            u.setText(unit);
+            u.setVisibility(missing ? View.GONE : View.VISIBLE);
         }
 
         /** Decodes a host inline cover (base64 PNG/JPEG); cached by payload so the
@@ -424,21 +391,24 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
      * ("1000" -> "1 Gbps"). link == null hides the block.
      */
     /**
-     * v12: the right-hand GameFacts block — desktop HostStage.qml:1625, `lastPanel`, the block
-     * that stands on the floor beside the card: badge, cover, title, meta, figures.
+     * v12: the right-hand GameFacts block — desktop HostStage.qml:1625, `lastPanel`.
      *
-     * ⚠️ This is NOT the host's session numbers. Those live inside the card now, which is where
-     * the desktop keeps them (HostStage.qml:1218 sits inside the card, anchored 38 in from its
-     * left and right). The right column holds GameFacts, and only GameFacts.
+     * ⚠️ THREE THINGS: badge, cover, title. The desktop passes `store: ""`, `metaExtra: ""`,
+     * `played: ""`, `sessions: 0` at this call site and says why — "Deliberately all empty: title
+     * and cover, nothing else" (HostStage.qml:1681-1693). GameFacts' own `visible:` conditions
+     * then hide the meta row and the figure row, so binding them here was drawing two rows the
+     * desktop deliberately does not draw on this screen.
      *
-     * ⚠️ Source. The desktop feeds this from a playtime log it keeps itself on the machine that
-     * played (computermodel.cpp:1364 → PlaytimeManager). This client has no such log yet, so the
-     * block is fed from the host's own last-session reply — the only per-game record available
-     * here. Same block, same geometry, one different source; when a playtime log lands on Android
-     * this is the method it should feed instead.
+     * ⚠️ Source. The desktop reads this from a playtime log it keeps on the machine that played
+     * (computermodel.cpp:1364 → PlaytimeManager). This client has no such log, so the game named
+     * here is the one the HOST's last session credited — the only per-game record reachable from
+     * a phone. Same block, same geometry, one different source. The badge's muted half is the
+     * playtime TOTAL, which only that local log has, so it is left empty; the desktop draws the
+     * badge with its main half alone when `total` is empty.
      *
-     * ago == null draws nothing at all: "An empty map means draw nothing at all ... There is no
-     * empty state" (HostStage.qml:1611-1613).
+     * ⚠️ No name, no block. `_hasLastPlayed` is `lastPlayed.name !== undefined && !== ""`
+     * (HostStage.qml:215-216), and there is no empty state behind it: "the card simply goes back
+     * to what it looks like without one" (1611-1613).
      */
     public void updateGameFactsByUuid(String uuid, String ago, String duration,
                                       java.util.List<GameCover> games) {
@@ -450,33 +420,31 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         if (col == null) {
             return;
         }
-        if (ago == null || ago.isEmpty()) {
-            col.setVisibility(View.GONE);
-            return;
-        }
 
-        // Badge: "Last played <ago>" with the session's length beside it (HostStage.qml:1658-1665
-        // is the running/last-played wording; there are no "total" figures here — that number is
-        // the desktop's local log).
-        bindText(v, R.id.am_facts_badge_main,
-                context.getString(R.string.am_last_played_ago, ago));
-        bindText(v, R.id.am_facts_badge_muted, duration == null ? "" : duration);
-        View badge = v.findViewById(R.id.am_facts_badge);
-        if (badge != null) {
-            badge.setVisibility(View.VISIBLE);
-        }
-
-        // Cover and title come from the first entry of the host's own games list — the game the
-        // session was played in, which is what the desktop's cover and title are too.
         String title = "";
         android.graphics.Bitmap art = null;
-        if (games != null && !games.isEmpty()) {
+        if (games != null && !games.isEmpty() && games.get(0) != null) {
             GameCover gc = games.get(0);
             if (gc.name != null) {
                 title = gc.name;
             }
             art = decodeCover(gc.cover);
         }
+        if (title.isEmpty()) {
+            col.setVisibility(View.GONE);
+            return;
+        }
+
+        bindText(v, R.id.am_facts_badge_main,
+                (ago == null || ago.isEmpty())
+                        ? context.getString(R.string.am_last_played)
+                        : context.getString(R.string.am_last_played_ago, ago));
+        bindText(v, R.id.am_facts_badge_muted, "");
+        View badge = v.findViewById(R.id.am_facts_badge);
+        if (badge != null) {
+            badge.setVisibility(View.VISIBLE);
+        }
+
         bindText(v, R.id.am_facts_title, title);
 
         final ImageView cover = v.findViewById(R.id.am_facts_cover);
@@ -485,25 +453,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 cover.setImageBitmap(art);
                 cover.setVisibility(View.VISIBLE);
             } else {
+                // HeroCover with no source draws nothing. A framed, filled rectangle where the
+                // artwork should be is a picture-shaped hole, not a picture.
                 cover.setVisibility(View.GONE);
             }
-        }
-
-        // The meta row carries the store's mark and name. The host's reply has neither, so the
-        // row stays hidden rather than inventing a storefront (GameFacts.qml:321 hides it on
-        // empty text for the same reason).
-        View meta = v.findViewById(R.id.am_facts_meta);
-        if (meta != null) {
-            meta.setVisibility(View.GONE);
-        }
-
-        // One figure, not two: PLAYED. The desktop's second figure is the session COUNT from its
-        // own log, and the host does not report one — a "1" here would be inventing a number.
-        boolean hasPlayed = duration != null && !duration.isEmpty();
-        bindText(v, R.id.am_facts_played, hasPlayed ? duration : "\u2014");
-        View figures = v.findViewById(R.id.am_facts_figures);
-        if (figures != null) {
-            figures.setVisibility(hasPlayed ? View.VISIBLE : View.GONE);
         }
 
         col.setVisibility(View.VISIBLE);
@@ -517,15 +470,29 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 @Override
                 public void run() {
                     View panel = (View) col.getParent();
-                    if (panel == null || panel.getHeight() <= 0 || cv.getHeight() <= 0) {
+                    if (panel == null || panel.getHeight() <= 0 || cv.getHeight() <= 0
+                            || cv.getVisibility() != View.VISIBLE) {
                         return;
                     }
                     int others = col.getHeight() - cv.getHeight();
-                    int room = panel.getHeight() - dp(30) - dp(18) - others;
-                    int h = Math.max(dp(90), room);
-                    if (cv.getHeight() != h) {
+                    io.github.onaiaku.artmoon.ui.AmScale st =
+                            io.github.onaiaku.artmoon.ui.AmScale.ofStage(context);
+                    int room = panel.getHeight() - st.dp(30) - st.dp(18) - others;
+                    int h = Math.max(st.dp(90), room);
+                    // 2:3, and capped by the column it lives in — GameFacts.qml:150-156 does the
+                    // same in the other direction (its height is capped by `width * 3 / 2`), and
+                    // HeroCover derives the width from the height. A cover stretched to the full
+                    // width of the panel is a different shape from the one every other platform
+                    // draws.
+                    int w = Math.round(h * 2f / 3f);
+                    int maxW = col.getWidth() - col.getPaddingLeft() - col.getPaddingRight();
+                    if (maxW > 0) {
+                        w = Math.min(w, maxW);
+                    }
+                    if (cv.getHeight() != h || cv.getWidth() != w) {
                         android.view.ViewGroup.LayoutParams lp = cv.getLayoutParams();
                         lp.height = h;
+                        lp.width = w;
                         cv.setLayoutParams(lp);
                     }
                 }

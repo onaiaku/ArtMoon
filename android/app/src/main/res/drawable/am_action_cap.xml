@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ActionHint's keyboard cap — app/gui/ActionHint.qml:66-85.
+
+        implicitWidth:  Math.max(_px(24), capText.implicitWidth + 14)
+        implicitHeight: _px(24)
+        radius: 6                       <- NOT scaled. ActionHint writes the cap's radius as a
+                                           bare 6 and lets it stay; only the SIZE token above it
+                                           goes through _px(). Reproduced as written.
+        color: Qt.rgba(1,1,1,0.06)      <- 6% white over whatever is behind it
+        border: Theme.line, width 1
+
+    The letter inside is ActionHint's own rule — font.pixelSize Math.max(11, size * 0.46), bold —
+    which PcView sets in code because it depends on the live scale.
+
+    ⚠️ This is the WHOLE footprint of a footer prompt's button half. The desktop has no mode in
+    which the footer draws the word alone; that is what the old full-round pill on the word was
+    hiding. See the note in activity_pc_view.xml.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#0FFFFFFF" />
+    <corners android:radius="6dp" />
+    <stroke android:width="1dp" android:color="@color/am_line" />
+</shape>

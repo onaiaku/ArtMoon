@@ -2,10 +2,18 @@
 <!--
     One host tab, ported from HomeScreen.qml:1883-1943.
 
-    Every dimension here is the QML's BASE number, unscaled — 40 tall, radius 9, 8px dot,
-    fontTitle 19, 20 horizontal padding. PcView applies (base * Theme.uiScale) through AmScale
-    at bind time, exactly as the desktop does. Do not "tidy" these into tuned dp: a literal that
-    matches the desktop by luck is drift the moment the window changes width.
+    height _px(40) · width = content + _px(40) · radius _px(9) · dot _px(8), content spacing
+    _px(10) · label at Theme.fontTitle (19) DemiBold.
+
+    ⚠️ THE BACKGROUND IS NOT HERE. A tab is transparent until it is SELECTED, and then it is
+    Theme.cardHigh with a 1px Theme.lineHigh border (accent and 2px when focused) — three states
+    of one drawable, swapped by PcView.updateTabSelection(). A background in this file is a tab
+    that paints whether or not it is the one you are looking at, which is what every tab here used
+    to do.
+
+    Radii scale with the window (AmScale scales shape radii now, exactly as the QML's _px(9)
+    does). Do not "tidy" these into tuned dp: a literal that matches the desktop by luck is drift
+    the moment the window changes width.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
@@ -13,11 +21,10 @@
     android:orientation="horizontal"
     android:gravity="center"
     android:paddingStart="20dp"
-    android:paddingEnd="20dp"
-    android:background="@drawable/am_picker_pill">
+    android:paddingEnd="20dp">
 
-    <!-- Connectivity at a glance (HomeScreen.qml:1909-1919): offline / unknown / online+
-         paired / online+unpaired. Never accent-coloured — semantic colours stay semantic. -->
+    <!-- Connectivity at a glance (HomeScreen.qml:1909-1919): offline / unknown / online+paired /
+         online+unpaired. Never accent-coloured — semantic colours stay semantic. -->
     <View
         android:id="@+id/am_tab_dot"
         android:layout_width="8dp"
@@ -36,7 +43,6 @@
         android:textSize="19sp"
         android:textStyle="bold"
         android:textAllCaps="true"
-        android:letterSpacing="0.02"
         android:textColor="@color/am_text_tertiary" />
 
 </LinearLayout>

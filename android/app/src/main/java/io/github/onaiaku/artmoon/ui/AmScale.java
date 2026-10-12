@@ -54,6 +54,21 @@ public final class AmScale {
         return new AmScale((dm.widthPixels / dm.density) / BASE_WIDTH);
     }
 
+    /**
+     * The STAGE's scale, which the desktop clamps and the shell does not.
+     *
+     * <p>HostStage.qml:315 — {@code _u = Math.max(0.62, Math.min(1.60, width / 1330))}. HomeScreen
+     * and AppShell both divide and stop (HomeScreen.qml:116, AppShell.qml:32), so the brand row,
+     * the tab strip and the footer keep shrinking with the window while the card and everything
+     * on it stop at 0.62. That is the desktop's own behaviour at a narrow width and the port has
+     * to reproduce it, not improve on it.
+     */
+    public static AmScale ofStage(Context c) {
+        DisplayMetrics dm = c.getResources().getDisplayMetrics();
+        float raw = (dm.widthPixels / dm.density) / BASE_WIDTH;
+        return new AmScale(Math.max(0.62f, Math.min(1.60f, raw)));
+    }
+
     public float uiScale() {
         return uiScale;
     }
@@ -132,6 +147,35 @@ public final class AmScale {
         if (v.getMinimumWidth() > 0) v.setMinimumWidth(px(v.getMinimumWidth(), s));
         if (v.getMinimumHeight() > 0) v.setMinimumHeight(px(v.getMinimumHeight(), s));
 
+        // Radii scale too, and this is the one that was actually breaking pills on screen.
+        //
+        // A shape drawable writes its corner radius in the layout at the QML's DESIGN size, and
+        // that radius has to come down with the box it is drawn on. It was not: a 40-tall tab
+        // became 28 at uiScale 0.70 while its corner radius stayed at 20 — and a radius past
+        // half the height draws the two end caps straight through each other, which is exactly
+        // the "cut off through the middle" a pill gets. Same drawable on LT/RT, the footer chips
+        // and the badges.
+        //
+        // mutate() FIRST. A drawable loaded from resources is shared by every view using it, so
+        // writing a radius onto the shared instance would scale it again for each row after the
+        // first. mutate() gives this view its own copy.
+        android.graphics.drawable.Drawable bg = v.getBackground();
+        if (bg != null) {
+            android.graphics.drawable.Drawable own = bg.mutate();
+            if (own != null && own != bg) {
+                v.setBackground(own);
+                bg = own;
+            }
+            if (bg instanceof android.graphics.drawable.GradientDrawable) {
+                android.graphics.drawable.GradientDrawable gd =
+                        (android.graphics.drawable.GradientDrawable) bg;
+                float designRadius = gd.getCornerRadius();
+                if (designRadius > 0f) {
+                    gd.setCornerRadius(designRadius * s.uiScale);
+                }
+            }
+        }
+
         if (v instanceof android.widget.TextView) {
             android.widget.TextView tv = (android.widget.TextView) v;
             float size = tv.getTextSize();          // px
@@ -142,6 +186,14 @@ public final class AmScale {
                 tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size * s.uiScale);
             }
         }
+    }
+
+    /**
+     * A QML {@code _px(n)} corner radius, in physical px, for a {@link GradientDrawable} built in
+     * code. Same rule {@link #dp} applies, in the unit a drawable wants.
+     */
+    public float radiusPx(float baseRadius, Context c) {
+        return Math.round(baseRadius * uiScale) * c.getResources().getDisplayMetrics().density;
     }
 
     /** The corner radius a QML {@code _px(n)} radius becomes — radii scale too. */

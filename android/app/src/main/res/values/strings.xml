@@ -410,4 +410,6 @@
     <string name="am_hero_bg_applied">Background set</string>
     <string name="am_hero_bg_failed">Couldn\'t load that image</string>
     <string name="am_hero_bg_removed">Background removed</string>
+    <string name="am_key_pgup">PgUp</string>
+    <string name="am_key_pgdn">PgDn</string>
 </resources>

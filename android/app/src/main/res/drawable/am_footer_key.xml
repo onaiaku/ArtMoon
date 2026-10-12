@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Footer keycap pill from the render: card background, hairline border, full round. -->
+<!--
+    The footer prompt's button half, in keyboard mode: ActionHint's cap, not a pill around a word.
+
+    It was full-round with a 12 radius and it was on the WORD — so a footer prompt drew as a
+    bordered capsule containing "Shutdown", which no other platform has. The desktop's prompt is a
+    small key chip at radius 6 followed by the plain word (AppShell.qml:597-610).
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="@color/am_surface" />
-    <corners android:radius="12dp" />
-    <stroke android:width="1dp" android:color="@color/am_border" />
+    <solid android:color="#0FFFFFFF" />
+    <corners android:radius="6dp" />
+    <stroke android:width="1dp" android:color="@color/am_line" />
 </shape>

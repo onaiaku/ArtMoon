@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Host-picker pill: dark surface, hairline border, full round. -->
+<!--
+    Host tab, SELECTED state — HomeScreen.qml:1893-1900.
+
+        height: _px(40)
+        radius: _px(9)                  <- 9, and it scales. This file used to say 20 ("full
+                                           round"), which on a 40-tall tab at uiScale 0.70 came
+                                           out as a 20 radius on a 28-tall box: more than half the
+                                           height, so the two end caps drew through each other and
+                                           the pill read as sliced across the middle. Exactly the
+                                           bug Nik found on the Fold.
+        color:  Theme.cardHigh          <- selected or hovered
+        border: Theme.lineHigh, 1       <- selected (accent 2 when focused, set in code)
+
+    Unselected tabs are TRANSPARENT with no border at all — PcView clears the background for
+    them, which is why this drawable is only ever the selected half.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="@color/am_card_high" />
-    <corners android:radius="20dp" />
-    <stroke android:width="1dp" android:color="@color/am_border" />
+    <corners android:radius="9dp" />
+    <stroke android:width="1dp" android:color="@color/am_line_high" />
 </shape>
