@@ -1666,8 +1666,9 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         final PlaytimeManager.PlaytimeRecord rec =
                 PlaytimeManager.lastPlayedOn(this, details.uuid);
         if (!rec.valid || rec.name == null || rec.name.isEmpty()) {
-            // No name, no block (HostStage.qml:215-216, 1611-1613).
-            pcGridAdapter.setLastPlayedByUuid(details.uuid, null, null, null, null);
+            // No name, no block — the placeholder takes its place (HostStage.qml:215-216, 1611-1613,
+            // and the hint at 1898-1957). It needs the host's name, which is why it is passed here.
+            pcGridAdapter.setLastPlayedByUuid(details.uuid, details.name, null, null, null, null);
             return;
         }
 
@@ -1678,7 +1679,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         // draws nothing, and a picture-shaped hole is not a picture.
         final android.graphics.Bitmap art = appId == 0 ? null : cachedBoxArt(details.uuid, appId);
 
-        pcGridAdapter.setLastPlayedByUuid(details.uuid, rec.name, art,
+        pcGridAdapter.setLastPlayedByUuid(details.uuid, details.name, rec.name, art,
                 PlaytimeManager.formatDuration(rec.totalSeconds),
                 formatAgo(rec.lastPlayedUtc));
     }

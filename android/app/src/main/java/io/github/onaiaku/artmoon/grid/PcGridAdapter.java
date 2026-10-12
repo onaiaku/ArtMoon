@@ -329,14 +329,24 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     private final java.util.HashMap<String, LastPlayed> lastPlayedByUuid = new java.util.HashMap<>();
 
     /**
-     * Tells the block what this client last played here. An empty name clears it and the block
-     * goes back to not being drawn — the desktop's rule: no name, no block, and no empty state
-     * behind it (HostStage.qml:215-216, 1611-1613).
+     * The host's own display name. The placeholder line names it — "Your last game on %1$s will
+     * show up here" (HostStage.qml:1948) — and it has to be readable on a host where nothing has
+     * been played yet, which is exactly when there is no record to carry it.
      */
-    public void setLastPlayedByUuid(String uuid, String name, android.graphics.Bitmap cover,
-                                    String total, String ago) {
+    private final java.util.HashMap<String, String> hostNameByUuid = new java.util.HashMap<>();
+
+    /**
+     * Tells the block what this client last played here. An empty name clears it and the block
+     * goes back to the placeholder — the desktop's rule: no name, no block, and no empty state
+     * behind it (HostStage.qml:215-216, 1611-1613), but a placeholder in front of it.
+     */
+    public void setLastPlayedByUuid(String uuid, String hostName, String name,
+                                    android.graphics.Bitmap cover, String total, String ago) {
         if (uuid == null) {
             return;
+        }
+        if (hostName != null && !hostName.isEmpty()) {
+            hostNameByUuid.put(uuid, hostName);
         }
         if (name == null || name.isEmpty()) {
             lastPlayedByUuid.remove(uuid);
@@ -616,6 +626,35 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     }
 
     /**
+     * The state before the first game on this host (HostStage.qml:1898-1957): the badge the block
+     * will carry, and one line naming the host, centred where the block will stand.
+     *
+     * <p>&#9888; It is deliberately NOT an outline of the block. The desktop built that first — the
+     * cover's exact box, dashed, with "Your last game" at title size — and its own note calls the
+     * result "the ugliest thing on the screen: the largest object on that side, holding nothing, so
+     * the eye went to it and found a hole."</p>
+     */
+    private void showLastPlayedHint(View card, String uuid) {
+        View hint = card.findViewById(R.id.am_facts_hint);
+        if (hint == null) {
+            return;
+        }
+        bindText(card, R.id.am_facts_hint_badge_text, context.getString(R.string.am_last_played));
+        String host = uuid == null ? null : hostNameByUuid.get(uuid);
+        bindText(card, R.id.am_facts_hint_text,
+                context.getString(R.string.am_last_played_hint,
+                        host == null || host.isEmpty() ? "" : host));
+        hint.setVisibility(View.VISIBLE);
+    }
+
+    private void hideLastPlayedHint(View card) {
+        View hint = card.findViewById(R.id.am_facts_hint);
+        if (hint != null) {
+            hint.setVisibility(View.GONE);
+        }
+    }
+
+    /**
      * Repaints the right-hand block from what it already knows — the running session, and the game
      * this client last played here. No arguments: the facts are held, so a repaint never re-reads a
      * poll's payload, and the block cannot be named by something the host happened to say.
@@ -651,10 +690,16 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         // running: the badge names the state before the host's list has told us the game's name,
         // so the block stays up rather than blinking out for the second the lookup takes.
         if (!running && title.isEmpty()) {
+            // Before the first game. No block — but NOT nothing: one badge and one quiet line
+            // where the block will stand, level with the middle of the card (HostStage.qml:1898-
+            // 1957). Hiding the column and leaving the space bare is what made the right of the
+            // card read as broken.
             col.setVisibility(View.GONE);
             hidePanelStack(v);
+            showLastPlayedHint(v, uuid);
             return;
         }
+        hideLastPlayedHint(v);
 
         bindText(v, R.id.am_facts_badge_main,
                 running ? context.getString(R.string.am_streaming_now)

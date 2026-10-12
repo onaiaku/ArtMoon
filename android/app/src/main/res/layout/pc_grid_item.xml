@@ -612,6 +612,70 @@
                 android:textColor="@color/am_text" />
         </LinearLayout>
 
+        <!-- ══════ before the first game — HostStage.qml:1898-1957 ══════
+
+             Nothing has been played here yet, so there is no block to draw — but there is still
+             something to SAY, and hiding the column entirely was wrong. The desktop's own words:
+
+               "The badge the block will carry, and one line — centred in the space where the block
+                will stand, level with the middle of the card. It sat on the line where Play again
+                will appear at first, and read as a footnote down there (Marcello, 18/09/2026)."
+
+             ⚠️ Deliberately NOT an outline of the block. The desktop built that first — the
+             cover's exact box, dashed, with "Your last game" at title size — and calls it "the
+             ugliest thing on the screen: the largest object on that side, holding nothing, so the
+             eye went to it and found a hole." Anything that draws the shape of the missing cover
+             repeats that mistake.
+
+             The badge is GameFacts' own recipe (@drawable/am_facts_badge — height _px(30),
+             radius _px(6), no fill, 1px Theme.line), "so it is the same badge the real block will
+             show in this place"; its type is Theme.text3 where the real badge's is text2. -->
+        <LinearLayout
+            android:id="@+id/am_facts_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:paddingEnd="46dp"
+            android:paddingRight="46dp"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/am_facts_hint_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:background="@drawable/am_facts_badge"
+                android:paddingStart="13dp"
+                android:paddingLeft="13dp"
+                android:paddingEnd="13dp"
+                android:paddingRight="13dp">
+
+                <TextView
+                    android:id="@+id/am_facts_hint_badge_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.069"
+                    android:textAllCaps="true"
+                    android:textColor="@color/am_text3" />
+            </LinearLayout>
+
+            <!-- _px(12) below the badge, and it wraps inside the panel's width rather than
+                 running off the edge (the desktop caps it at lastPanel.width). -->
+            <TextView
+                android:id="@+id/am_facts_hint_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_horizontal"
+                android:textSize="16sp"
+                android:textColor="@color/am_text2" />
+        </LinearLayout>
+
 
             <!-- ══════ the panel pair — HostStage.qml:1694-1896 ══════
 

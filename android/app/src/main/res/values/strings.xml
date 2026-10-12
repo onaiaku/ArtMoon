@@ -386,6 +386,10 @@
     <!-- GameFacts (app/gui/GameFacts.qml) — the right-hand block on the host stage. -->
     <string name="am_last_played_ago">Last played %1$s</string>
     <string name="am_last_played">Last played</string>
+    <!-- HostStage.qml:1948 — the state before the first game on this host. The host is named so
+         the line says whose last game it will be; it replaces the block until the first launch
+         does, which is why the desktop refuses to make it a stand-in with content of its own. -->
+    <string name="am_last_played_hint">Your last game on %1$s will show up here</string>
     <string name="am_streaming_now">Streaming now</string>
     <string name="am_fig_played">Played</string>
     <string name="am_fig_session">Session</string>
