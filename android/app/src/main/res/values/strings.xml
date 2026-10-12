@@ -447,5 +447,6 @@
     <string name="am_key_settings_hint">S  Settings</string>
     <string name="am_key_hosts_hint">Esc  Hosts</string>
     <string name="am_pick_cover_desc">Cover art</string>
+    <string name="am_row_streaming">Streaming</string>
 </resources>
 

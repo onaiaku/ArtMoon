@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lit: the row has the focus. Accent at 0.16 with a 2px accent border (§13). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <stroke android:width="2dp" android:color="@color/am_accent" />
+    <solid android:color="#29ff2a6d" />
+</shape>

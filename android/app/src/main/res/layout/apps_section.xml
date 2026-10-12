@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A heading in the library, drawn by the list so it scrolls away with its rows (AppsScreen.qml §12).
+    Anchored headings were the old bug: LAST PLAYED stayed pinned while its row scrolled off. The
+    first heading in the list has no rule above it.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/am_sec_rule"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginLeft="48dp"
+        android:background="@color/am_line" />
+
+    <TextView
+        android:id="@+id/am_sec_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="10dp"
+        android:paddingLeft="10dp"
+        android:paddingTop="9dp"
+        android:paddingBottom="5dp"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.12"
+        android:textAllCaps="true"
+        android:textColor="@color/am_text2" />
+</LinearLayout>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One row of the picker's library (AppsScreen.qml §13). Left to right: the thumbnail box, the title
+    and its meta line, the pin mark, the STREAMING pill. The title/meta column is bounded by the pin
+    mark, then the run tag, then the row edge.
+
+    Height and spacing are the desktop's fraction of the page, not its unit count: 84 units of 1330 is
+    what this is matched to.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/am_row"
+    android:layout_width="match_parent"
+    android:layout_height="62dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:baselineAligned="false"
+    android:paddingStart="10dp"
+    android:paddingLeft="10dp"
+    android:paddingEnd="10dp"
+    android:paddingRight="10dp"
+    android:background="@android:color/transparent">
+
+    <FrameLayout
+        android:layout_width="37dp"
+        android:layout_height="54dp">
+
+        <View
+            android:id="@+id/am_row_ph"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/am_row_placeholder" />
+
+        <ImageView
+            android:id="@+id/am_row_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/am_pick_cover_desc" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginLeft="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/am_row_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="@color/am_text_primary"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/am_row_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="12sp"
+            android:textColor="@color/am_text3"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/am_row_pin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:textSize="12sp"
+        android:text="\u2b50"
+        android:textColor="@color/am_text2"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/am_row_tag"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:gravity="center"
+        android:background="@drawable/am_run_tag"
+        android:paddingStart="9dp"
+        android:paddingLeft="9dp"
+        android:paddingEnd="9dp"
+        android:paddingRight="9dp"
+        android:text="@string/am_row_streaming"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.10"
+        android:textColor="@color/am_on_accent"
+        android:visibility="gone" />
+</LinearLayout>

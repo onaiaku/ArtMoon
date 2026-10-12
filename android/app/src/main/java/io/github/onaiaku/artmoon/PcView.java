@@ -707,7 +707,8 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             return;
         }
 
-        Intent i = new Intent(this, AppView.class);
+        // The picker is its own screen — the desktop's page, not the old app list.
+        Intent i = new Intent(this, io.github.onaiaku.artmoon.apps.AppsPageView.class);
         i.putExtra(AppView.NAME_EXTRA, computer.name);
         i.putExtra(AppView.UUID_EXTRA, computer.uuid);
         i.putExtra(AppView.NEW_PAIR_EXTRA, newlyPaired);
