@@ -172,14 +172,14 @@ two earlier attempts at (1) were both reasoned at the loader; the loader was nev
 
 ### Missing in the picker (desktop section → what Android doesn't have)
 
-⚠️ **Corrected 12 Oct 2026, after Nik said so:** "Last played" and "Pinned" were called PRESENT off the
+⚠️ **Corrected 12 Oct 2026, after Nik said so** — and one thing in this row was wrong when first written: the picker's app-list poller IS started (`AppsPageView.java:1074-1077`, with its stop in `onDestroy`), so that was never the reason: **looked at properly and corrected the same night, rather than left standing.** "Last played" and "Pinned" were called PRESENT off the
 constants in the code (`SECTION_CONTINUE`, `SECTION_PINNED`, `PinnedRole`) instead of off a proper look
 at what the desktop actually does with them. Both are below now, with the desktop's own lines and what
 is really true on the phone.
 
 | Desktop § | Missing |
 |---|---|
-| **Last played** — `HostStage.qml:199-260` (the block, `lastPlayedFor()`), `appmodel.cpp:364-380` (the section rule) | the rule is ported faithfully (`AppLibrary.java:196-200`: only row 0 can be Continue; APPS excluded in `lastPlayedForSort`) and the block is ported (`_panelPlaceholder` / `lastPlayedHint`). **But nothing lights the heading on the phone:** it is fed by this client's own last-game pointer (`PlaytimeManager.lastPlayedOn` → `SER_LASTGAME`), which only a **banked** session writes, and `endSession` refuses anything under 60 seconds (`kMinSessionSeconds`). The watcher's half (`ObservedPlaytime`) is inert because the picker's poller never starts. Nik sees no LAST PLAYED heading, and he is right. |
+| **Last played** — `HostStage.qml:199-260` (the block, `lastPlayedFor()`), `appmodel.cpp:364-380` (the section rule) | the rule is ported faithfully (`AppLibrary.java:196-200`: only row 0 can be Continue; APPS excluded in `lastPlayedForSort`) and the block is ported (`_panelPlaceholder` / `lastPlayedHint`). **But nothing lights the heading on the phone:** it is fed by this client's own last-game pointer (`PlaytimeManager.lastPlayedOn` → `SER_LASTGAME`), which only a **banked** session writes, and `endSession` refuses anything under 60 seconds (`kMinSessionSeconds`). The watcher's half (`ObservedPlaytime`) can never name a running game, so nothing of another client's session is ever observed. Nik sees no LAST PLAYED heading, and he is right. |
 | **Pinned** — `AppsScreen.qml:285-291`, `:541-557` (toggle), `:1382` (the PINNED caption), `:1572-1578` (the mark on the row), `AppShell.qml:533-542` (the pad prompt flipping Pin/Unpin) | the model is ported and matches the desktop rule for rule — games only, APPS excluded, the mark on the row, the sort. **The door is not:** the only way to pin is the long-press touch menu, so with a controller in his hand Pinned can be neither seen nor set. Nothing is pinned on his phone, which is why there is no PINNED heading at all. |
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" — not there at all |
 | §1095 action row | **nothing** — launch + Stop, and per-game settings is not a port item (see the note below) |
