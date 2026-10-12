@@ -55,17 +55,23 @@
         <!-- Category headers: uppercase, tracked-out, dim — matches hero badges. -->
     </style>
 
+    <!-- The stream badges beside the status line. HostStage.qml:1079-1099 —
+         height _px(28), radius _px(7), text + _px(20), a 7% wash with a 26% border, text in
+         Theme.fontSmall (13) DemiBold in the reading colour, and NO tracking.
+
+         It used to be 10sp bold with 0.06 tracking on a solid @color/am_surface box with a
+         12dp radius — a different component wearing the same name. The desktop's badges are a
+         tint of the reading colour, not a surface, and at less than half that radius. -->
     <style name="AmSpecChip">
-        <item name="android:textSize">10sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.06</item>
-        <item name="android:textColor">@color/am_text_primary</item>
+        <item name="android:textColor">@color/am_text</item>
         <item name="android:background">@drawable/am_spec_chip</item>
-        <item name="android:paddingLeft">9dp</item>
-        <item name="android:paddingRight">9dp</item>
-        <item name="android:paddingTop">3dp</item>
-        <item name="android:paddingBottom">3dp</item>
-        <item name="android:layout_marginEnd">6dp</item>
-        <item name="android:maxLines">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:layout_marginStart">14dp</item>
+        <item name="android:singleLine">true</item>
     </style>
 </resources>

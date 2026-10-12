@@ -4,6 +4,7 @@ import android.content.Context;
 import io.github.onaiaku.artmoon.artlight.HostBackgroundManager;
 import io.github.onaiaku.artmoon.artlight.HostMetricsPoller.GameCover;
 import android.view.View;
+import android.view.ViewGroup;
 
 import io.github.onaiaku.artmoon.ui.AmActionPill;
 import io.github.onaiaku.artmoon.ui.AmBackdropRamp;
@@ -738,34 +739,57 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             }
         }
 
+        // ── The status line and its stream badges (HostStage.qml:1038-1103) ─────────────────
+        // ONE row, and the desktop says why in as many words: a version that wrapped the badges
+        // onto a second line "was tried first and turned down: this is one statement, and it
+        // reads as one only on one line."
+        //
+        // These are what the next launch would look like, in the same shapes and the same words
+        // as the host page, because this is the screen you are on when you decide whether to
+        // press A.
         TextView specRes = parentView.findViewById(R.id.am_spec_res);
         TextView specFps = parentView.findViewById(R.id.am_spec_fps);
         TextView specBitrate = parentView.findViewById(R.id.am_spec_bitrate);
+        TextView specHdr = parentView.findViewById(R.id.am_spec_hdr);
         TextView specCodec = parentView.findViewById(R.id.am_spec_codec);
         TextView specAudio = parentView.findViewById(R.id.am_spec_audio);
+        View sublRow = parentView.findViewById(R.id.am_subl_row);
         boolean online = obj.details.state == ComputerDetails.State.ONLINE;
-        if (specRes != null && specFps != null && specBitrate != null) {
-            if (online) {
-                PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(context);
-                specRes.setText(prefs.width + "\u00d7" + prefs.height);
+        boolean paired = obj.details.pairState == PairingManager.PairState.PAIRED;
+
+        if (sublRow != null && specRes != null && specFps != null && specBitrate != null) {
+            // Only worth stating for a host that can actually be streamed to — which is also
+            // what keeps this row short, since every long status line belongs to a state with no
+            // settings to show.
+            //
+            // ⚠️ The desktop's condition is `online && paired && serverSupported`
+            // (HostStage.qml:1067). Android's host list records no server version, so
+            // online && paired is as far as the data goes here: a host too old to stream would
+            // still show its badges. That is a poller gap, not a rendering one.
+            PreferenceConfiguration prefs = (online && paired)
+                    ? PreferenceConfiguration.readPreferences(context) : null;
+
+            if (prefs != null) {
+                // The desktop's own labels, not the raw values: _resLabel() gives "1080p" where
+                // the port printed "1920x1080", and the bitrate rounds rather than always
+                // rounding up. Resolution and fps are the same two numbers either way.
+                specRes.setText(resLabel(prefs.width, prefs.height));
                 specFps.setText(prefs.fps + " FPS");
-                specBitrate.setText((prefs.bitrate + 999) / 1000 + " Mbps");
-                if (specCodec != null) {
-                    specCodec.setText(codecLabel(prefs.videoFormat));
-                }
-                if (specAudio != null) {
-                    specAudio.setText(audioLabel(prefs.audioConfiguration));
-                }
-                TextView[] chips = {specRes, specFps, specBitrate, specCodec, specAudio};
-                for (TextView c : chips) {
-                    if (c != null) c.setVisibility(View.VISIBLE);
-                }
-            } else {
-                TextView[] chips = {specRes, specFps, specBitrate, specCodec, specAudio};
-                for (TextView c : chips) {
-                    if (c != null) c.setVisibility(View.GONE);
-                }
+                specBitrate.setText(Math.round(prefs.bitrate / 1000f) + " Mbps");
+                specCodec.setText(codecLabel(prefs.videoFormat));
+                specAudio.setText(audioLabel(prefs.audioConfiguration));
+                // HDR is pushed into the row only when it is on (HostStage.qml:1072-1073), so it
+                // appears BETWEEN the bitrate and the codec rather than at the end.
+                specHdr.setVisibility(prefs.enableHdr ? View.VISIBLE : View.GONE);
+            } else if (specHdr != null) {
+                specHdr.setVisibility(View.GONE);
             }
+
+            TextView[] chips = {specRes, specFps, specBitrate, specCodec, specAudio};
+            for (TextView c : chips) {
+                if (c != null) c.setVisibility(prefs != null ? View.VISIBLE : View.GONE);
+            }
+            bindSublRow((LinearLayout) sublRow, obj.details.uuid);
         }
 
         if (obj.details.state == ComputerDetails.State.UNKNOWN) {
@@ -807,16 +831,106 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             overlayView.setVisibility(View.GONE);
         }
     }
+    /** HostStage.qml:73 — the desktop's words, including "Auto codec". Android's FormatOption
+     *  has no PyroWave (the desktop's c === 5), so the four it does have map one for one. */
     private static String codecLabel(PreferenceConfiguration.FormatOption fmt) {
         if (fmt == PreferenceConfiguration.FormatOption.FORCE_AV1) return "AV1";
         if (fmt == PreferenceConfiguration.FormatOption.FORCE_HEVC) return "HEVC";
         if (fmt == PreferenceConfiguration.FormatOption.FORCE_H264) return "H.264";
-        return "Auto";
+        return "Auto codec";
     }
 
     private static String audioLabel(MoonBridge.AudioConfiguration audio) {
         if (audio == MoonBridge.AUDIO_CONFIGURATION_51_SURROUND) return "5.1";
         if (audio == MoonBridge.AUDIO_CONFIGURATION_71_SURROUND) return "7.1";
         return "Stereo";
+    }
+
+    /** HostStage.qml:76-83 — the friendly label, not the raw pair: "1080p", not "1920x1080". */
+    private static String resLabel(int w, int h) {
+        if (w == 3840 && h == 2160) return "4K";
+        if (w == 2560 && h == 1440) return "1440p";
+        if (w == 1920 && h == 1080) return "1080p";
+        if (w == 1280 && h == 720)  return "720p";
+        return w + "\u00d7" + h;
+    }
+
+    /**
+     * The status line and its badges, shrunk to fit only when they have to be
+     * (HostStage.qml:785-792 and :1038-1047).
+     *
+     * `_fit` is 1 whenever the row fits — the usual case — and below 1 only for the moments that
+     * would otherwise run past the card's edge. The ROW is scaled as a whole rather than each
+     * font and padding being re-derived, so the badges keep their exact proportions; and the box
+     * takes the SCALED height, so what sits below moves up with the row instead of keeping a gap
+     * the row no longer fills.
+     *
+     * Android has no equivalent of QML's implicitWidth plus scale, so this does it in two steps
+     * after layout: pin every child to the width it actually wants (so LinearLayout cannot
+     * squeeze the later badges to nothing first), then scale the row to whatever is left.
+     */
+    private void bindSublRow(final LinearLayout row, final String uuid) {
+        row.setTag(R.id.am_subl_row, uuid);
+        final Context ctx = row.getContext();
+        final int[] attempts = {0};
+        row.post(new Runnable() {
+            @Override
+            public void run() {
+                // A recycled row may be showing a different host by the time this runs.
+                if (uuid == null || !uuid.equals(row.getTag(R.id.am_subl_row))) return;
+
+                int natural = 0;
+                for (int i = 0; i < row.getChildCount(); i++) {
+                    View c = row.getChildAt(i);
+                    if (c.getVisibility() == View.GONE) continue;
+                    int w = naturalWidth(c);
+                    ViewGroup.LayoutParams lp = c.getLayoutParams();
+                    if (lp.width != w) {
+                        lp.width = w;
+                        c.setLayoutParams(lp);
+                    }
+                    if (lp instanceof ViewGroup.MarginLayoutParams) {
+                        ViewGroup.MarginLayoutParams m = (ViewGroup.MarginLayoutParams) lp;
+                        natural += m.leftMargin + m.rightMargin;
+                    }
+                    natural += w;
+                }
+
+                int available = row.getWidth();
+                if (available <= 0 && attempts[0]++ < 4) {
+                    // Not laid out yet — nothing to measure against. Try again next frame.
+                    row.post(this);
+                    return;
+                }
+
+                float fit = (available <= 0 || natural <= 0)
+                        ? 1f : Math.min(1f, available / (float) natural);
+                row.setPivotX(0f);
+                row.setPivotY(0f);
+                row.setScaleX(fit);
+                row.setScaleY(fit);
+
+                // _rowH is _px(28) — the base height, not the one we may already have shrunk to,
+                // or the scale would compound on every bind.
+                int h = Math.round(AmScale.ofStage(ctx).lengthPx(28f, ctx) * fit);
+                ViewGroup.LayoutParams rlp = row.getLayoutParams();
+                if (rlp.height != h) {
+                    rlp.height = h;
+                    row.setLayoutParams(rlp);
+                }
+            }
+        });
+    }
+
+    /** The width a child wants, measured with no limit at all — QML's implicitWidth. */
+    private static int naturalWidth(View v) {
+        int w0 = v.getMeasuredWidth(), h0 = v.getMeasuredHeight();
+        v.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                  View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int w = v.getMeasuredWidth();
+        // Put it back: the parent re-measures after this anyway, but leave no trace.
+        v.measure(View.MeasureSpec.makeMeasureSpec(w0, View.MeasureSpec.EXACTLY),
+                  View.MeasureSpec.makeMeasureSpec(h0, View.MeasureSpec.EXACTLY));
+        return w;
     }
 }

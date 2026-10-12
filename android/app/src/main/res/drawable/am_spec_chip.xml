@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Spec chip (resolution/fps/bitrate/codec pills in the host header). -->
+<!-- A stream badge: the status line's pills (resolution, fps, bitrate, HDR, codec, audio).
+
+     ⚠️ NOT a surface. HostStage.qml:1084-1089 derives both from the reading colour, so these
+     follow the card's own light/dark flip instead of being fixed: fill @7% (#12), border @26%
+     (#42). It used to be a solid @color/am_surface box with a 12dp radius, which is a different
+     thing entirely — the desktop's badge is a tint of the text colour, and its radius is
+     _px(7), under half. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="@color/am_surface" />
-    <corners android:radius="12dp" />
-    <stroke android:width="1dp" android:color="@color/am_border" />
+    <solid android:color="#12F3F7F8" />
+    <corners android:radius="7dp" />
+    <stroke android:width="1dp" android:color="#42F3F7F8" />
 </shape>
