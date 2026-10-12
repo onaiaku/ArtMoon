@@ -186,7 +186,7 @@ is really true on the phone.
 | §1799 dialogs | only the quit confirm exists — no pin prompt, no launch confirm |
 | §111 focus zones | partially: nothing else is focusable and the ring starts on the list, but unproven with the pad in hand |
 | §1571 store, in artwork | **PRESENT** (`2b793eda`) — the seven marks, path for path, drawn where the desktop draws them |
-| §285/§367 pin and move | pin: **PRESENT and marked** — Start/P, with the prompt flipping with the row (Nik: "yep pins work"). move: **PORTED 12 Oct 2026, awaiting his mark** — right-stick click or **M**, the prompt carrying the real RS glyph and the word flipping Move to GAMES / Move to APPS with the row, the gate the desktop states (not on ALL, never a host control), and the menu item and the pad opening onto the same `moveFocused()`. The line here said "still missing" an hour before it was done |
+| §285/§367 pin and move | pin: **PRESENT and marked** — Start/P, with the prompt flipping with the row (Nik: "yep pins work"). move: **PRESENT and marked** — right stick click or **M** (Nik: "yep that works too babe", 12 Oct 2026) — right-stick click or **M**, the prompt carrying the real RS glyph and the word flipping Move to GAMES / Move to APPS with the row, the gate the desktop states (not on ALL, never a host control), and the menu item and the pad opening onto the same `moveFocused()`. The line here said "still missing" an hour before it was done |
 | §1047 the launch segue | not ported — Android hands off to Moonlight's own launch UI |
 
 ### No Android screen at all
