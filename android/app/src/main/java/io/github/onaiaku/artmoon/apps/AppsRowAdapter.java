@@ -322,6 +322,22 @@ public class AppsRowAdapter extends BaseAdapter {
         return v;
     }
 
+    /**
+     * Paint an entry's artwork into a view of any size — the spotlight's cover.
+     *
+     * <p>⚠️ This lived on the old app grid's adapter ({@code AppGridAdapter.populateCover}), which
+     * was deleted with the old screen on 12 Oct 2026. The rows kept their own call; the spotlight's
+     * cover did not, and nothing filled it afterwards — so the right-hand preview has been the bare
+     * {@code am_detail_cover_bg} rectangle ever since. The rows still load fine, which is how we
+     * know the host's artwork path was never the problem.
+     */
+    public void populateCover(io.github.onaiaku.artmoon.nvstream.http.NvApp app, ImageView coverView) {
+        if (loaderTextViewDummy == null) {
+            loaderTextViewDummy = new TextView(context);
+        }
+        loader.populateImageView(app, coverView, loaderTextViewDummy);
+    }
+
     private boolean isLit(Item item) {
         return listFocused && items.indexOf(item) == focused;
     }

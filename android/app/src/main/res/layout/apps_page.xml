@@ -320,13 +320,36 @@
                 android:layout_weight="0.48"
                 android:layout_marginStart="16dp"
                 android:layout_marginLeft="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
                 android:orientation="vertical"
                 android:gravity="center">
 
+                <!--
+                    ⚠️ WEIGHTED, not a fixed 225dp — the cover is the one thing here that gives up
+                    room, and it is the desktop's own rule for it (GameFacts.qml:147):
+                    `coverHeight = availableHeight - textCol.implicitHeight - _px(18)`, "MEASURED,
+                    not estimated, so a title that wraps to three lines shortens the picture instead
+                    of pushing the figures off the bottom of the card".
+
+                    It was a fixed height, and the spotlight did not fit: with the playtime line
+                    showing the stack needed 892px in an 853px column, so LinearLayout took the
+                    shortfall out of the LAST child — the action row — and drew the two pills 40px
+                    tall instead of 79px. The keycap inside followed it down, and a compound
+                    drawable stretches to the box it is given, so the 63x63 button art came out
+                    63x32: both glyphs sliced into half-discs, top and bottom (Nik, 12 Oct 2026:
+                    "the buttons only get cut off when it has session stats... it's a space issue,
+                    not a button size issue"). Without the figures line there was room, which is
+                    why an unplayed game looked right.
+
+                    A weighted child is measured AFTER the others, so nothing below it can ever be
+                    squeezed again — a second line in the title shrinks the picture too.
+                -->
                 <ImageView
                     android:id="@+id/am_hero_cover"
                     android:layout_width="150dp"
-                    android:layout_height="225dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
                     android:background="@drawable/am_detail_cover_bg"
                     android:scaleType="fitCenter"
                     android:padding="4dp"

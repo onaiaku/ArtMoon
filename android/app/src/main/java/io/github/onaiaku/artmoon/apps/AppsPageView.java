@@ -966,6 +966,11 @@ public class AppsPageView extends ArtMoonActivity {
         }
 
         cover.setContentDescription(row.name);
+        // The artwork, from the same loader the rows use. It was never asked for here: the old
+        // picker's adapter owned this call and went with the old screen (see AppsRowAdapter).
+        if (adapter != null && row.app != null) {
+            adapter.populateCover(row.app, cover);
+        }
 
         // The page paints its own floor when it has artwork — the blurred, desaturated cover of
         // whatever is in the spotlight (AppsScreen.qml:748). It follows the spotlight, not the
@@ -1126,6 +1131,88 @@ public class AppsPageView extends ArtMoonActivity {
                         });
             }
         }.start();
+    }
+
+    /**
+     * The pad, on the app picker.
+     *
+     * <p>Every line is the desktop's (AppsScreen.qml:467-500): "Y → Settings; X (Menu) → stop the
+     * running app; Select → per-game settings. All three live on the root rather than on the list,
+     * because they are the page's shortcuts and not the list's: they have to work wherever the
+     * focus happens to be" — plus the hero's own verbs off its hint table (AppsScreen.qml:1114-1126,
+     * A or Enter to launch, X to stop).
+     *
+     * <p>⚠️ Until now nothing here owned a single one of them, so a pad press fell through to the
+     * framework: X answered nothing at all — 36 presses in one sitting on Nik's Fold, with the
+     * prompt two inches away saying X would stop the session — and A worked only by accident, as
+     * Android's own activation key, on whatever happened to hold focus.
+     *
+     * <p>The d-pad is deliberately NOT here: the list already walks it, and the spotlight follows.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        // Classify first, exactly as PcView does: this overrides the base class, which is where the
+        // mode is normally noted, so without this call the mode is read one press stale.
+        if (event.getAction() == KeyEvent.ACTION_DOWN || event.getAction() == KeyEvent.ACTION_UP) {
+            io.github.onaiaku.artmoon.artlight.InputModeManager.get().notifyKeyEvent(event);
+        }
+        boolean gamepad = io.github.onaiaku.artmoon.artlight.InputModeManager.get().getMode()
+                == io.github.onaiaku.artmoon.artlight.InputModeManager.Mode.GAMEPAD;
+        if (gamepad) {
+            switch (event.getKeyCode()) {
+                case KeyEvent.KEYCODE_BUTTON_A:
+                case KeyEvent.KEYCODE_BUTTON_B:
+                case KeyEvent.KEYCODE_BUTTON_X:
+                case KeyEvent.KEYCODE_BUTTON_Y:
+                case KeyEvent.KEYCODE_BUTTON_SELECT:
+                case KeyEvent.KEYCODE_DEL:
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        return true;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (gamepad && event.getAction() == KeyEvent.ACTION_UP) {
+            switch (event.getKeyCode()) {
+                case KeyEvent.KEYCODE_BUTTON_X:
+                    // Stop, and only when there is something to stop — the desktop's
+                    // `if (focusedAppIsRunning) stopFocusedApp()`. quit() asks first, as every
+                    // quit in this app does.
+                    AppLibrary.Row runningRow = selectedRow();
+                    if (runningRow != null && runningRow.running) {
+                        quit(runningRow);
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_A:
+                    // The hero's verb, on the button the hero's prompt names.
+                    launchSelected();
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_B:
+                    // Esc on a keyboard, and the same thing this page's back button does.
+                    finish();
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_Y:
+                    startActivity(new Intent(AppsPageView.this, StreamSettings.class));
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_SELECT:
+                    // Select is inert on the wire (the desktop sends Key_F13) and opens the
+                    // per-game menu here — the same one a long press opens on the row.
+                    if (grid != null) {
+                        grid.showContextMenu();
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_DEL:
+                    // ⚠️ This pad sends DEL with BUTTON_X — 1-8ms apart, every press, 36 pairs in
+                    // one sitting (Nik's 045e:0b13 on the Fold, 12 Oct 2026). Nothing here binds
+                    // DEL; it is swallowed with the press it belongs to.
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     @Override
