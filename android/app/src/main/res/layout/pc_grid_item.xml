@@ -84,10 +84,10 @@
                 android:layout_height="match_parent"
                 android:layout_marginBottom="58dp"
                 android:orientation="vertical"
-                android:paddingStart="72dp"
-                android:paddingLeft="72dp"
-                android:paddingEnd="38dp"
-                android:paddingRight="38dp"
+                android:paddingStart="50dp"
+                android:paddingLeft="50dp"
+                android:paddingEnd="50dp"
+                android:paddingRight="50dp"
                 android:paddingTop="20dp"
                 android:paddingBottom="0dp"
                 android:clipChildren="true">
@@ -474,18 +474,13 @@
                  this port deviates from BOTH, deliberately, each one seen and approved on Nik's
                  own screen. Do not "restore" either without asking him.
 
-                   - the START inset is 72dp, not the desktop's 38: the card's content sat
-                     "right on the left edge of the image" while the desktop sat "a bit more to
-                     the right". The desktop's 38 is a fixed fraction of its 1330px stage; on a
-                     phone the window is ~751dp, so the same 38 lands at 0.565x = 21.5dp — the same
-                     proportion of the card, but 5.6mm in the hand against ~1.7cm on a monitor,
-                     which reads as no inset at all. 50dp (+18px on screen) was too small to see;
-                     72dp puts the info ~41dp / 11% of the card in from the photo's left edge.
-                     ⚠️ The END side stays at the desktop's 38dp — do not mirror the start number
-                     onto it. Only the left edge was asked to move, and the text block needs the
-                     width (the spec pills already reach x 873 of a 999px box).
-                     The action row's start margin carries the same 72dp so the buttons sit on the
-                     text's left edge, not on a second one.
+                   - 50dp, not 38: the card's content sat "right on the left edge of the image"
+                     while the desktop sat "a bit more to the right". The desktop's 38 is a fixed
+                     fraction of its 1330px stage; on a phone the window is ~751dp, so the same 38
+                     lands at 0.565x = 21.5dp — the same proportion of the card, but 5.6mm in the
+                     hand against ~1.7cm on a monitor, which reads as no inset at all. 50dp puts
+                     it at ~9% of the card. The column's paddingStart/paddingEnd carry the same
+                     number so the buttons and the text stay on one line.
                    - 15dp, not 30: "You moved them slightly to high now, moved them down half of
                      what you moved them up." At 30 the buttons floated; at 0 they were the thing
                      that clipped. -->
@@ -494,8 +489,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
-                android:layout_marginStart="72dp"
-                android:layout_marginLeft="72dp"
+                android:layout_marginStart="50dp"
+                android:layout_marginLeft="50dp"
                 android:layout_marginBottom="15dp"
                 android:orientation="horizontal">
 
