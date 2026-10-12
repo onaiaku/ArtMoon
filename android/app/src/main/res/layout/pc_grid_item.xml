@@ -71,16 +71,26 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
+            <!-- ⚠️ THE BOTTOM MARGIN IS THE ACTION ROW'S OWN HEIGHT, and it is what stops the
+                 controls from being the thing that gets cut. It reserves the row's strip at the
+                 card's foot so this column measures to the line the row sits on — the same
+                 relationship the desktop states at HostStage.qml:1237
+                 (`y: Math.min(_idealY, actionRow.y - height - stage._px(20))`, "gives up the gap
+                 before it gives up the buttons"). The column clips what does not fit, so a short
+                 card costs the tail of the block above rather than the buttons. Both numbers go
+                 through AmScale, so they stay one number at every width. -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:layout_marginBottom="58dp"
                 android:orientation="vertical"
                 android:paddingStart="38dp"
                 android:paddingLeft="38dp"
                 android:paddingEnd="38dp"
                 android:paddingRight="38dp"
                 android:paddingTop="20dp"
-                android:paddingBottom="30dp">
+                android:paddingBottom="0dp"
+                android:clipChildren="true">
 
                 <LinearLayout
                     android:id="@+id/am_badge_row"
@@ -428,8 +438,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1" />
+            </LinearLayout>
 
-                <!-- HostStage.qml:1424-1477 — the action row at the card's foot. One row of
+            <!-- HostStage.qml:1424-1477 — the action row at the card's foot. One row of
                      controls on ONE baseline; the panel pair under the cover and the title
                      (am_panel_action_stack, right column) sits on this same line, so the card
                      has one row of controls that spans both halves rather than two rows at two
@@ -446,11 +457,35 @@
                      has to come down with the button: a shape inside a ripple/selector is not a
                      GradientDrawable, so AmScale cannot reach its corners, and those fixed
                      28dp corners were the sliced pill. -->
-                <LinearLayout
-                    android:id="@+id/am_action_row"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+            <!-- ⚠️ A SIBLING OF THE COLUMN, PINNED TO THE CARD'S FOOT — NOT THE COLUMN'S LAST CHILD.
+                 This is a fix, not a tidy-up. As the last child it was the thing that fell off
+                 the card when the card ran out of height: on the Fold's cover screen the card is
+                 279dp while its contents want ~292dp, so Open and Options were drawn with their
+                 bottoms past the card's edge and Nik saw "just the very top of the button".
+                 Measured on the device at 1972x1248 / 420dpi: the row was given 52px of its 86px.
+
+                 The desktop settled the direction at HostStage.qml:1237 — the buttons are the
+                 fixed datum and the block above them gives way ("gives up the gap before it gives
+                 up the buttons"). This is that rule: the column above is measured to the row's own
+                 line, and this row is always whole.
+
+                 38dp and 30dp are the desktop's own numbers, not this port's
+                 (HostStage.qml:1428-1429 — `anchors.leftMargin: stage._px(38)`). The desktop's
+                 bottomMargin there is `_px(30)`; this port HALVES it to 15dp, which is Nik's call
+                 on 12 October 2026 after looking at the fixed card on the Fold's cover screen:
+                 "You moved them slightly to high now, moved them down half of what you moved them
+                 up." At 30 the buttons floated; at 0 they were the thing that clipped. Do not
+                 "restore" this to 30 without asking him — it is a deliberate, seen-on-screen
+                 deviation from the desktop, not drift. -->
+            <LinearLayout
+                android:id="@+id/am_action_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="38dp"
+                android:layout_marginLeft="38dp"
+                android:layout_marginBottom="15dp"
+                android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/am_action_open"
@@ -476,7 +511,6 @@
                         android:textColor="@color/am_text"
                         android:paddingStart="27dp"
                         android:paddingEnd="27dp" />
-                </LinearLayout>
             </LinearLayout>
         </FrameLayout>
 
