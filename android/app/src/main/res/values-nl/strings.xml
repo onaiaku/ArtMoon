@@ -145,7 +145,6 @@
     <string name="applist_connect_msg">Verbinden met PC…</string>
     <string name="applist_menu_details">Details bekijken</string>
     <string name="applist_menu_scut">Snelkoppeling Maken</string>
-    <string name="applist_menu_hide_app">App Verbergen</string>
     <string name="applist_details_id">App-id:</string>
     <string name="title_fps_list">Video frame rate</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>

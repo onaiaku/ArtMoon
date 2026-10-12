@@ -135,7 +135,6 @@
     <string name="title_native_res_dialog">네이티브 해상도 주의사항</string>
     <string name="addpc_wrong_sitelocal">주소가 잘못된 것 같습니다. 인터넷을 통해 스트리밍하려면 라우터의 공용 IP 주소를 사용해야합니다.</string>
     <string name="applist_details_id">앱 ID:</string>
-    <string name="applist_menu_hide_app">게임 숨기기</string>
     <string name="applist_menu_scut">바로가기 만들기</string>
     <string name="applist_menu_details">세부사항</string>
     <string name="perf_overlay_dectime">평균 디코딩 시간 : %1$.2f ms</string>

@@ -131,7 +131,6 @@
     <string name="applist_menu_details">Ver Detalhes</string>
     <string name="applist_menu_scut">Criar Atalho</string>
     <string name="applist_menu_tv_channel">Adicionar ao Canal</string>
-    <string name="applist_menu_hide_app">Esconder Jogo</string>
     <string name="applist_refresh_title">Lista de Aplicativos</string>
     <string name="perf_overlay_netdrops">Quadros dropados pela rede: %1$.2f%%</string>
     <string name="applist_quit_app">Saindo</string>

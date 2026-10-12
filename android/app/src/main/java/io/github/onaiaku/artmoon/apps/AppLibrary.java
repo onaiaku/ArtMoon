@@ -55,7 +55,6 @@ public final class AppLibrary {
         public final int appId;
         public final String uuid;
         public final boolean running;
-        public final boolean hidden;
         public final boolean pinned;
         public final boolean isApp;
         public final boolean movable;
@@ -71,7 +70,7 @@ public final class AppLibrary {
         public final String section;
         public final PlaytimeManager.PlaytimeRecord playtime;
 
-        Row(NvApp app, String name, boolean running, boolean hidden, boolean pinned, boolean isApp,
+        Row(NvApp app, String name, boolean running, boolean pinned, boolean isApp,
             boolean overridden, AppCategories.HostControl control, String section,
             PlaytimeManager.PlaytimeRecord playtime) {
             this.app = app;
@@ -79,7 +78,6 @@ public final class AppLibrary {
             this.appId = app.getAppId();
             this.uuid = app.getUuid();
             this.running = running;
-            this.hidden = hidden;
             this.pinned = pinned;
             this.isApp = isApp;
             // ⚠️ A host control is never moveable: the running-game copy would otherwise be offered a
@@ -114,14 +112,9 @@ public final class AppLibrary {
      * Builds the page.
      *
      * @param category     {@link #CAT_ALL}, {@link #CAT_GAMES} or {@link #CAT_APPS}
-     * @param showHidden   the user asked to see hidden entries
-     * @param hiddenIds    what this client has hidden on this host, by app id
-     * @param keepVisibleIds what the current view is already showing, so an entry hidden a moment ago
-     *                       does not vanish out from under the checkbox that just hid it
      * @param runningAppId the app the host says is running, or 0
      */
     public static Page page(Context context, String hostUuid, List<NvApp> apps, String category,
-                            boolean showHidden, Set<Integer> hiddenIds, Set<Integer> keepVisibleIds,
                             int runningAppId) {
         final Page out = new Page();
         if (apps == null || apps.isEmpty()) {
@@ -142,9 +135,6 @@ public final class AppLibrary {
                     == AppCategories.HostControl.DISCONNECT_MONITOR) {
                 out.remoteMonitorActive = true;
             }
-            if (!showHidden && hiddenIds != null && hiddenIds.contains(id)) {
-                continue;
-            }
             if (categoryOf(app, moved)) {
                 out.appsCount++;
             } else {
@@ -160,13 +150,7 @@ public final class AppLibrary {
             if (!matchesCategory(app, category, moved)) {
                 continue;
             }
-            final boolean hidden = hiddenIds != null && hiddenIds.contains(app.getAppId());
-            // ⚠️ Don't immediately hide what was just hidden — it is the only way the "hide" choice
-            // can be taken back (appmodel.cpp:590).
-            if (showHidden || !hidden
-                    || (keepVisibleIds != null && keepVisibleIds.contains(app.getAppId()))) {
-                visible.add(app);
-            }
+            visible.add(app);
         }
 
         // ⚠️ Pins reach the sort for GAMES only, and never on APPS: the running-game copy a 2.0 host
@@ -216,7 +200,7 @@ public final class AppLibrary {
             }
 
             out.rows.add(new Row(app, name, app.getAppId() == runningAppId,
-                    hiddenIds != null && hiddenIds.contains(app.getAppId()), isPinned, isApp, false,
+                    isPinned, isApp, false,
                     AppCategories.hostControlKind(app.getAppId(), app.getUuid(), name), section,
                     PlaytimeManager.recordFor(context, hostUuid, name)));
         }

@@ -95,7 +95,6 @@
     <string name="applist_refresh_title">Alkalmazáslista</string>
     <string name="applist_menu_quit">Kilépés a munkamenetből</string>
     <string name="applist_menu_resume">Munkamenet folytatása</string>
-    <string name="applist_menu_hide_app">Alkalmazás elrejtése</string>
     <string name="applist_menu_tv_channel">Hozzáadás a csatornához</string>
     <string name="applist_menu_scut">Parancsikon létrehozása</string>
     <string name="applist_menu_details">Részletek megtekintése</string>

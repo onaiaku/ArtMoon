@@ -166,7 +166,6 @@
     <string name="applist_menu_cancel">Cancelar</string>
     <string name="applist_menu_details">Ver Detalhes</string>
     <string name="applist_menu_tv_channel">Adicionar ao Canal</string>
-    <string name="applist_menu_hide_app">Esconder app</string>
     <string name="applist_refresh_title">Lista de apps</string>
     <string name="applist_refresh_error_title">Erro</string>
     <string name="applist_quit_confirmation">Tem certeza de que deseja sair da app em execução\? Todos os dados não salvos serão perdidos.</string>

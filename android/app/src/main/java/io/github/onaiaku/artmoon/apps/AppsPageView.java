@@ -72,8 +72,6 @@ public class AppsPageView extends ArtMoonActivity {
     public final static String NAME_EXTRA = "Name";
     public final static String UUID_EXTRA = "UUID";
     public final static String NEW_PAIR_EXTRA = "NewPair";
-    public final static String SHOW_HIDDEN_APPS_EXTRA = "ShowHiddenApps";
-    public final static String HIDDEN_APPS_PREF_FILENAME = "HiddenApps";
 
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private ComputerDetails computer;
@@ -81,7 +79,6 @@ public class AppsPageView extends ArtMoonActivity {
     private String hostName;
 
     private boolean inForeground;
-    private boolean showHiddenApps;
 
     /** The host's last polled state. Never assumed: the chip tells the truth or says nothing. */
     private boolean hostStateKnown = false;
@@ -96,7 +93,6 @@ public class AppsPageView extends ArtMoonActivity {
     private final static int START_OR_RESUME_ID = 1;
     private final static int QUIT_ID = 2;
     private final static int START_WITH_QUIT = 4;
-    private final static int HIDE_APP_ID = 7;
     private final static int PIN_APP_ID = 8;
     private final static int MOVE_APP_ID = 9;
 
@@ -111,8 +107,6 @@ public class AppsPageView extends ArtMoonActivity {
     private String lastRawApplist = "";
 
     private final List<NvApp> appList = new ArrayList<NvApp>();
-    private final Set<Integer> hiddenAppIds = new HashSet<Integer>();
-    private final Set<Integer> keepVisible = new HashSet<Integer>();
 
     private AppAmbientArtwork ambientArtwork;
     private ComputerManagerService.ApplistPoller poller;
@@ -208,16 +202,10 @@ public class AppsPageView extends ArtMoonActivity {
         setContentView(R.layout.apps_page);
         UiHelper.notifyNewRootView(this);
 
-        showHiddenApps = getIntent().getBooleanExtra(SHOW_HIDDEN_APPS_EXTRA, false);
         uuidString = getIntent().getStringExtra(UUID_EXTRA);
         hostName = getIntent().getStringExtra(NAME_EXTRA);
         if (hostName == null) {
             hostName = "";
-        }
-
-        SharedPreferences hiddenPrefs = getSharedPreferences(HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE);
-        for (String id : hiddenPrefs.getStringSet(uuidString, new HashSet<String>())) {
-            hiddenAppIds.add(Integer.parseInt(id));
         }
 
         // The tab it opens on is the host's own remembered one, not always ALL.
@@ -635,13 +623,6 @@ public class AppsPageView extends ArtMoonActivity {
             }
         }
 
-        // Only offer hiding when it is not the running entry, or when it is already hidden.
-        if (runningAppId != row.appId || row.hidden) {
-            MenuItem hide = menu.add(Menu.NONE, HIDE_APP_ID, 3, getResources().getString(R.string.applist_menu_hide_app));
-            hide.setCheckable(true);
-            hide.setChecked(row.hidden);
-        }
-
         // Pin and move are for the entries the user owns: a host control (Remote Input, Resume, the
         // running-game copy) is not a game to pin and cannot be moved between tabs.
         if (row.movable) {
@@ -698,16 +679,6 @@ public class AppsPageView extends ArtMoonActivity {
                 quit(row);
                 return true;
 
-            case HIDE_APP_ID:
-                if (item.isChecked()) {
-                    hiddenAppIds.remove(row.appId);
-                }
-                else {
-                    hiddenAppIds.add(row.appId);
-                }
-                updateHiddenApps();
-                return true;
-
             default:
                 return super.onContextItemSelected(item);
         }
@@ -722,17 +693,6 @@ public class AppsPageView extends ArtMoonActivity {
             adapter.setFocused(position);
             updateHero();
         }
-    }
-
-    private void updateHiddenApps() {
-        SharedPreferences.Editor editor = getSharedPreferences(HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE).edit();
-        Set<String> ids = new HashSet<String>();
-        for (Integer id : hiddenAppIds) {
-            ids.add(Integer.toString(id));
-        }
-        editor.putStringSet(uuidString, ids);
-        editor.apply();
-        fillPage();
     }
 
     private void selectRow(int position) {
@@ -886,8 +846,7 @@ public class AppsPageView extends ArtMoonActivity {
         if (isFinishing()) {
             return;
         }
-        page = AppLibrary.page(this, uuidString, appList, category, showHiddenApps,
-                hiddenAppIds, keepVisible, runningAppId);
+        page = AppLibrary.page(this, uuidString, appList, category, runningAppId);
 
         // The two corrections the desktop makes the moment the counts are known
         // (AppsScreen.qml:437-440, the onCountsChanged handler). A host holding a Remote Monitor
@@ -961,12 +920,12 @@ public class AppsPageView extends ArtMoonActivity {
             return (computer != null ? computer.name : "The host") + " isn't answering";
         }
         if (AppLibrary.CAT_GAMES.equals(category)) {
-            return "No games to show — some may be hidden on the host";
+            return "No games to show";
         }
         if (AppLibrary.CAT_APPS.equals(category)) {
-            return "No apps to show — some may be hidden on the host";
+            return "No apps to show";
         }
-        return "Nothing to show — some entries may be hidden on the host";
+        return "Nothing to show";
     }
 
     private void paintTabs() {

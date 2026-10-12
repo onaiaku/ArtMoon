@@ -187,7 +187,6 @@
     <string name="applist_menu_details">Ver Detalles</string>
     <string name="applist_menu_scut">Crear Acceso Directo</string>
     <string name="applist_menu_tv_channel">Agregar al Canal</string>
-    <string name="applist_menu_hide_app">Esconder Aplicación</string>
     <string name="applist_connect_msg">Conectando al Equipo…</string>
     <string name="summary_checkbox_mouse_nav_buttons">Activar esta opción puede desconfigurar la función de clic derecho en algunos dispositivos inestables</string>
     <string name="text_native_res_dialog">Es posible que la resolución nativa y/o los FPS no sean compatibles con el servidor de streaming. Es probable que tengas que configurar manualmente un modo de visualización personalizado para el PC host.

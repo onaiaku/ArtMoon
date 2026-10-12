@@ -152,7 +152,6 @@
     <string name="slow_connection_msg">Connessione lenta al PC
 \nRidurre il bitrate</string>
     <string name="poor_connection_msg">Connessione al PC di bassa qualità</string>
-    <string name="applist_menu_hide_app">Nascondi App</string>
     <string name="applist_menu_scut">Crea Collegamento</string>
     <string name="applist_menu_tv_channel">Aggiungi al Canale</string>
     <string name="applist_menu_details">Mostra Dettagli</string>

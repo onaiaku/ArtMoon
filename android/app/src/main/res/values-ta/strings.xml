@@ -106,7 +106,6 @@
     <string name="applist_menu_details">விவரங்களைக் காண்க</string>
     <string name="applist_menu_scut">குறுக்குவழியை உருவாக்கவும்</string>
     <string name="applist_menu_tv_channel">சேனலில் சேர்க்கவும்</string>
-    <string name="applist_menu_hide_app">பயன்பாட்டை மறைக்கவும்</string>
     <string name="applist_refresh_title">பயன்பாட்டு பட்டியல்</string>
     <string name="applist_refresh_msg">புத்துணர்ச்சியூட்டும் பயன்பாடுகள்…</string>
     <string name="applist_refresh_error_title">பிழை</string>

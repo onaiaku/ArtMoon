@@ -251,7 +251,6 @@
     <string name="conn_terminated_title">Połączenie zakończone</string>
     <string name="ip_hint">Adres IP komputera hosta</string>
     <string name="applist_menu_cancel">Anuluj</string>
-    <string name="applist_menu_hide_app">Ukryj aplikację</string>
     <string name="applist_menu_details">Wyświetl szczegóły</string>
     <string name="addpc_fail">Nie można połączyć się z określonym komputerem. Upewnij się, że wymagane porty są dozwolone przez zaporę sieciową.</string>
     <string name="category_basic_settings">Ustawienia podstawowe</string>

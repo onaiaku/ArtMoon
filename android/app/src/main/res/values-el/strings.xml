@@ -37,7 +37,6 @@
 \nΟι ακόλουθες θύρες δικτύου αποκλείστηκαν:
 \n</string>
     <string name="perf_overlay_netlatency">Μέσος λανθάνων χρόνος δικτύου: %1$d MS (διακύμανση: %2$d ms)</string>
-    <string name="applist_menu_hide_app">Απόκρυψη εφαρμογής</string>
     <string name="applist_refresh_title">Λίστα εφαρμογών</string>
     <string name="applist_refresh_error_title">Σφάλμα</string>
     <string name="applist_refresh_error_msg">Απέτυχε η λήψη λίστας εφαρμογών</string>

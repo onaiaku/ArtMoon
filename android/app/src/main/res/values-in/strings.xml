@@ -131,7 +131,6 @@
     <string name="applist_menu_cancel">Membatalkan</string>
     <string name="applist_menu_details">Melihat rincian</string>
     <string name="applist_menu_scut">Buat Pintasan</string>
-    <string name="applist_menu_hide_app">Sembunyikan Aplikasi</string>
     <string name="applist_refresh_title">Daftar Aplikasi</string>
     <string name="applist_refresh_msg">Menyegarkan aplikasi…</string>
     <string name="applist_quit_fail">Gagal untuk keluar</string>

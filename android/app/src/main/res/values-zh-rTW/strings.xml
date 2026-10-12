@@ -188,7 +188,6 @@
 \n
 \n您的顯示器可能不支援必要的顯示組態。如果是這樣，您可以嘗試設定虛擬監視器。最后，如果您的裝置或主機不支援以特定解析度或重新整理速率串流，只能說您運氣欠佳了。</string>
     <string name="title_native_res_dialog">原生解析度警告</string>
-    <string name="applist_menu_hide_app">隱藏遊戲</string>
     <string name="check_ports_msg">檢查您的防火牆和通訊埠轉送規則中的通訊埠：</string>
     <string name="early_termination_error">您的主機電腦在開始串流時出了點問題。
 \n

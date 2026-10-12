@@ -96,7 +96,6 @@
     <string name="applist_refresh_error_title">Lỗi</string>
     <string name="applist_refresh_msg">Đang làm mới các ứng dụng…</string>
     <string name="applist_refresh_title">Danh sách ứng dụng</string>
-    <string name="applist_menu_hide_app">Ẩn ứng dụng</string>
     <string name="applist_menu_tv_channel">Thêm vào kênh</string>
     <string name="applist_menu_scut">Tạo lối tắt</string>
     <string name="applist_menu_details">Xem chi tiết</string>

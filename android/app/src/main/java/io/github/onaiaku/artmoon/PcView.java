@@ -604,7 +604,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
                         if (toastSuccess) {
                             // Open the app list after a successful pairing attempt
-                            doAppList(computer, true, false);
+                            doAppList(computer, true);
                         }
                         else {
                             // Start polling again if we're still in the foreground
@@ -701,7 +701,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         }).start();
     }
 
-    private void doAppList(ComputerDetails computer, boolean newlyPaired, boolean showHiddenGames) {
+    private void doAppList(ComputerDetails computer, boolean newlyPaired) {
         if (computer.state == ComputerDetails.State.OFFLINE) {
             Toast.makeText(PcView.this, getResources().getString(R.string.error_pc_offline), Toast.LENGTH_SHORT).show();
             return;
@@ -716,7 +716,6 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.NAME_EXTRA, computer.name);
         i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.UUID_EXTRA, computer.uuid);
         i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.NEW_PAIR_EXTRA, newlyPaired);
-        i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames);
         startActivity(i);
     }
 
@@ -755,7 +754,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 return true;
 
             case FULL_APP_LIST_ID:
-                doAppList(computer.details, false, true);
+                doAppList(computer.details, false);
                 return true;
 
             case RESUME_ID:
@@ -982,12 +981,6 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         managerBinder.removeComputer(details);
 
         new DiskAssetLoader(this).deleteAssetsForComputer(details.uuid);
-
-        // Delete hidden games preference value
-        getSharedPreferences(io.github.onaiaku.artmoon.apps.AppsPageView.HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE)
-                .edit()
-                .remove(details.uuid)
-                .apply();
 
         for (int i = 0; i < pcGridAdapter.hostCount(); i++) {
             ComputerObject computer = pcGridAdapter.hostAt(i);
@@ -1515,7 +1508,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     } else if (computer.details.pairState != PairState.PAIRED) {
                         doPair(computer.details);
                     } else {
-                        doAppList(computer.details, false, false);
+                        doAppList(computer.details, false);
                     }
                 }
             });
@@ -1637,7 +1630,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             return;
         }
         if (lastGame == null || lastGame.isEmpty()) {
-            doAppList(computer.details, false, false);
+            doAppList(computer.details, false);
             return;
         }
         new Thread(new Runnable() {
@@ -1649,7 +1642,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     @Override
                     public void run() {
                         if (found == null) {
-                            doAppList(computer.details, false, false);
+                            doAppList(computer.details, false);
                         } else {
                             ServerHelper.doStart(PcView.this, found, computer.details, managerBinder);
                         }
@@ -2386,7 +2379,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     // Pair an unpaired machine by default
                     doPair(computer.details);
                 } else {
-                    doAppList(computer.details, false, false);
+                    doAppList(computer.details, false);
                 }
             }
         });

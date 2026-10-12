@@ -185,7 +185,6 @@
     <string name="scut_invalid_app_id">Указанное приложение недействительно</string>
     <string name="suffix_osc_opacity">%</string>
     <string name="suffix_seekbar_bitrate_mbps">Мбит/с</string>
-    <string name="applist_menu_hide_app">Скрыть приложение</string>
     <string name="pcview_menu_test_network">Тестовое подключение к сети</string>
     <string name="pcview_menu_header_unknown">Обновление</string>
     <string name="pcview_menu_header_offline">Не в сети</string>

@@ -31,9 +31,8 @@ import io.github.onaiaku.artmoon.settings.PlaytimeManager;
  * pinned above the list, because that is the desktop's rule and it was learned the hard way there —
  * an anchored "LAST PLAYED" stayed put while the row it belonged to scrolled off underneath it.
  *
- * <p>Row fields it never guesses at: whether the entry is running, whether it is hidden, whether it
- * is pinned, and what this client has played on it — all of those are decided by {@link AppLibrary}
- * and handed here.
+ * <p>Row fields it never guesses at: whether the entry is running, whether it is pinned, and what
+ * this client has played on it — all of those are decided by {@link AppLibrary} and handed here.
  */
 public class AppsRowAdapter extends BaseAdapter {
 
@@ -291,9 +290,6 @@ public class AppsRowAdapter extends BaseAdapter {
             tag.setVisibility(View.GONE);
             stopPulse(tag);
         }
-
-        // Hidden entries are drawn, faintly — the page shows what the host will still launch.
-        v.setAlpha(row.hidden ? 0.45f : 1.0f);
 
         // Selected is not the same as focused: a dialog on top takes the focus away while the
         // spotlight still shows this game, so the row keeps a quiet marker and lights only when the

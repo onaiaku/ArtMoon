@@ -106,7 +106,6 @@
     <string name="applist_menu_details">Ayrıntıları Göster</string>
     <string name="applist_menu_scut">Kısayol Oluştur</string>
     <string name="applist_menu_tv_channel">Kanala Ekle</string>
-    <string name="applist_menu_hide_app">Uygulamayı Gizle</string>
     <string name="applist_refresh_title">Uygulama Listesi</string>
     <string name="applist_quit_success">Başarıyla çıkıldı</string>
     <string name="applist_refresh_error_msg">Uygulama listesi alınamadı</string>

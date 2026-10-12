@@ -208,7 +208,6 @@
 \n
 \nIl se peut que votre moniteur ne prenne pas en charge la configuration d\'affichage requise. Si c\'est le cas, vous pouvez essayer de configurer un moniteur virtuel. Enfin, si votre appareil ou votre PC hôte ne prend pas en charge le streaming à une résolution ou à un taux de rafraîchissement spécifique, vous ne pourrez pas y faire grand chose malheureusement.</string>
     <string name="title_native_res_dialog">Avertissement sur la résolution native</string>
-    <string name="applist_menu_hide_app">Cacher l\'application</string>
     <string name="check_ports_msg">Vérifiez vos règles de pare-feu pour les ports suivants :</string>
     <string name="early_termination_error">Quelque chose s\'est mal passé sur votre PC hôte en démarrant le stream.
 \n

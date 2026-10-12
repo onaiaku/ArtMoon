@@ -83,7 +83,6 @@
     <string name="applist_menu_details">Visa detaljer</string>
     <string name="applist_menu_scut">Skapa genväg</string>
     <string name="applist_menu_tv_channel">Lägg till i kanal</string>
-    <string name="applist_menu_hide_app">Dölj appen</string>
     <string name="applist_refresh_title">Applista</string>
     <string name="applist_refresh_msg">Friskar upp appar…</string>
     <string name="applist_refresh_error_title">Fel</string>

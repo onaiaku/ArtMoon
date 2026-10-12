@@ -106,7 +106,6 @@
     <string name="applist_menu_details">Details anzeigen</string>
     <string name="applist_menu_scut">Shortcut erstellen</string>
     <string name="applist_menu_tv_channel">Zu Kanal hinzufügen</string>
-    <string name="applist_menu_hide_app">App ausblenden</string>
     <string name="applist_refresh_title">App Liste</string>
     <string name="applist_refresh_msg">Apps aktualisieren…</string>
     <string name="applist_refresh_error_title">Fehler</string>

@@ -29,7 +29,6 @@
     <string name="conn_starting">Стартиране</string>
     <string name="conn_terminated_title">Връзката е прекратена</string>
     <string name="yes">Да</string>
-    <string name="applist_menu_hide_app">Скриване на приложението</string>
     <string name="applist_refresh_title">Списък с приложения</string>
     <string name="summary_resolution_list">Увеличете, за да подобрите яснотата на изображението. Намалете за по-добра производителност на устройства от по-нисък клас и по-бавни мрежи.</string>
     <string name="title_fps_list">Честота на видео кадрите</string>

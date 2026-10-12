@@ -114,7 +114,6 @@
     <string name="help">עזרה</string>
     <string name="perf_overlay_streamdetails">הזרמת וידיאו: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_renderingfps">פריימים מרונדרים: %1$.2f FPS</string>
-    <string name="applist_menu_hide_app">הסתר אפליקציה</string>
     <string name="perf_overlay_netlatency">מהירות תגובה ממוצעת: %1$d ms (שונות: %2$d ms)</string>
     <string name="applist_menu_quit">הפסק שידור</string>
     <string name="applist_menu_cancel">בטל</string>
