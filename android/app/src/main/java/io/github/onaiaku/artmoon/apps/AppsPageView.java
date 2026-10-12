@@ -42,6 +42,7 @@ import io.github.onaiaku.artmoon.nvstream.http.ComputerDetails;
 import io.github.onaiaku.artmoon.nvstream.http.NvApp;
 import io.github.onaiaku.artmoon.nvstream.http.NvHTTP;
 import io.github.onaiaku.artmoon.preferences.PreferenceConfiguration;
+import io.github.onaiaku.artmoon.preferences.StreamSettings;
 import io.github.onaiaku.artmoon.settings.PlaytimeManager;
 import io.github.onaiaku.artmoon.utils.ServerHelper;
 import io.github.onaiaku.artmoon.utils.UiHelper;
@@ -220,9 +221,39 @@ public class AppsPageView extends ArtMoonActivity {
         registerForContextMenu(grid);
 
         wireHero();
+        wireFoot();
 
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
                 android.content.Context.BIND_AUTO_CREATE);
+    }
+
+    /**
+     * The keys along the foot: the same launch the hero offers, this client's stream settings, and
+     * the way out to the host list. The desktop's foot reads "S Settings / Esc Hosts" and the
+     * Android client's own settings screen is its Settings — the same two doors, in this app's
+     * furniture rather than the desktop's.
+     */
+    private void wireFoot() {
+        findViewById(R.id.am_key_launch).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                launchSelected();
+            }
+        });
+
+        findViewById(R.id.am_key_settings).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(AppsPageView.this, StreamSettings.class));
+            }
+        });
+
+        findViewById(R.id.am_key_hosts).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
     }
 
     /**
@@ -859,6 +890,12 @@ public class AppsPageView extends ArtMoonActivity {
         inForeground = true;
         if (managerBinder != null) {
             startComputerUpdates();
+        }
+        // Settings can change while this page is behind them, and the config line is a promise
+        // about what a session would go out with. Re-read rather than left showing the numbers the
+        // page was opened with.
+        if (adapter != null) {
+            fillConfigLine();
         }
     }
 
