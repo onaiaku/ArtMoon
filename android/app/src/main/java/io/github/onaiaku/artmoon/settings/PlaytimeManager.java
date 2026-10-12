@@ -1,6 +1,8 @@
 package io.github.onaiaku.artmoon.settings;
 
 import android.content.Context;
+
+import io.github.onaiaku.artmoon.LimeLog;
 import android.content.SharedPreferences;
 
 import java.nio.charset.StandardCharsets;
@@ -279,6 +281,7 @@ public final class PlaytimeManager {
     public static void endSession(Context context, String hostUuid, String appName, int appId,
                                   long unbankedSeconds, long sessionSeconds, SessionStats stats) {
         if (hostUuid == null || hostUuid.isEmpty() || !isTracked(appName)) {
+            LimeLog.info("Playtime: endSession refused — host \"" + hostUuid + "\", game \"" + appName + "\"");
             return;
         }
 
@@ -286,8 +289,12 @@ public final class PlaytimeManager {
         addSeconds(context, hostUuid, appName, appId, unbankedSeconds);
 
         if (sessionSeconds < kMinSessionSeconds) {
+            LimeLog.info("Playtime: " + sessionSeconds + "s is under the " + kMinSessionSeconds
+                    + "s floor — total banked, nothing recorded as last played");
             return;
         }
+        LimeLog.info("Playtime: last played set to " + appName + " on " + hostUuid
+                + " (" + sessionSeconds + "s)");
 
         final SharedPreferences p = prefs(context);
         final String group = gameGroup(hostUuid, appName);

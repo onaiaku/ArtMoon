@@ -2303,14 +2303,17 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             return;
         }
         if (app == null || !PlaytimeManager.isTracked(appName)) {
+            LimeLog.info("Playtime: session not tracked (app " + appName + ")");
             return;
         }
 
         playtimeUuid = getIntent().getStringExtra(EXTRA_PC_UUID);
         if (playtimeUuid == null || playtimeUuid.isEmpty()) {
             // Nothing to key the record on. Better no record than one filed under "".
+            LimeLog.info("Playtime: no host uuid on the intent — session not recorded");
             return;
         }
+        LimeLog.info("Playtime: session started, host " + playtimeUuid + ", game " + appName);
 
         // The watcher's clock must never count a session this client owns: that host's observation
         // stands down, after banking whatever it watched before the takeover.
@@ -2359,6 +2362,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         final long elapsed = (SystemClock.elapsedRealtime() - playtimeStartMs) / 1000;
         final long unbanked = Math.max(0, elapsed - playtimeFlushedSecs);
+        LimeLog.info("Playtime: session ended, " + elapsed + "s elapsed, " + unbanked
+                + "s unbanked, game " + appName);
 
         // No stats yet: this client does not sample the decoder's whole-session totals, so every
         // metric stays at PlaytimeManager's "never measured" default rather than being invented.
