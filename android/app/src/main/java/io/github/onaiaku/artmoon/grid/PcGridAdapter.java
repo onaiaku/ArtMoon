@@ -4,6 +4,8 @@ import android.content.Context;
 import io.github.onaiaku.artmoon.artlight.HostBackgroundManager;
 import io.github.onaiaku.artmoon.artlight.HostMetricsPoller.GameCover;
 import android.view.View;
+
+import io.github.onaiaku.artmoon.ui.AmScale;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -70,7 +72,29 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
      */
     @Override
     public android.view.View getView(int position, android.view.View convertView, android.view.ViewGroup parent) {
+        boolean fresh = (convertView == null);
         View v = super.getView(position, convertView, parent);
+
+        // Ported scale (AppShell.qml:32 — Theme.uiScale = width / 1330). Applied to a FRESH
+        // inflation only: a recycled row has already been through it, and scaling twice is
+        // exactly how a layout drifts out of agreement with the other platforms.
+        if (fresh) {
+            AmScale s = AmScale.ofScreen(context);
+            AmScale.applyTo(v, s);
+            // HostStage.qml:556 — the stage card's radius is _px(16), so it scales with the
+            // window like every other number. A shape drawable's radius cannot be expressed in
+            // layout, so it is set here on the card's own mutated background.
+            View card = v.findViewById(R.id.am_stage_card);
+            if (card != null) {
+                android.graphics.drawable.Drawable bg = card.getBackground();
+                if (bg instanceof android.graphics.drawable.GradientDrawable) {
+                    android.graphics.drawable.GradientDrawable g =
+                            (android.graphics.drawable.GradientDrawable) bg.mutate();
+                    g.setCornerRadius(AmScale.cornerPx(16f, s));
+                    card.setBackground(g);
+                }
+            }
+        }
         // NOTE: PcView.paintPadFocus is the SINGLE writer of activated state.
         // The adapter previously painted the row here too, producing a second
         // ring around the whole hero card on top of the pill ring (Nik saw
@@ -111,6 +135,16 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     public void clear() {
         boundViews.clear();
         super.clear();
+    }
+
+    /** How many hosts the strip can offer. The stage shows one at a time. */
+    public int hostCount() {
+        return itemList.size();
+    }
+
+    /** The host at a strip position. Read-only — the update/remove paths still walk itemList. */
+    public PcView.ComputerObject hostAt(int i) {
+        return (i >= 0 && i < itemList.size()) ? itemList.get(i) : null;
     }
 
     public void addComputer(PcView.ComputerObject computer) {
@@ -341,7 +375,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         if (v == null) {
             return;
         }
-        View box = v.findViewById(R.id.am_host_link_box);
+        // The stage carries ONE HOST LINK, in the card's field row (HostStage.qml:1121). The
+        // second copy that used to sit in the right-hand column duplicated it on screen and
+        // does not exist on any other platform, so it is gone and this binds the one that does.
+        View box = v.findViewById(R.id.am_hostlink_block);
         if (box == null) {
             return;
         }
@@ -349,7 +386,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             box.setVisibility(View.GONE);
             return;
         }
-        TextView tv = v.findViewById(R.id.am_host_link_value);
+        TextView tv = v.findViewById(R.id.am_hostlink_value);
         if (tv != null) {
             tv.setText(link);
         }

@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ArtMoon host list: single column, full-width hero rows (desktop home port). -->
+<!--
+    ArtMoon main screen: the STAGE. One host per screenful, exactly like the desktop's
+    HomeScreen — the strip fronts a single full-height stage (HomeScreen.qml:1975) and
+    HostStage.qml:555 makes the card the left 55% of it. Shoulders page between hosts.
+-->
 <GridView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/fragmentView"
     android:layout_width="fill_parent"
@@ -7,8 +11,8 @@
     android:background="@color/am_ground"
     android:numColumns="1"
     android:stretchMode="columnWidth"
-    android:verticalSpacing="4dp"
-    android:paddingTop="8dp"
+    android:verticalSpacing="0dp"
+    android:paddingTop="0dp"
     android:focusable="true"
    
     android:clipToPadding="false"

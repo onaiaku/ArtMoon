@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HostStage.qml:550-576 — the stage card. Base radius 16 and a 1px Theme.line border;
+     PcView sets the live corner radius to _px(16) when it binds, because a radius has to
+     scale with the window exactly as the QML's does. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <stroke android:width="1dp" android:color="@color/am_line" />
+    <corners android:radius="16dp" />
+</shape>

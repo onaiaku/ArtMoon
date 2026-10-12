@@ -151,6 +151,13 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
         UiHelper.notifyNewRootView(this);
 
+        // Ported scale (AppShell.qml:32 — Theme.uiScale = width / 1330). Every base number in
+        // activity_pc_view.xml is the QML's own; this multiplies them all by uiScale once, which
+        // is the desktop's _px() applied to the whole screen at once.
+        io.github.onaiaku.artmoon.ui.AmScale.applyTo(
+                findViewById(R.id.am_home_root),
+                io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this));
+
         // Allow floating expanded PiP overlays while browsing PCs
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             setShouldDockBigOverlays(false);
@@ -165,23 +172,9 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         // Toolbar/rail buttons (settings, help, add) were removed from the layouts:
         // their real actions live in the footer keycaps (S Settings, P Shutdown) and
         // the picker row. "Add a host" stays reachable from the picker-row text.
-        android.widget.TextView addPicker = findViewById(R.id.manuallyAddPcText);
-        if (addPicker != null) {
-            // Owned-model discipline: PcView.paintPadFocus() is the ONLY writer
-            // of this pill's activated state. It is clickable, which auto-grants
-            // focusability — undo that so framework focus can never park here and
-            // its state_focused ring can never light (ghost second ring).
-            addPicker.setFocusable(false);
-            addPicker.setFocusableInTouchMode(false);
-            addPicker.setClickable(true);
-            addPicker.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent i = new Intent(PcView.this, AddComputerManually.class);
-                    startActivity(i);
-                }
-            });
-        }
+        // The strip (one tab per host, "+  Add a host" last) is built from the host list and
+        // rebuilt whenever that list changes. See rebuildHostTabs().
+        rebuildHostTabs();
 
         // Footer keycaps (render parity): P Shutdown / S Settings / Esc Exit are
         // real controls, wired to the same flows the keycaps name. Null-safe per
@@ -222,7 +215,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             pgUp.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    pageHostList(-1);
+                    cycleHost(-1);
                 }
             });
         }
@@ -231,7 +224,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             pgDn.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    pageHostList(1);
+                    cycleHost(1);
                 }
             });
         }
@@ -988,6 +981,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
                 pcGridAdapter.removeComputer(computer);
                 pcGridAdapter.notifyDataSetChanged();
+                rebuildHostTabs();
 
                 if (pcGridAdapter.getCount() == 0) {
                     // Show the "Discovery in progress" view
@@ -1030,7 +1024,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         // v10: keep the picker row's selected-host pill in sync with the
         // first (sorted) host — the render's center pill carries the
         // selected host's name.
-        updatePickerHostPill();
+        rebuildHostTabs();
 
         // Desktop parity (HomeScreen.qml hostProbes): silently re-check the
         // ArtLight auth state of hosts we've paired with before, so the
@@ -1039,22 +1033,131 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         maybeAutoReprobeArtLight(details);
     }
 
-    /**
-     * v10: populate the picker row's center pill with the selected host's
-     * name (first host in the sorted grid — there is one host today).
-     */
-    private void updatePickerHostPill() {
-        android.widget.TextView pill = findViewById(R.id.am_picker_host_pill);
-        if (pill == null) {
+    // ── the host strip — HomeScreen.qml:1821-1970, ported ─────────────────────
+    // One tab per host, "+  Add a host" as the LAST tab (the desktop's model is hostCount + 1),
+    // and a status dot on each coloured by the SAME semantics the desktop uses — online+paired
+    // green, online amber, offline grey, unknown dimmer — never the accent, because a user who
+    // picks a red accent must still read "online" as green.
+    //
+    // Rebuilt from the list rather than kept in sync, so a host appearing or leaving cannot
+    // leave a stale tab behind.
+
+    private void rebuildHostTabs() {
+        android.widget.LinearLayout row = findViewById(R.id.am_tab_row);
+        if (row == null) {
             return;
         }
-        if (pcGridAdapter.getCount() > 0) {
-            ComputerObject first = (ComputerObject) pcGridAdapter.getItem(0);
-            pill.setText(first.details.name);
-            pill.setVisibility(View.VISIBLE);
+        row.removeAllViews();
+
+        io.github.onaiaku.artmoon.ui.AmScale s =
+                io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
+        final int hosts = (pcGridAdapter != null) ? pcGridAdapter.hostCount() : 0;
+
+        for (int i = 0; i < hosts; i++) {
+            final int index = i;
+            ComputerObject co = pcGridAdapter.hostAt(i);
+            if (co == null) {
+                continue;
+            }
+
+            View tab = getLayoutInflater().inflate(R.layout.am_host_tab, row, false);
+            io.github.onaiaku.artmoon.ui.AmScale.applyTo(tab, s);
+
+            android.widget.TextView label = tab.findViewById(R.id.am_tab_label);
+            if (label != null) {
+                label.setText(co.details.name.toUpperCase());
+            }
+
+            View dot = tab.findViewById(R.id.am_tab_dot);
+            if (dot != null) {
+                int dotRes;
+                if (co.details.state == ComputerDetails.State.UNKNOWN) {
+                    dotRes = R.drawable.am_dot_auth;
+                } else if (co.details.state == ComputerDetails.State.ONLINE
+                        && co.details.pairState == PairState.PAIRED) {
+                    dotRes = R.drawable.am_dot_online;
+                } else if (co.details.state == ComputerDetails.State.ONLINE) {
+                    dotRes = R.drawable.am_dot_pairing;
+                } else {
+                    dotRes = R.drawable.am_dot_offline;
+                }
+                dot.setBackgroundResource(dotRes);
+            }
+
+            tab.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (pcGridView != null) {
+                        pcGridView.setSelection(index);
+                        updateTabSelection();
+                    }
+                }
+            });
+            row.addView(tab);
         }
-        else {
-            pill.setVisibility(View.INVISIBLE);
+
+        // "+  Add a host" — carries its own id so padActionTargets() still finds it and so the
+        // owned d-pad model keeps its third slot.
+        android.widget.TextView add = new android.widget.TextView(this);
+        add.setId(R.id.manuallyAddPcText);
+        add.setText("+  " + getString(R.string.am_picker_add));
+        add.setGravity(android.view.Gravity.CENTER);
+        add.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, s.dp(19));
+        add.setTextColor(getResources().getColor(R.color.am_text3));
+        add.setBackgroundResource(R.drawable.am_picker_pill);
+        add.setFocusable(false);
+        add.setFocusableInTouchMode(false);
+        add.setClickable(true);
+        add.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(PcView.this, AddComputerManually.class));
+            }
+        });
+        android.widget.LinearLayout.LayoutParams alp =
+                new android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, s.dp(40));
+        alp.leftMargin = s.dp(8);
+        add.setLayoutParams(alp);
+        add.setPadding(s.dp(20), 0, s.dp(20), 0);
+        row.addView(add);
+
+        updateTabSelection();
+    }
+
+    /** Selected tab = the host the stage is currently showing. */
+    private void updateTabSelection() {
+        android.widget.LinearLayout row = findViewById(R.id.am_tab_row);
+        if (row == null || pcGridView == null) {
+            return;
+        }
+        int current = pcGridView.getFirstVisiblePosition();
+        for (int i = 0; i < row.getChildCount(); i++) {
+            View child = row.getChildAt(i);
+            boolean isTab = child.getId() != R.id.manuallyAddPcText;
+            boolean selected = isTab && i == current;
+            child.setBackgroundResource(selected ? R.drawable.am_picker_pill_sel
+                                                 : R.drawable.am_picker_pill);
+            if (isTab) {
+                android.widget.TextView label = child.findViewById(R.id.am_tab_label);
+                if (label != null) {
+                    label.setTextColor(getResources().getColor(
+                            selected ? R.color.am_text : R.color.am_text3));
+                }
+            }
+        }
+    }
+
+    /** The LT/RT shoulders (and PgUp/PgDn) page the stage one host at a time. */
+    private void cycleHost(int dir) {
+        pageHostList(dir);
+        if (pcGridView != null) {
+            pcGridView.post(new Runnable() {
+                @Override
+                public void run() {
+                    updateTabSelection();
+                }
+            });
         }
     }
 
@@ -1300,10 +1403,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                     movePadAction(-1);
                     return true;
                 case KeyEvent.KEYCODE_BUTTON_L1:
-                    pageHostList(-1);
+                    cycleHost(-1);
                     return true;
                 case KeyEvent.KEYCODE_BUTTON_R1:
-                    pageHostList(1);
+                    cycleHost(1);
                     return true;
                 default:
                     break;
