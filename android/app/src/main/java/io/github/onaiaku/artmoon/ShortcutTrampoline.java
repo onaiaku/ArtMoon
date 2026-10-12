@@ -173,7 +173,7 @@ public class ShortcutTrampoline extends Activity {
 
                                                 // Take this intent's data and create an intent to start the app view
                                                 i = new Intent(getIntent());
-                                                i.setClass(ShortcutTrampoline.this, AppView.class);
+                                                i.setClass(ShortcutTrampoline.this, io.github.onaiaku.artmoon.apps.AppsPageView.class);
                                                 intentStack.add(i);
 
                                                 // If a game is running, we'll make the stream the top level activity

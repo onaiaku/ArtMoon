@@ -4,7 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.widget.Toast;
 
-import io.github.onaiaku.artmoon.AppView;
+import io.github.onaiaku.artmoon.apps.AppsPageView;
 import io.github.onaiaku.artmoon.Game;
 import io.github.onaiaku.artmoon.R;
 import io.github.onaiaku.artmoon.ShortcutTrampoline;
@@ -35,16 +35,16 @@ public class ServerHelper {
 
     public static Intent createPcShortcutIntent(Activity parent, ComputerDetails computer) {
         Intent i = new Intent(parent, ShortcutTrampoline.class);
-        i.putExtra(AppView.NAME_EXTRA, computer.name);
-        i.putExtra(AppView.UUID_EXTRA, computer.uuid);
+        i.putExtra(AppsPageView.NAME_EXTRA, computer.name);
+        i.putExtra(AppsPageView.UUID_EXTRA, computer.uuid);
         i.setAction(Intent.ACTION_DEFAULT);
         return i;
     }
 
     public static Intent createAppShortcutIntent(Activity parent, ComputerDetails computer, NvApp app) {
         Intent i = new Intent(parent, ShortcutTrampoline.class);
-        i.putExtra(AppView.NAME_EXTRA, computer.name);
-        i.putExtra(AppView.UUID_EXTRA, computer.uuid);
+        i.putExtra(AppsPageView.NAME_EXTRA, computer.name);
+        i.putExtra(AppsPageView.UUID_EXTRA, computer.uuid);
         i.putExtra(Game.EXTRA_APP_NAME, app.getAppName());
         i.putExtra(Game.EXTRA_APP_ID, ""+app.getAppId());
         i.putExtra(Game.EXTRA_APP_HDR, app.isHdrSupported());

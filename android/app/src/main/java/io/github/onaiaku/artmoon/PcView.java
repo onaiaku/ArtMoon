@@ -709,10 +709,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
         // The picker is its own screen — the desktop's page, not the old app list.
         Intent i = new Intent(this, io.github.onaiaku.artmoon.apps.AppsPageView.class);
-        i.putExtra(AppView.NAME_EXTRA, computer.name);
-        i.putExtra(AppView.UUID_EXTRA, computer.uuid);
-        i.putExtra(AppView.NEW_PAIR_EXTRA, newlyPaired);
-        i.putExtra(AppView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames);
+        i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.NAME_EXTRA, computer.name);
+        i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.UUID_EXTRA, computer.uuid);
+        i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.NEW_PAIR_EXTRA, newlyPaired);
+        i.putExtra(io.github.onaiaku.artmoon.apps.AppsPageView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames);
         startActivity(i);
     }
 
@@ -980,7 +980,7 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         new DiskAssetLoader(this).deleteAssetsForComputer(details.uuid);
 
         // Delete hidden games preference value
-        getSharedPreferences(AppView.HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE)
+        getSharedPreferences(io.github.onaiaku.artmoon.apps.AppsPageView.HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE)
                 .edit()
                 .remove(details.uuid)
                 .apply();
