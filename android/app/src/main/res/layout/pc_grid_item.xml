@@ -679,7 +679,7 @@
 
             <!-- ══════ the panel pair — HostStage.qml:1694-1896 ══════
 
-                 Resume/Play again, and Stop under it while something is streaming. This is the
+                 Resume/Play again, and Stop BESIDE it while something is streaming. This is the
                  half Nik could not find: it is NOT in the action row, and that is the point of
                  the arrangement — "down there it read as a generic verb next to Open and
                  Profiles, with the game it refers to a card's width away. Under the cover and
@@ -689,9 +689,14 @@
                  anchored so its BOTTOM sits on that row's line: the card has one row of
                  controls that happens to span both halves rather than two rows at two heights.
 
-                 It grows UPWARD (Resume on top, Stop below) rather than downward — downward
-                 would draw it over the footer prompts, and the desktop's lastPanel measures its
-                 available height from the top of this stack for exactly that reason.
+                 It grew UPWARD until 12 October 2026 and now grows SIDEWAYS: Resume, then Stop
+                 to its right. Downward was never available — it would draw it over the footer
+                 prompts — and sideways costs the floor nothing. It also puts the pair in the
+                 order the pad already walks them (Resume is the stop past the action row, Stop
+                 the stop after that), so left and right now move the way the eye reads them.
+                 The desktop's lastPanel measures its available height from the top of this
+                 stack, so with one row instead of two the block above gains the 68px it used
+                 to give up rather than the button leaving the card.
 
                  ⚠️ ITS HORIZONTAL CENTRE IS THE PICTURE'S CENTRE, and that is what the two
                  insets below are for. The desktop puts the pair on the block's own axis —
@@ -712,7 +717,8 @@
                 android:layout_marginBottom="30dp"
                 android:paddingEnd="46dp"
                 android:paddingRight="46dp"
-                android:orientation="vertical"
+                android:orientation="horizontal"
+                android:baselineAligned="false"
                 android:gravity="center_horizontal"
                 android:visibility="gone">
 
@@ -733,7 +739,8 @@
                     android:focusable="true"
                     android:layout_width="wrap_content"
                     android:layout_height="58dp"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginLeft="10dp"
                     android:gravity="center"
                     android:text="@string/am_stop"
                     android:textSize="19sp"
