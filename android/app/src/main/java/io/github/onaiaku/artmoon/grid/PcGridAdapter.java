@@ -290,6 +290,20 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     }
 
     /**
+     * The last session's game name, per host — the name the card's block shows, and therefore the
+     * one the panel's Play again starts (the desktop's resumeLastPlayed looks the game up BY NAME
+     * in the host's own list). Kept here rather than read back off the card because the cover strip
+     * is built in code and has no ids to read; the button has to be able to ask at the moment it is
+     * pressed, long after the poll that painted the block.
+     */
+    private final java.util.HashMap<String, String> lastGameByUuid = new java.util.HashMap<>();
+
+    /** The game the card names for this host, or null when we have never been told one. */
+    public String lastGameNameFor(String uuid) {
+        return uuid == null ? null : lastGameByUuid.get(uuid);
+    }
+
+    /**
          * v11+: paint the card's LAST SESSION panel (desktop HostStage parity,
          * extended for rtt_peak_ms / grade_color / the games cover strip).
          * ago == null hides the whole panel; a -1 metric renders as \u2014
@@ -300,6 +314,14 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                                             int rttMs, int rttPeakMs, int hostLatMs,
                                             double dropsPct, int gamesTotal,
                                             java.util.List<GameCover> games) {
+            if (uuid != null) {
+                if (games != null && !games.isEmpty() && games.get(0) != null
+                        && games.get(0).name != null && !games.get(0).name.isEmpty()) {
+                    lastGameByUuid.put(uuid, games.get(0).name);
+                } else if (ago == null || ago.isEmpty()) {
+                    lastGameByUuid.remove(uuid);
+                }
+            }
             View v = boundViews.get(uuid);
             if (v == null) {
                 return;

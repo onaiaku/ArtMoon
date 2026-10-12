@@ -233,6 +233,44 @@ public class UiHelper {
                 .show();
     }
 
+    /**
+     * The hero card's Stop confirmation, with the game named. The desktop's Stop names the app it
+     * is about to end (HomeScreen.qml stopRunning() -> stopRunningDialog.appName); the overflow
+     * menu's Quit has no name to give and keeps the plain wording. Same dialog, same two answers.
+     */
+    public static void displayQuitConfirmationDialog(Activity parent, String appName,
+                                                     final Runnable onYes, final Runnable onNo) {
+        if (appName == null || appName.isEmpty()) {
+            displayQuitConfirmationDialog(parent, onYes, onNo);
+            return;
+        }
+
+        DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which){
+                    case DialogInterface.BUTTON_POSITIVE:
+                        if (onYes != null) {
+                            onYes.run();
+                        }
+                        break;
+
+                    case DialogInterface.BUTTON_NEGATIVE:
+                        if (onNo != null) {
+                            onNo.run();
+                        }
+                        break;
+                }
+            }
+        };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(parent);
+        builder.setMessage(parent.getResources().getString(R.string.am_quit_confirmation_named, appName))
+                .setPositiveButton(parent.getResources().getString(R.string.yes), dialogClickListener)
+                .setNegativeButton(parent.getResources().getString(R.string.no), dialogClickListener)
+                .show();
+    }
+
     public static void displayDeletePcConfirmationDialog(Activity parent, ComputerDetails computer, final Runnable onYes, final Runnable onNo) {
         DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
             @Override

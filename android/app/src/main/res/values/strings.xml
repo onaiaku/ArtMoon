@@ -392,6 +392,10 @@
     <string name="am_fig_sessions">Sessions</string>
     <string name="am_panel_play_again">Play again</string>
     <string name="am_panel_resume">Resume</string>
+    <!-- The hero card's Stop, naming the game it is about to end (the desktop's stopRunningDialog
+         carries appName). The overflow menu's Quit keeps applist_quit_confirmation — it has no
+         name to give. -->
+    <string name="am_quit_confirmation_named">%1$s is streaming. Stop the session?</string>
 
     <string name="am_auth_pending">ArtLight Pending</string>
     <!-- App picker (landscape master-detail) -->

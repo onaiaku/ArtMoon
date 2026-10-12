@@ -1493,31 +1493,140 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 }
             });
         }
-        // The panel pair — Resume/Play again, under the cover and the title
-        // (HostStage.qml:1876-1895). It is the other half of the same row of controls the two
-        // above are in, which is why it fires the same flow as Open: on the desktop `Play
-        // again` starts the game the block names, and this client's route to a game is the app
-        // list. Stop is the second half of the pair and stays hidden until the poller can tell
-        // us something is streaming.
+        // The panel pair — Resume/Play again under the cover, with Stop under IT while something
+        // is actually streaming. One control set, not two buttons: HostStage.qml:250-260 (what
+        // running means), :426-440 (the label and what Stop rides on), :1699-1741 (the pair), and
+        // HomeScreen.qml:2114-2122 (the three actions).
+        //
+        //   "is the host streaming?"  On the desktop that is `runningApp`, and on Android it is
+        //                             the same field: NvHTTP.getCurrentGame() deliberately
+        //                             returns 0 unless the host's own state ends in
+        //                             _SERVER_BUSY, so `runningGameId != 0` IS _hasRunning here
+        //                             and not "the last game it played".
+        //   the label                 "Resume" while something is running, "Play again" when
+        //                             nothing is (the desktop's _panelActionKind).
+        //   Stop                      drawn ONLY while something is running, and the only red one
+        //                             (_stopReachable). Nothing running -> the pair is one button.
+        //   Play again  ("continue")  resumeLastPlayed: the game the block names, found BY NAME in
+        //                             the host's own app list and started — not the library.
+        //   Resume      ("resume")    resumeRunning: the host's current game, straight from its id.
+        //   Stop        ("stop")      quit the running session, behind a confirmation.
+        //
+        // This used to fire the Open flow, and that is exactly why pressing Play again opened the
+        // app list: the button had a listener, but not this one. Every route below ends somewhere
+        // real — resolution failure lands on the app list, which is the desktop's own fallback.
+        final boolean running = computer.details.runningGameId != 0;
+        final String lastGame = pcGridAdapter != null
+                ? pcGridAdapter.lastGameNameFor(computer.details.uuid) : null;
+
         View resume = cardView.findViewById(R.id.am_panel_resume);
-        if (resume != null) {
+        if (resume instanceof android.widget.TextView) {
+            ((android.widget.TextView) resume).setText(
+                    running ? R.string.am_panel_resume : R.string.am_panel_play_again);
             resume.setOnFocusChangeListener((v, hasFocus) -> v.setActivated(hasFocus));
             resume.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (computer.details.state == ComputerDetails.State.UNKNOWN ||
-                        computer.details.state == ComputerDetails.State.OFFLINE) {
-                        if (v != null && v.isAttachedToWindow()) {
-                            openContextMenu(v);
-                        }
-                    } else if (computer.details.pairState != PairState.PAIRED) {
-                        doPair(computer.details);
-                    } else {
-                        doAppList(computer.details, false, false);
-                    }
+                    panelContinueOrResume(computer, running, lastGame);
                 }
             });
         }
+
+        View stop = cardView.findViewById(R.id.am_panel_stop);
+        if (stop != null) {
+            stop.setVisibility(running ? View.VISIBLE : View.GONE);
+            stop.setOnFocusChangeListener((v, hasFocus) -> v.setActivated(hasFocus));
+            stop.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    panelStop(computer, running);
+                }
+            });
+        }
+    }
+
+    /**
+     * The desktop's Play again / Resume, from HomeScreen.qml:2114-2122.
+     *
+     * running -> resumeRunning(): the host has already said which game it is, so there is nothing
+     *            to look up — the running id is the whole answer.
+     * else    -> resumeLastPlayed(): find the game the block names in the host's list and start it.
+     *            The lookup is a network call, so it goes off the UI thread; anything that stops us
+     *            resolving the name lands on the app list, which is the desktop's own fallback
+     *            ("the gate said it was there when the card was drawn; if it has gone since, the
+     *            library is the honest place to land").
+     */
+    private void panelContinueOrResume(final ComputerObject computer, final boolean running,
+                                       final String lastGame) {
+        if (managerBinder == null) {
+            Toast.makeText(this, getResources().getString(R.string.error_manager_not_running),
+                           Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (running) {
+            ServerHelper.doStart(this, new NvApp("app", computer.details.runningGameId, false),
+                                 computer.details, managerBinder);
+            return;
+        }
+        if (lastGame == null || lastGame.isEmpty()) {
+            doAppList(computer.details, false, false);
+            return;
+        }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final NvApp found = ServerHelper.findAppNamed(PcView.this, computer.details,
+                                                              managerBinder, lastGame);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (found == null) {
+                            doAppList(computer.details, false, false);
+                        } else {
+                            ServerHelper.doStart(PcView.this, found, computer.details, managerBinder);
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * The desktop's Stop (HomeScreen.qml stopRunning). Nothing running means nothing to stop and
+     * nothing to ask — the card redraws from the host's next status and the Stop goes with it.
+     * Otherwise: confirm first, then quit — the same confirmation the overflow menu's Quit uses,
+     * naming the game when the host's cached list can name it.
+     */
+    private void panelStop(final ComputerObject computer, final boolean running) {
+        if (!running || managerBinder == null) {
+            return;
+        }
+        UiHelper.displayQuitConfirmationDialog(this, runningAppName(computer.details),
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        ServerHelper.doQuit(PcView.this, computer.details,
+                                            new NvApp("app", 0, false), managerBinder, null);
+                    }
+                }, null);
+    }
+
+    /** The running game's name, if the host's app list is already cached here; null if not. */
+    private String runningAppName(ComputerDetails details) {
+        if (details == null || details.runningGameId == 0
+                || details.rawAppList == null || details.rawAppList.isEmpty()) {
+            return null;
+        }
+        try {
+            for (NvApp a : NvHTTP.getAppListByReader(new java.io.StringReader(details.rawAppList))) {
+                if (a.getAppId() == details.runningGameId) {
+                    return a.getAppName();
+                }
+            }
+        } catch (Exception e) {
+            LimeLog.info("panelStop: could not name the running app: " + e.getMessage());
+        }
+        return null;
     }
 
     /**

@@ -198,6 +198,46 @@ public class ServerHelper {
         }).start();
     }
 
+    /**
+     * Find a game BY NAME in the host's own app list, without showing the library — the half of
+     * the desktop's resumeLastPlayed() that Android was missing (HomeScreen.qml:410-435, which
+     * initialises the app model just far enough to call indexOfAppNamed() and then creates the
+     * session). Returns null when the host does not name it; the caller then shows the app list,
+     * which is the desktop's own fallback.
+     *
+     * This is a network call — run it off the UI thread.
+     */
+    public static NvApp findAppNamed(Activity parent, ComputerDetails computer,
+                                     ComputerManagerService.ComputerManagerBinder managerBinder,
+                                     String name) {
+        if (computer == null || name == null || name.isEmpty()) {
+            return null;
+        }
+        try {
+            NvHTTP http = new NvHTTP(getCurrentAddressFromComputer(computer), computer.httpsPort,
+                    managerBinder != null ? managerBinder.getUniqueId() : null,
+                    computer.serverCert, PlatformBinding.getCryptoProvider(parent));
+            String raw = http.getAppListRaw();
+            if (raw != null && !raw.isEmpty()) {
+                // Keep the one cache the app list screen and the Stop dialog read, so a lookup
+                // made here is not a fetch nobody else can use.
+                computer.rawAppList = raw;
+            }
+            java.util.List<NvApp> list =
+                    NvHTTP.getAppListByReader(new java.io.StringReader(raw));
+            for (NvApp a : list) {
+                if (name.equals(a.getAppName())) {
+                    return a;
+                }
+            }
+            io.github.onaiaku.artmoon.LimeLog.info("findAppNamed: \"" + name
+                    + "\" is not among the host's " + list.size() + " apps");
+        } catch (Exception e) {
+            io.github.onaiaku.artmoon.LimeLog.info("findAppNamed: app list failed: " + e.getMessage());
+        }
+        return null;
+    }
+
     public static void doQuit(final Activity parent,
                               final ComputerDetails computer,
                               final NvApp app,
