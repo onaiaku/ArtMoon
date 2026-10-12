@@ -1641,10 +1641,12 @@ Item {
         * from the ones beside it — which is exactly the kind of near-alignment the eye
         * reads as a mistake rather than as a choice.
         *
-        * Measured from the TOP of the stack (28/09/2026), not from the button: when a
-        * Stop is drawn under Resume the pair stands 68 px taller, and the block above is
-        * what gives that room up. Measuring from the button would have left the cover
-        * drawing straight through the new button.
+        * Measured from the TOP of the stack (28/09/2026), not from the button: a Stop drawn
+        * under Resume used to make the pair stand 68 px taller, and the block above was what
+        * gave that room up. Measuring from the button would have left the cover drawing
+        * straight through the new button. ⚠️ The pair grew SIDEWAYS on 12/10/2026, so that
+        * room is no longer given up at all — but keep measuring from the stack rather than
+        * from the button: it is the stack's top that moves, whichever way it grows.
         */
         availableHeight: panelActionStack.y - y - stage._px(16)
 
@@ -1697,10 +1699,10 @@ Item {
      * ── Resume / Play again, and Stop ────────────────────────────────────────────────────
      *
      * Resume while the host is streaming (6.0.0), the same word the host page puts on
-     * the running game; Play again otherwise. Stop is the second half of that pair and is
-     * drawn UNDER Resume, only while something is streaming (28/09/2026, by request): the
-     * block says which session is up, and these two are everything that can be done about it
-     * from here — rejoin it, or end it.
+     * the running game; Play again otherwise. Stop is the second half of that pair, drawn to
+     * the RIGHT of Resume (side by side since 12/10/2026, by request — stacked before that),
+     * only while something is streaming (28/09/2026): the block says which session is up, and
+     * these two are everything that can be done about it from here — rejoin it, or end it.
      *
      * Same body as the buttons in the action row and on the same baseline as them, so the
      * card has one row of controls that happens to span both halves rather than two rows
@@ -1849,16 +1851,24 @@ Item {
     }
 
     /*
-     * The stack itself: Resume/Play again, and Stop under it while something is streaming.
+     * The stack itself: Resume/Play again, and Stop beside it while something is streaming.
      *
-     * ⚠️ It grows UPWARD, and that is a layout constraint rather than a preference. The action
-     * row is anchored 30 px above the card's bottom, and the shell's 44 px status bar — the
-     * Power / Settings / Exit prompts — overlays everything below that. A second button grown
-     * downward would be drawn on top of those prompts. Growing up costs the block above 68 px
-     * instead: lastPanel.availableHeight is measured from the TOP of this stack for exactly
-     * that reason, so the cover and the title give the room up rather than the button leaving
-     * the card. With no session on the host nothing changes at all — the second term below is
+     * ⚠️ It grew UPWARD until 12/10/2026 and now grows SIDEWAYS, and the reason for the old
+     * direction has not gone away: the action row is anchored 30 px above the card's bottom, and
+     * the shell's 44 px status bar — the Power / Settings / Exit prompts — overlays everything
+     * below that, so a second button grown DOWNWARD would be drawn on top of those prompts.
+     * Sideways costs the floor nothing, and it puts the pair in the order the pad already walks
+     * them: Resume is the stop past the last action-row button and Stop is the stop after that,
+     * so Right now moves left-to-right through them the way the eye reads them rather than
+     * stepping down a column. The block above GAINS the 68 px it used to give up, because
+     * lastPanel.availableHeight is still measured from this stack's top and the top has come
+     * down a row. With no session on the host nothing changes at all — the second term below is
      * zero and this is the single-button expression it has always been.
+     *
+     * ⚠️ The PAIR is centred on the block's axis, not Resume alone: Stop's arrival widens the
+     * stack and the whole pair shifts to keep that axis. That is the same rule the mobile layout
+     * carries (pc_grid_item.xml: `gravity="center_horizontal"` on this stack), and it is what
+     * Nik asked for on 12 October: "it should be centered in relation to the image".
      */
     Item {
         id: panelActionStack
@@ -1868,16 +1878,16 @@ Item {
         readonly property int _btnH: stage._px(58)
         readonly property int _gap:  stage._px(10)
 
-        width: panelResumeBtn.width
-        height: _btnH + (stage._stopReachable ? _btnH + _gap : 0)
-        // The BOTTOM of the stack holds the action row's line, not the top — see above.
-        y: card.y + actionRow.y + (actionRow.height - _btnH) / 2 - (height - _btnH)
+        width: panelResumeBtn.width + (stage._stopReachable ? _gap + panelStopBtn.width : 0)
+        height: _btnH
+        // The BOTTOM of the stack still holds the action row's line; with one row of buttons
+        // that is simply where the row's own buttons sit.
+        y: card.y + actionRow.y + (actionRow.height - _btnH) / 2
 
         PanelButton {
             id: panelResumeBtn
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: stage._stopReachable ? panelStopBtn.y - height - panelActionStack._gap
-                                    : parent.height - height
+            x: 0
+            y: 0
             label: stage._hasRunning ? qsTr("Resume") : qsTr("Play again")
             kind:  stage._panelActionKind
             stopOffset: 0
@@ -1885,8 +1895,8 @@ Item {
 
         PanelButton {
             id: panelStopBtn
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: parent.height - height
+            x: panelResumeBtn.width + panelActionStack._gap
+            y: 0
             visible: stage._stopReachable
             label: qsTr("Stop")
             kind:  "stop"
