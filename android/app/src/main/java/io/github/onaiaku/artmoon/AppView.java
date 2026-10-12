@@ -71,6 +71,9 @@ public class AppView extends io.github.onaiaku.artmoon.ArtMoonActivity implement
     // Ids the host listed last time, so a shortcut is enabled once for a new entry and disabled
     // once for one the host has dropped.
     private final Set<Integer> knownAppIds = new HashSet<Integer>();
+    // Pinning and moving are statements about which tab the user wants; they must not be undone
+    // by the rule that opens a host on APPS because its Remote Monitor is up.
+    private boolean tabChosenByUser = false;
     private ShortcutHelper shortcutHelper;
 
     private ComputerDetails computer;
@@ -97,6 +100,8 @@ public class AppView extends io.github.onaiaku.artmoon.ArtMoonActivity implement
     private final static int VIEW_DETAILS_ID = 5;
     private final static int CREATE_SHORTCUT_ID = 6;
     private final static int HIDE_APP_ID = 7;
+    private final static int PIN_APP_ID = 8;
+    private final static int MOVE_APP_ID = 9;
 
     public final static String HIDDEN_APPS_PREF_FILENAME = "HiddenApps";
 
@@ -529,6 +534,20 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
 
         menu.add(Menu.NONE, VIEW_DETAILS_ID, 4, getResources().getString(R.string.applist_menu_details));
 
+        // Pin and move, the two things the page lets a user do to the library itself. They are for
+        // the entries the user owns: a host control (Remote Input, Resume, the running-game copy)
+        // is not a game to pin and cannot be moved between tabs.
+        final AppLibrary.Row row = appGridAdapter.rowAt(info.position);
+        if (row != null && row.movable) {
+            MenuItem pinItem = menu.add(Menu.NONE, PIN_APP_ID, 6,
+                    getResources().getString(row.pinned ? R.string.applist_menu_unpin : R.string.applist_menu_pin));
+            pinItem.setCheckable(true);
+            pinItem.setChecked(row.pinned);
+
+            menu.add(Menu.NONE, MOVE_APP_ID, 7,
+                    getResources().getString(row.isApp ? R.string.applist_menu_move_games : R.string.applist_menu_move_apps));
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Only add an option to create shortcut if box art is loaded
             // and when we're in grid-mode (not list-mode).
@@ -553,6 +572,27 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
         final AppObject app = objectForPosition(info.position);
         switch (item.getItemId()) {
+            case PIN_APP_ID: {
+                AppLibrary.Row row = appGridAdapter.rowAt(info.position);
+                if (row != null) {
+                    PlaytimeManager.setPinned(this, uuidString, row.name, !row.pinned);
+                    rebuildPageKeeping(row.appId);
+                }
+                return true;
+            }
+
+            case MOVE_APP_ID: {
+                AppLibrary.Row row = appGridAdapter.rowAt(info.position);
+                if (row != null) {
+                    // The desktop sets _tabChosenByUser BEFORE the call. Moving an entry is the
+                    // strongest statement of which tab is wanted, and it must survive the rebuild.
+                    tabChosenByUser = true;
+                    PlaytimeManager.setCategoryOverride(this, uuidString, row.name, !row.isApp, false);
+                    rebuildPageKeeping(row.appId);
+                }
+                return true;
+            }
+
             case START_WITH_QUIT:
                 // Display a confirmation dialog first
                 UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
@@ -698,6 +738,33 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
     }
 
     /**
+     * Rebuild, then put the selection back on the same game.
+     *
+     * <p>Pinning and moving both re-sort the list, so the position the panel was showing means a
+     * different entry afterwards. The desktop re-finds the cursor by id for exactly this reason.
+     * Left by position, the panel would be showing whatever slid into that slot.</p>
+     */
+    private void rebuildPageKeeping(int appId) {
+        rebuildPage();
+
+        int pos = appGridAdapter.positionOfAppId(appId);
+        AppObject obj = objectForPosition(pos);
+        if (obj == null) {
+            return;
+        }
+        selectedApp = obj;
+        appGridAdapter.setSelectedPosition(pos);
+        appGridAdapter.setSelectedApp(obj);
+
+        AbsListView list = findViewById(R.id.fragmentView);
+        if (list != null) {
+            // Scrolls without taking focus, as the D-pad path does.
+            list.setSelection(pos);
+        }
+        updateDetailPanel();
+    }
+
+    /**
      * What the list is showing right now, so an entry hidden a moment ago does not vanish out from
      * under the checkbox that just hid it.
      */
@@ -719,12 +786,12 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
         //   · ALL with nothing in it is not a place to open a library.
         // Applying one rebuilds once, and then the condition is false and it settles — a list that
         // could not settle would flicker between tabs.
-        if (AppLibrary.CAT_ALL.equals(currentCategory) && page.remoteMonitorActive) {
+        if (!tabChosenByUser && AppLibrary.CAT_ALL.equals(currentCategory) && page.remoteMonitorActive) {
             currentCategory = AppLibrary.CAT_APPS;
             rebuildPage();
             return;
         }
-        if (AppLibrary.CAT_ALL.equals(currentCategory) && page.allCount == 0
+        if (!tabChosenByUser && AppLibrary.CAT_ALL.equals(currentCategory) && page.allCount == 0
                 && (page.gamesCount > 0 || page.appsCount > 0)) {
             currentCategory = (page.gamesCount > 0) ? AppLibrary.CAT_GAMES : AppLibrary.CAT_APPS;
             rebuildPage();
@@ -769,6 +836,7 @@ if (pickRes != null && pickFps != null && pickBitrate != null) {
             return;
         }
         currentCategory = category;
+        tabChosenByUser = true;
         // The host remembers the tab, so coming back to this machine opens where it was left.
         PlaytimeManager.setLastTab(this, uuidString, category);
         rebuildPage();

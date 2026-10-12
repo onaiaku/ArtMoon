@@ -432,5 +432,9 @@
     <string name="am_sec_all">All</string>
     <string name="am_meta_custom_settings">custom settings</string>
     <string name="am_meta_sep">  ·  </string>
+    <string name="applist_menu_pin">Pin to the top</string>
+    <string name="applist_menu_unpin">Unpin</string>
+    <string name="applist_menu_move_apps">Move to apps</string>
+    <string name="applist_menu_move_games">Move to games</string>
 </resources>
 
