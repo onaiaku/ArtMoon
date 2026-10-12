@@ -84,10 +84,10 @@
                 android:layout_height="match_parent"
                 android:layout_marginBottom="58dp"
                 android:orientation="vertical"
-                android:paddingStart="38dp"
-                android:paddingLeft="38dp"
-                android:paddingEnd="38dp"
-                android:paddingRight="38dp"
+                android:paddingStart="60dp"
+                android:paddingLeft="60dp"
+                android:paddingEnd="60dp"
+                android:paddingRight="60dp"
                 android:paddingTop="20dp"
                 android:paddingBottom="0dp"
                 android:clipChildren="true">
@@ -469,21 +469,29 @@
                  up the buttons"). This is that rule: the column above is measured to the row's own
                  line, and this row is always whole.
 
-                 38dp and 30dp are the desktop's own numbers, not this port's
-                 (HostStage.qml:1428-1429 — `anchors.leftMargin: stage._px(38)`). The desktop's
-                 bottomMargin there is `_px(30)`; this port HALVES it to 15dp, which is Nik's call
-                 on 12 October 2026 after looking at the fixed card on the Fold's cover screen:
-                 "You moved them slightly to high now, moved them down half of what you moved them
-                 up." At 30 the buttons floated; at 0 they were the thing that clipped. Do not
-                 "restore" this to 30 without asking him — it is a deliberate, seen-on-screen
-                 deviation from the desktop, not drift. -->
+                 The desktop's numbers for this row are HostStage.qml:1428-1429 —
+                 `anchors.leftMargin: stage._px(38)`, `anchors.bottomMargin: stage._px(30)` — and
+                 this port deviates from both, each one tuned on Nik's own screen. Do not
+                 "restore" either without asking him.
+
+                   - the START inset is 60dp, not 38, so the buttons ride the same left edge as
+                     the text above them (the column carries the same 60dp). Nik: "everything i
+                     listed earlier needs moving right so its not sat on the edge of the photo",
+                     "basically like we did for the open and option buttons but sideways".
+                     Calibrated against his own reactions the same day: 38dp = 56px was "right on
+                     the left edge of the image", 74px he could not see at all ("what did you do
+                     move it 1 pixl?"), and 107px he called "a massive gap on the left hand side".
+                     60dp = 89px is the middle of those three. Do not take it to either extreme.
+                   - the BOTTOM inset is 15dp, not 30: "You moved them slightly to high now,
+                     moved them down half of what you moved them up." At 30 the buttons floated;
+                     at 0 they were the thing that clipped. -->
             <LinearLayout
                 android:id="@+id/am_action_row"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
-                android:layout_marginStart="38dp"
-                android:layout_marginLeft="38dp"
+                android:layout_marginStart="60dp"
+                android:layout_marginLeft="60dp"
                 android:layout_marginBottom="15dp"
                 android:orientation="horizontal">
 
