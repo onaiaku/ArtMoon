@@ -56,7 +56,7 @@ with my own eyes yet.
 | §231 pad glyphs | real pad artwork by button *position* (Switch swaps A/B; Select is artwork, not a word) | **PRESENT** — the picker's prompts now register with the shared `PromptBar` (commit `08c5b547`); Home's footer already did. Open: Home's host-strip arrows still print PgUp/PgDn and listen on LB/RB, where the desktop uses **LT/RT** (`HomeScreen.qml:1853`) — that pair is Nik's call |
 | §239 the game in the spotlight | cover, name, state, store | **PRESENT** — `updateHero` |
 | §250 play time in the spotlight | hours + sessions for the focused game | **PRESENT** — `PlaytimeManager`; was frozen on row 0 until tonight |
-| §285 pinned | pinned heading + mark on the row | **PRESENT**, but reached by long-press menu, not Start/P |
+| §285 pinned | pinned heading + mark on the row | **PRESENT** — Start/P toggles it, the prompt flips Pin/Unpin with the row, and the mark is the desktop's pin (AppsScreen.qml:1584). Nik, 12 Oct 2026: "yep pins work" — and, on the first cut, "you used the wrong icon, you used a gold start when the desktop uses a actual pin symble", now fixed |
 | §300 GAMES / APPS tabs | three tabs, ring wraps, last choice remembered, **counts**, and the two corrections | **PRESENT** (tonight) |
 | §367 GAMES / APPS by hand | move one entry between the tabs | **PRESENT** — via the menu; desktop uses M / right-stick |
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" | **MISSING** |
@@ -66,7 +66,7 @@ with my own eyes yet.
 | §1331 Continue | the last thing played sits on top | **PRESENT** — `SECTION_CONTINUE`, row 0 only |
 | §1537 thumbnail | box art in the row | **PRESENT** — after the prefetch; was losing a race on every load |
 | §1571 title + store | name, store in words under it | **PRESENT** |
-| §1572 pinned mark | the pin on the row | **PRESENT** |
+| §1572 pinned mark | the pin on the row | **PRESENT** — `qrc:/res/pin.svg` path for path in `am_pin.xml`, 18dp, tinted from the row's text colour with the desktop's 0.95/0.6 opacity. It was a gold star (a TextView holding U+2B50) until Nik caught it, 12 Oct 2026 |
 | §1638 the running session | the lit pill on the entry that's streaming | **PRESENT** |
 | §1782 empty state | what it says when there's nothing | **PRESENT** — after I got it wrong twice |
 | §1799 dialogs | per-game settings, pin prompt, launch confirm | **PARTIAL** — quit confirm only; the per-game settings dialog is not counted (see above) |
@@ -180,7 +180,7 @@ is really true on the phone.
 | Desktop § | Missing |
 |---|---|
 | **Last played** — `HostStage.qml:199-260` (the block, `lastPlayedFor()`), `appmodel.cpp:364-380` (the section rule) | the rule is ported faithfully (`AppLibrary.java:196-200`: only row 0 can be Continue; APPS excluded in `lastPlayedForSort`) and the block is ported (`_panelPlaceholder` / `lastPlayedHint`). **But nothing lights the heading on the phone:** it is fed by this client's own last-game pointer (`PlaytimeManager.lastPlayedOn` → `SER_LASTGAME`), which only a **banked** session writes, and `endSession` refuses anything under 60 seconds (`kMinSessionSeconds`). The watcher's half (`ObservedPlaytime`) can never name a running game, so nothing of another client's session is ever observed. Nik sees no LAST PLAYED heading, and he is right. |
-| **Pinned** — `AppsScreen.qml:285-291`, `:541-557` (toggle), `:1382` (the PINNED caption), `:1572-1578` (the mark on the row), `AppShell.qml:533-542` (the pad prompt flipping Pin/Unpin) | the model is ported and matches the desktop rule for rule — games only, APPS excluded, the mark on the row, the sort. **The door is not:** the only way to pin is the long-press touch menu, so with a controller in his hand Pinned can be neither seen nor set. Nothing is pinned on his phone, which is why there is no PINNED heading at all. |
+| **Pinned** — `AppsScreen.qml:285-291`, `:541-557` (toggle), `:1382` (the PINNED caption), `:1572-1578` (the mark on the row), `AppShell.qml:533-542` (the pad prompt flipping Pin/Unpin) | **PRESENT and marked.** The model was ported rule for rule, and the door — Start/P, and the prompt that follows the row — is now ported too (`AppsPageView.togglePinFocused` / `updatePinPrompt`). It refuses an app, re-snaps by app id after the call because pinning moves the row, and is not drawn at all on the APPS tab, which is the desktop's own rule. Nik, 12 Oct 2026: "yep pins work". |
 | §446 host notices | "that finished" vs "launch again within 60s to confirm" — not there at all |
 | §1095 action row | **nothing** — launch + Stop, and per-game settings is not a port item (see the note below) |
 | §1799 dialogs | only the quit confirm exists — no pin prompt, no launch confirm |
