@@ -53,14 +53,6 @@
             android:cropToPadding="true"
             android:contentDescription="@null" />
 
-        <!-- Placeholder art carries no title, and at this size neither would a failed load —
-             the name is already beside it, so a plain frame is enough. -->
-        <View
-            android:id="@+id/am_row_cover_placeholder"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#18FFFFFF" />
-
         <ImageView
             android:id="@+id/grid_overlay"
             android:layout_width="22dp"

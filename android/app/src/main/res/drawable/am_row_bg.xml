@@ -11,6 +11,20 @@
     shift a pixel when it lights up.
 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/am_accent_16" />
+            <stroke android:width="2dp" android:color="@color/am_accent" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/am_accent_16" />
+            <stroke android:width="2dp" android:color="@color/am_accent" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
     <item android:state_focused="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/am_accent_16" />
