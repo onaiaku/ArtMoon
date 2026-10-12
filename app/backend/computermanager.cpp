@@ -4,6 +4,7 @@
 #include "nvhttp.h"
 #include "nvpairingmanager.h"
 #include "../settings/appsettings.h"
+#include "../settings/observedplaytime.h"
 #include "../settings/playtime.h"
 
 #include <Limelight.h>
@@ -625,9 +626,40 @@ void ComputerManager::saveHost(NvComputer *computer)
     }
 }
 
+/**
+ * The name of the app with this id on a host, or an empty string when its list does not hold it.
+ *
+ * ⚠️ Read under the host's lock: the app list is rewritten whenever it is refetched, and that
+ * happens on this same polling thread but not between the same two lines as the read.
+ */
+static QString runningAppNameFor(NvComputer* computer, int gameId)
+{
+    if (!computer || gameId == 0) {
+        return QString();
+    }
+
+    QReadLocker lock(&computer->lock);
+    for (const NvApp& app : computer->appList) {
+        if (app.id == gameId) {
+            return app.name;
+        }
+    }
+    return QString();
+}
+
 void ComputerManager::handleComputerStateChanged(NvComputer* computer)
 {
     emit computerStateChanged(computer);
+
+    // A session this client did not start is still one it watched: the host card draws the whole
+    // thing off currentGameId, so the fact is already on screen. Record it the way the session's
+    // owner would, or "Last played" goes empty the moment another client stops the stream.
+    // ⚠️ Values are copied here because this runs on the polling thread; the watcher marshals onto
+    // the Qt main thread, where Session's own play-time writes happen.
+    ObservedPlaytime::get()->onHostStateChanged(computer->uuid,
+                                                computer->state == NvComputer::CS_ONLINE,
+                                                computer->currentGameId,
+                                                runningAppNameFor(computer, computer->currentGameId));
 
     if (computer->pendingQuit && computer->currentGameId == 0) {
         computer->pendingQuit = false;

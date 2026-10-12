@@ -1,6 +1,7 @@
 #include <QNetworkInterface>
 #include <QSysInfo>
 #include "session.h"
+#include "settings/observedplaytime.h"
 #include "settings/playtime.h"
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
@@ -781,6 +782,9 @@ void Session::endPlaytime()
     m_PlaytimeTracking = false;
     if (m_PlaytimeFlushTimer)
         m_PlaytimeFlushTimer->stop();
+
+    // This client's session is over, so a NEW one on that host can be watched again.
+    ObservedPlaytime::get()->setOwnSession(m_Computer->uuid, false);
 
     const qint64 elapsed = m_PlaytimeTimer.isValid() ? m_PlaytimeTimer.elapsed() / 1000 : 0;
     const qint64 unbanked = qMax<qint64>(0, elapsed - m_PlaytimeFlushedSecs);
@@ -2488,6 +2492,10 @@ bool Session::startConnectionAsync()
     // one. It is gated on unlock mode, which is a session in every mechanical sense but was
     // never you playing anything, and on the app being a game at all.
     if (!m_UnlockMode && PlaytimeManager::isTracked(m_App.name)) {
+        // The watcher's clock must never count a session this client owns: that host's
+        // observation stands down, after banking whatever it watched before the takeover.
+        ObservedPlaytime::get()->setOwnSession(m_Computer->uuid, true);
+
         m_PlaytimeTracking = true;
         m_PlaytimeFlushedSecs = 0;
         m_PlaytimeTimer.start();
