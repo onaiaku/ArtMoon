@@ -78,20 +78,15 @@ public class HostMetricsPoller {
     };
 
     private void pollOnce() {
-        // Find the first online host with a usable address. The desktop polls
-        // the foreground host; the phone's foreground host is the first card.
+        // The host the stage is showing. The desktop polls its foreground host, which is the same
+        // thing, and the binders write through boundViews — only the host with a rendered card has
+        // anywhere to write to, so polling any other host would fetch numbers nothing can display.
         PollTarget target = null;
-        for (int i = 0; i < adapter.getCount(); i++) {
-            Object o = adapter.getItem(i);
-            if (!(o instanceof io.github.onaiaku.artmoon.PcView.ComputerObject)) {
-                continue;
-            }
+        Object o = adapter.getItem(0);
+        if (o instanceof io.github.onaiaku.artmoon.PcView.ComputerObject) {
             ComputerDetails d = ((io.github.onaiaku.artmoon.PcView.ComputerObject) o).details;
             if (d.state == ComputerDetails.State.ONLINE) {
                 target = new PollTarget(d);
-                if (target.address != null) {
-                    break;
-                }
             }
         }
 
@@ -128,6 +123,15 @@ public class HostMetricsPoller {
                                 snap == null ? -1 : snap.hostLatMs,
                                 snap == null ? -1 : snap.dropsPct,
                                 snap == null ? 0 : snap.gamesTotal,
+                                snap == null ? null : snap.games);
+
+                        // The right-hand column is GameFacts — badge, cover, title, figures
+                        // (HostStage.qml:1625). The session NUMBERS above stay in the card, where
+                        // the desktop keeps them (HostStage.qml:1218 is inside the card).
+                        adapter.updateGameFactsByUuid(
+                                tgt.uuid,
+                                snap == null ? null : snap.ago,
+                                snap == null ? null : snap.duration,
                                 snap == null ? null : snap.games);
                     }
                 });

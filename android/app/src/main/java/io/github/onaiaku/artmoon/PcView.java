@@ -971,8 +971,8 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 .remove(details.uuid)
                 .apply();
 
-        for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(i);
+        for (int i = 0; i < pcGridAdapter.hostCount(); i++) {
+            ComputerObject computer = pcGridAdapter.hostAt(i);
 
             if (details.equals(computer.details)) {
                 // Disable or delete shortcuts referencing this PC
@@ -996,8 +996,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
     private void updateComputer(ComputerDetails details) {
         ComputerObject existingEntry = null;
 
-        for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(i);
+        // ⚠️ hostCount()/hostAt(), NOT getCount()/getItem(): the stage renders one host, and
+        // iterating that one would miss every other host and add it to the list a second time.
+        for (int i = 0; i < pcGridAdapter.hostCount(); i++) {
+            ComputerObject computer = pcGridAdapter.hostAt(i);
 
             // Check if this is the same computer
             if (details.uuid.equals(computer.details.uuid)) {
@@ -1053,6 +1055,18 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
         final int hosts = (pcGridAdapter != null) ? pcGridAdapter.hostCount() : 0;
 
+        // The desktop draws both triggers only when there is at least one host
+        // (HomeScreen.qml:1852 — `model: homeScreen.hostCount >= 1 ? [...] : []`). With nothing to
+        // page, a pair of triggers pointing at nothing is noise.
+        View ltHint = findViewById(R.id.am_pg_up);
+        if (ltHint != null) {
+            ltHint.setVisibility(hosts >= 1 ? View.VISIBLE : View.GONE);
+        }
+        View rtHint = findViewById(R.id.am_pg_dn);
+        if (rtHint != null) {
+            rtHint.setVisibility(hosts >= 1 ? View.VISIBLE : View.GONE);
+        }
+
         for (int i = 0; i < hosts; i++) {
             final int index = i;
             ComputerObject co = pcGridAdapter.hostAt(i);
@@ -1087,8 +1101,8 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
             tab.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (pcGridView != null) {
-                        pcGridView.setSelection(index);
+                    if (pcGridAdapter != null) {
+                        pcGridAdapter.setStageIndex(index);
                         updateTabSelection();
                     }
                 }
@@ -1128,10 +1142,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
     /** Selected tab = the host the stage is currently showing. */
     private void updateTabSelection() {
         android.widget.LinearLayout row = findViewById(R.id.am_tab_row);
-        if (row == null || pcGridView == null) {
+        if (row == null) {
             return;
         }
-        int current = pcGridView.getFirstVisiblePosition();
+        int current = (pcGridAdapter != null) ? pcGridAdapter.getStageIndex() : 0;
         for (int i = 0; i < row.getChildCount(); i++) {
             View child = row.getChildAt(i);
             boolean isTab = child.getId() != R.id.manuallyAddPcText;
@@ -1172,15 +1186,11 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
      * selected host; the phone's selected host is the hero card.
      */
     private ComputerObject getHeroComputer() {
-        if (pcGridAdapter.getCount() == 0) {
+        if (pcGridAdapter == null || pcGridAdapter.getCount() == 0) {
             return null;
         }
-        for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-            ComputerObject c = (ComputerObject) pcGridAdapter.getItem(i);
-            if (c != null && c.details.state == ComputerDetails.State.ONLINE) {
-                return c;
-            }
-        }
+        // The stage's host — the one on screen. It used to hunt for the first ONLINE host, which
+        // named a host the user was not looking at once the stage showed a different one.
         return (ComputerObject) pcGridAdapter.getItem(0);
     }
 
@@ -1286,8 +1296,8 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
     private String computerNameForUuid(String uuid) {
         if (pcGridAdapter != null) {
-            for (int i = 0; i < pcGridAdapter.getCount(); i++) {
-                ComputerObject co = (ComputerObject) pcGridAdapter.getItem(i);
+            for (int i = 0; i < pcGridAdapter.hostCount(); i++) {
+                ComputerObject co = pcGridAdapter.hostAt(i);
                 if (co != null && uuid.equals(co.details.uuid)) {
                     return co.details.name;
                 }
@@ -1296,12 +1306,19 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         return getString(R.string.am_hero_bg_set);
     }
 
-    /** Page the host GridView by one screenful; negative = up. */
+    /**
+     * Move the stage one host, either way (HomeScreen.qml:1871 `homeScreen.cycleHost(dir)`, which
+     * the strip's triggers and the tabs both call).
+     *
+     * It used to smooth-scroll the GridView by a screenful, which is what let a swipe walk from
+     * one host to the next — a thing no other platform does, because the tabs are how you change
+     * host. The stage now follows the strip.
+     */
     private void pageHostList(int dir) {
-        if (pcGridView == null) return;
-        int page = Math.max(1, pcGridView.getHeight() - pcGridView.getPaddingTop()
-                - pcGridView.getPaddingBottom());
-        pcGridView.smoothScrollBy(dir * page, 300);
+        if (pcGridAdapter == null || pcGridAdapter.hostCount() == 0) {
+            return;
+        }
+        pcGridAdapter.setStageIndex(pcGridAdapter.getStageIndex() + dir);
     }
 
     private void refreshGridAdapter() {

@@ -80,9 +80,20 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- ══════ tab strip — shoulders at the ends, one tab per host ══════ -->
-    <LinearLayout
-        android:id="@+id/am_tab_strip"
+    <!-- ══════ tab strip — HomeScreen.qml:1824-1970 ══════
+
+         One Row, anchored LEFT, and that is the whole point: the desktop does not spread the
+         strip across the screen. Its shoulders sit at the ENDS OF THE STRIP — LT, then the tabs,
+         then RT, spacing _px(14) between the three groups and _px(8) between tabs — so with two
+         hosts the two shoulders are two tabs' width apart, not one at each edge of the panel.
+         Spreading them (the HorizontalScrollView with layout_weight="1" that was here) is what
+         left RT floating on its own at the right-hand side.
+
+         The scroll view is kept, at match_parent, but the row inside it is wrap_content and
+         fillViewport is false: a short strip stays left-aligned at its natural width, a strip
+         with more hosts than fit scrolls instead of clipping. -->
+    <HorizontalScrollView
+        android:id="@+id/am_tab_scroll"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:layout_below="@+id/am_brand_row"
@@ -91,59 +102,57 @@
         android:layout_marginEnd="44dp"
         android:layout_marginRight="44dp"
         android:layout_marginTop="18dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:scrollbars="none"
+        android:fillViewport="false">
 
-        <TextView
-            android:id="@+id/am_pg_up"
-            android:layout_width="44dp"
-            android:layout_height="30dp"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="false"
-            android:text="LT"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:textColor="@color/am_text3"
-            android:background="@drawable/am_picker_pill"
-            android:layout_marginEnd="14dp"
-            android:layout_marginRight="14dp" />
-
-        <HorizontalScrollView
-            android:layout_width="0dp"
+        <LinearLayout
+            android:id="@+id/am_tab_strip"
+            android:layout_width="wrap_content"
             android:layout_height="44dp"
-            android:layout_weight="1"
-            android:scrollbars="none"
-            android:fillViewport="true">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Left trigger. HomeScreen.qml:1852 shows both triggers only when there is at
+                 least one host; PcView hides them at zero. -->
+            <TextView
+                android:id="@+id/am_pg_up"
+                android:layout_width="44dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="false"
+                android:text="LT"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text3"
+                android:background="@drawable/am_picker_pill"
+                android:layout_marginEnd="14dp"
+                android:layout_marginRight="14dp" />
 
             <LinearLayout
                 android:id="@+id/am_tab_row"
                 android:layout_width="wrap_content"
                 android:layout_height="44dp"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical" />
 
-                <!-- "+  Add a host" is the strip's LAST tab (HomeScreen.qml:1923) and carries
-                     its own id so PcView's existing click wiring keeps working. -->
-
-            </LinearLayout>
-        </HorizontalScrollView>
-
-        <TextView
-            android:id="@+id/am_pg_dn"
-            android:layout_width="44dp"
-            android:layout_height="30dp"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="false"
-            android:text="RT"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:textColor="@color/am_text3"
-            android:background="@drawable/am_picker_pill"
-            android:layout_marginStart="14dp"
-            android:layout_marginLeft="14dp" />
-    </LinearLayout>
+            <!-- Right trigger — next to the last tab, not parked at the screen edge. -->
+            <TextView
+                android:id="@+id/am_pg_dn"
+                android:layout_width="44dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="false"
+                android:text="RT"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/am_text3"
+                android:background="@drawable/am_picker_pill"
+                android:layout_marginStart="14dp"
+                android:layout_marginLeft="14dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- ══════ the stage ══════ -->
     <RelativeLayout
@@ -151,7 +160,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
-        android:layout_below="@+id/am_tab_strip"
+        android:layout_below="@+id/am_tab_scroll"
         android:layout_above="@+id/am_footer">
 
         <RelativeLayout
@@ -190,8 +199,8 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
-        android:layout_marginStart="44dp"
-        android:layout_marginLeft="44dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginLeft="20dp"
         android:gravity="center_vertical|start"
         android:orientation="horizontal"
         android:paddingTop="6dp"
@@ -202,13 +211,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_footer_key_p"
-            android:textSize="11sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/am_on_accent"
             android:background="@drawable/am_footer_key"
+            android:minWidth="26dp"
             android:paddingStart="9dp" android:paddingLeft="9dp"
             android:paddingEnd="9dp" android:paddingRight="9dp"
-            android:paddingTop="5dp" android:paddingBottom="5dp"
+            android:paddingTop="6dp" android:paddingBottom="6dp"
             android:layout_marginEnd="6dp" android:layout_marginRight="6dp"
             android:visibility="gone" />
 
@@ -217,25 +227,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_footer_shutdown"
-            android:textSize="11sp"
+            android:textSize="16sp"
             android:textColor="@color/am_text2"
             android:background="@drawable/am_footer_key"
-            android:paddingStart="14dp" android:paddingEnd="14dp"
-            android:paddingTop="5dp" android:paddingBottom="5dp"
-            android:layout_marginEnd="8dp" android:layout_marginRight="8dp" />
+            android:paddingTop="6dp" android:paddingBottom="6dp"
+            android:layout_marginEnd="20dp" android:layout_marginRight="20dp" />
 
         <TextView
             android:id="@+id/am_footer_kb_settings"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_footer_key_s"
-            android:textSize="11sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/am_on_accent"
             android:background="@drawable/am_footer_key"
+            android:minWidth="26dp"
             android:paddingStart="9dp" android:paddingLeft="9dp"
             android:paddingEnd="9dp" android:paddingRight="9dp"
-            android:paddingTop="5dp" android:paddingBottom="5dp"
+            android:paddingTop="6dp" android:paddingBottom="6dp"
             android:layout_marginEnd="6dp" android:layout_marginRight="6dp"
             android:visibility="gone" />
 
@@ -244,25 +254,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_footer_settings"
-            android:textSize="11sp"
+            android:textSize="16sp"
             android:textColor="@color/am_text2"
             android:background="@drawable/am_footer_key"
-            android:paddingStart="14dp" android:paddingEnd="14dp"
-            android:paddingTop="5dp" android:paddingBottom="5dp"
-            android:layout_marginEnd="8dp" android:layout_marginRight="8dp" />
+            android:paddingTop="6dp" android:paddingBottom="6dp"
+            android:layout_marginEnd="20dp" android:layout_marginRight="20dp" />
 
         <TextView
             android:id="@+id/am_footer_kb_exit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_footer_key_esc"
-            android:textSize="11sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/am_on_accent"
             android:background="@drawable/am_footer_key"
+            android:minWidth="26dp"
             android:paddingStart="9dp" android:paddingLeft="9dp"
             android:paddingEnd="9dp" android:paddingRight="9dp"
-            android:paddingTop="5dp" android:paddingBottom="5dp"
+            android:paddingTop="6dp" android:paddingBottom="6dp"
             android:layout_marginEnd="6dp" android:layout_marginRight="6dp"
             android:visibility="gone" />
 
@@ -271,11 +281,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/am_footer_exit"
-            android:textSize="11sp"
+            android:textSize="16sp"
             android:textColor="@color/am_text2"
             android:background="@drawable/am_footer_key"
-            android:paddingStart="14dp" android:paddingEnd="14dp"
-            android:paddingTop="5dp" android:paddingBottom="5dp" />
+            android:paddingTop="6dp" android:paddingBottom="6dp" />
     </LinearLayout>
 
 </RelativeLayout>

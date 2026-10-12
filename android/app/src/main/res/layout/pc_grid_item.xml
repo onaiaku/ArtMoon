@@ -209,6 +209,153 @@
                         android:textColor="@color/am_text" />
                 </LinearLayout>
 
+            <LinearLayout
+                android:layout_marginStart="38dp"
+                android:layout_marginLeft="38dp"
+                android:layout_marginEnd="38dp"
+                android:layout_marginRight="38dp"
+                android:layout_marginTop="28dp"
+                android:id="@+id/am_last_session"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/am_last_session_when"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/am_last_session"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.09"
+                    android:textAllCaps="true"
+                    android:textColor="@color/am_text3" />
+
+                <TextView
+                    android:id="@+id/am_last_session_grade"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="21sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/am_online"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="10dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:layout_marginEnd="34dp">
+                        <TextView android:id="@+id/am_last_session_rtt"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="46sp" android:textStyle="bold"
+                            android:textColor="@color/am_text" />
+                        <TextView android:id="@+id/am_last_session_rtt_caption"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="@string/am_stat_rtt" android:textSize="14sp"
+                            android:textStyle="bold" android:letterSpacing="0.09"
+                            android:textAllCaps="true" android:textColor="@color/am_text3" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:layout_marginEnd="34dp">
+                        <TextView android:id="@+id/am_last_session_hostlat"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="46sp" android:textStyle="bold"
+                            android:textColor="@color/am_text" />
+                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="@string/am_stat_hostlat" android:textSize="14sp"
+                            android:textStyle="bold" android:letterSpacing="0.09"
+                            android:textAllCaps="true" android:textColor="@color/am_text3" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal">
+                        <TextView android:id="@+id/am_last_session_drops"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="46sp" android:textStyle="bold"
+                            android:textColor="@color/am_text" />
+                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="@string/am_stat_drops" android:textSize="14sp"
+                            android:textStyle="bold" android:letterSpacing="0.09"
+                            android:textAllCaps="true" android:textColor="@color/am_text3" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/am_last_session_covers"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <FrameLayout android:id="@+id/am_last_session_cover0"
+                        android:layout_width="48dp" android:layout_height="72dp"
+                        android:background="@drawable/am_game_tile" android:layout_marginEnd="8dp">
+                        <ImageView android:id="@+id/am_last_session_cover_img0"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:scaleType="centerCrop" android:contentDescription="@null"
+                            android:visibility="gone" />
+                        <TextView android:id="@+id/am_last_session_cover_name0"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:gravity="center" android:padding="4dp" android:textSize="9sp"
+                            android:textColor="@color/am_text2" android:maxLines="3"
+                            android:ellipsize="end" />
+                    </FrameLayout>
+
+                    <FrameLayout android:id="@+id/am_last_session_cover1"
+                        android:layout_width="48dp" android:layout_height="72dp"
+                        android:background="@drawable/am_game_tile" android:layout_marginEnd="8dp">
+                        <ImageView android:id="@+id/am_last_session_cover_img1"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:scaleType="centerCrop" android:contentDescription="@null"
+                            android:visibility="gone" />
+                        <TextView android:id="@+id/am_last_session_cover_name1"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:gravity="center" android:padding="4dp" android:textSize="9sp"
+                            android:textColor="@color/am_text2" android:maxLines="3"
+                            android:ellipsize="end" />
+                    </FrameLayout>
+
+                    <FrameLayout android:id="@+id/am_last_session_cover2"
+                        android:layout_width="48dp" android:layout_height="72dp"
+                        android:background="@drawable/am_game_tile" android:layout_marginEnd="8dp">
+                        <ImageView android:id="@+id/am_last_session_cover_img2"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:scaleType="centerCrop" android:contentDescription="@null"
+                            android:visibility="gone" />
+                        <TextView android:id="@+id/am_last_session_cover_name2"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:gravity="center" android:padding="4dp" android:textSize="9sp"
+                            android:textColor="@color/am_text2" android:maxLines="3"
+                            android:ellipsize="end" />
+                    </FrameLayout>
+
+                    <TextView android:id="@+id/am_last_session_more"
+                        android:layout_width="wrap_content" android:layout_height="match_parent"
+                        android:gravity="center|end" android:textSize="14sp"
+                        android:textStyle="bold" android:textColor="@color/am_text2"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </LinearLayout>
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
@@ -260,157 +407,198 @@
             android:layout_height="match_parent"
             android:layout_weight="0.45">
 
-            <LinearLayout
-                android:id="@+id/am_stats_col"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:orientation="vertical"
-                android:gravity="center_horizontal">
+        <!-- ══════ the right column — GameFacts (app/gui/GameFacts.qml) ══════
 
-                <LinearLayout
-                    android:id="@+id/am_last_session"
+             This is what the desktop puts beside the card, and it is NOT the host's session
+             numbers. Since 5.6.1 the host's own LASTSESSION reply is no longer what Home shows
+             here (HostStage.qml:1600): the block describes what you played, and "the layout is
+             GameFacts, the same component the host page's spotlight uses ... Do not
+             re-implement it here" (HostStage.qml:1606-1609).
+
+             It is what Nik was looking for on the right. Its absence is why the right-hand side
+             of the phone read as empty: the panel existed but held only the numbers block, which
+             is hidden unless the host reports a session, so with nothing to report the whole 45%
+             drew nothing at all.
+
+             Geometry, from GameFacts.qml, every number BASE and scaled by AmScale:
+               165  column spacing _px(18)
+               170  badge _px(30) tall, radius _px(6), width = content + _px(26)
+               180  badge inner spacing _px(9); dot _px(8)
+               206  badge texts at Theme.fontBody (16)
+               226  cover radius _px(10), height from availableHeight at bind time
+               250  title column, spacing _px(4); title at Theme.fontDisplay (34) Bold
+               320  meta row, spacing _px(8); store mark _px(19); text Theme.fontBody
+               368  spacer _px(12), drawn only when the figures are
+               381  figures spacing _px(30); value Theme.fontH2 (23), caption Theme.fontCaption (11)
+
+             The block is pinned to the panel's right edge with the desktop's own margin —
+             right _px(46), top _px(30) (HostStage.qml:1630-1633) — so `paddingEnd` stands in for
+             the end margin and every child centres inside what is left, which is how GameFacts
+             lays itself out (horizontalCenter on the badge, cover, title, meta and figures).
+
+             An empty map draws nothing at all — there is no empty state
+             (HostStage.qml:1611-1613). -->
+        <LinearLayout
+            android:id="@+id/am_facts_col"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:layout_marginTop="30dp"
+            android:paddingEnd="46dp"
+            android:paddingRight="46dp"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <LinearLayout
+                android:id="@+id/am_facts_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:background="@drawable/am_badge"
+                android:paddingStart="13dp"
+                android:paddingLeft="13dp"
+                android:paddingEnd="13dp"
+                android:paddingRight="13dp"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/am_facts_dot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/am_dot_online" />
+
+                <TextView
+                    android:id="@+id/am_facts_badge_main"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:layout_marginStart="9dp"
+                    android:layout_marginLeft="9dp"
+                    android:textSize="16sp"
+                    android:textColor="@color/am_text" />
+
+                <TextView
+                    android:id="@+id/am_facts_badge_muted"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="9dp"
+                    android:layout_marginLeft="9dp"
+                    android:textSize="16sp"
+                    android:textColor="@color/am_text3" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/am_facts_cover"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginTop="18dp"
+                android:scaleType="centerCrop"
+                android:background="@drawable/am_cover_frame"
+                android:clipToOutline="true"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/am_facts_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:gravity="center"
+                android:textSize="34sp"
+                android:textStyle="bold"
+                android:letterSpacing="-0.02"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:textColor="@color/am_text" />
+
+            <LinearLayout
+                android:id="@+id/am_facts_meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/am_facts_meta_icon"
+                    android:layout_width="19dp"
+                    android:layout_height="19dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/am_facts_meta_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginLeft="8dp"
+                    android:textSize="16sp"
+                    android:textColor="@color/am_text2" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/am_facts_figures"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_horizontal"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:gravity="center_horizontal"
-                    android:visibility="gone">
+                    android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/am_last_session_when"
+                        android:id="@+id/am_facts_played"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/am_last_session"
-                        android:textSize="15sp"
+                        android:textSize="23sp"
                         android:textStyle="bold"
-                        android:letterSpacing="0.09"
+                        android:textColor="@color/am_text" />
+
+                    <TextView
+                        android:id="@+id/am_facts_played_caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/am_fig_played"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"
                         android:textAllCaps="true"
                         android:textColor="@color/am_text3" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="30dp"
+                    android:layout_marginLeft="30dp"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/am_last_session_grade"
+                        android:id="@+id/am_facts_sessions"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textSize="21sp"
+                        android:textSize="23sp"
                         android:textStyle="bold"
-                        android:textColor="@color/am_online"
-                        android:layout_marginTop="4dp" />
+                        android:textColor="@color/am_text" />
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/am_facts_sessions_caption"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="10dp">
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:gravity="center_horizontal"
-                            android:layout_marginEnd="34dp">
-                            <TextView android:id="@+id/am_last_session_rtt"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textSize="46sp" android:textStyle="bold"
-                                android:textColor="@color/am_text" />
-                            <TextView android:id="@+id/am_last_session_rtt_caption"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:text="@string/am_stat_rtt" android:textSize="14sp"
-                                android:textStyle="bold" android:letterSpacing="0.09"
-                                android:textAllCaps="true" android:textColor="@color/am_text3" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:gravity="center_horizontal"
-                            android:layout_marginEnd="34dp">
-                            <TextView android:id="@+id/am_last_session_hostlat"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textSize="46sp" android:textStyle="bold"
-                                android:textColor="@color/am_text" />
-                            <TextView
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:text="@string/am_stat_hostlat" android:textSize="14sp"
-                                android:textStyle="bold" android:letterSpacing="0.09"
-                                android:textAllCaps="true" android:textColor="@color/am_text3" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:gravity="center_horizontal">
-                            <TextView android:id="@+id/am_last_session_drops"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textSize="46sp" android:textStyle="bold"
-                                android:textColor="@color/am_text" />
-                            <TextView
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:text="@string/am_stat_drops" android:textSize="14sp"
-                                android:textStyle="bold" android:letterSpacing="0.09"
-                                android:textAllCaps="true" android:textColor="@color/am_text3" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/am_last_session_covers"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="18dp"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <FrameLayout android:id="@+id/am_last_session_cover0"
-                            android:layout_width="48dp" android:layout_height="72dp"
-                            android:background="@drawable/am_game_tile" android:layout_marginEnd="8dp">
-                            <ImageView android:id="@+id/am_last_session_cover_img0"
-                                android:layout_width="match_parent" android:layout_height="match_parent"
-                                android:scaleType="centerCrop" android:contentDescription="@null"
-                                android:visibility="gone" />
-                            <TextView android:id="@+id/am_last_session_cover_name0"
-                                android:layout_width="match_parent" android:layout_height="match_parent"
-                                android:gravity="center" android:padding="4dp" android:textSize="9sp"
-                                android:textColor="@color/am_text2" android:maxLines="3"
-                                android:ellipsize="end" />
-                        </FrameLayout>
-
-                        <FrameLayout android:id="@+id/am_last_session_cover1"
-                            android:layout_width="48dp" android:layout_height="72dp"
-                            android:background="@drawable/am_game_tile" android:layout_marginEnd="8dp">
-                            <ImageView android:id="@+id/am_last_session_cover_img1"
-                                android:layout_width="match_parent" android:layout_height="match_parent"
-                                android:scaleType="centerCrop" android:contentDescription="@null"
-                                android:visibility="gone" />
-                            <TextView android:id="@+id/am_last_session_cover_name1"
-                                android:layout_width="match_parent" android:layout_height="match_parent"
-                                android:gravity="center" android:padding="4dp" android:textSize="9sp"
-                                android:textColor="@color/am_text2" android:maxLines="3"
-                                android:ellipsize="end" />
-                        </FrameLayout>
-
-                        <FrameLayout android:id="@+id/am_last_session_cover2"
-                            android:layout_width="48dp" android:layout_height="72dp"
-                            android:background="@drawable/am_game_tile" android:layout_marginEnd="8dp">
-                            <ImageView android:id="@+id/am_last_session_cover_img2"
-                                android:layout_width="match_parent" android:layout_height="match_parent"
-                                android:scaleType="centerCrop" android:contentDescription="@null"
-                                android:visibility="gone" />
-                            <TextView android:id="@+id/am_last_session_cover_name2"
-                                android:layout_width="match_parent" android:layout_height="match_parent"
-                                android:gravity="center" android:padding="4dp" android:textSize="9sp"
-                                android:textColor="@color/am_text2" android:maxLines="3"
-                                android:ellipsize="end" />
-                        </FrameLayout>
-
-                        <TextView android:id="@+id/am_last_session_more"
-                            android:layout_width="wrap_content" android:layout_height="match_parent"
-                            android:gravity="center|end" android:textSize="14sp"
-                            android:textStyle="bold" android:textColor="@color/am_text2"
-                            android:visibility="gone" />
-                    </LinearLayout>
+                        android:text="@string/am_fig_sessions"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"
+                        android:textAllCaps="true"
+                        android:textColor="@color/am_text3" />
                 </LinearLayout>
             </LinearLayout>
+        </LinearLayout>
+
 
             <!-- kept so the adapter's existing binding keeps working; the desktop has no
                  glyph well on the stage, so it stays gone unless there is something to say -->

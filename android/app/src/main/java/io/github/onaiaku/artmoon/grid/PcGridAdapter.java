@@ -73,7 +73,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     @Override
     public android.view.View getView(int position, android.view.View convertView, android.view.ViewGroup parent) {
         boolean fresh = (convertView == null);
-        View v = super.getView(position, convertView, parent);
+        // getCount() is 1, so `position` is always 0 — the item it stands for is the stage host.
+        View v = super.getView(stageHostPosition(), convertView, parent);
 
         // Ported scale (AppShell.qml:32 — Theme.uiScale = width / 1330). Applied to a FRESH
         // inflation only: a recycled row has already been through it, and scaling twice is
@@ -147,6 +148,57 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         return (i >= 0 && i < itemList.size()) ? itemList.get(i) : null;
     }
 
+    /**
+     * Which host the stage is showing.
+     *
+     * HomeScreen.qml fronts ONE stage with the strip (HomeScreen.qml:1975) — there is no list of
+     * hosts to scroll, because the tabs are how you change host. The GridView underneath is only
+     * the container the stage is drawn in, so it renders exactly one item: the selected host.
+     * Without this, swiping down moved to the second host, which no other platform can do.
+     */
+    private int stageIndex = 0;
+
+    public void setStageIndex(int i) {
+        int n = itemList.size();
+        if (n == 0) {
+            stageIndex = 0;
+            return;
+        }
+        int c = ((i % n) + n) % n;
+        if (c != stageIndex) {
+            stageIndex = c;
+            notifyDataSetChanged();
+        }
+    }
+
+    public int getStageIndex() {
+        return stageIndex;
+    }
+
+    /** The itemList position the stage is drawn from. */
+    private int stageHostPosition() {
+        if (itemList.isEmpty()) {
+            return 0;
+        }
+        if (stageIndex < 0 || stageIndex >= itemList.size()) {
+            stageIndex = 0;
+        }
+        return stageIndex;
+    }
+
+    @Override
+    public int getCount() {
+        return itemList.isEmpty() ? 0 : 1;
+    }
+
+    @Override
+    public Object getItem(int position) {
+        if (itemList.isEmpty()) {
+            return null;
+        }
+        return itemList.get(stageHostPosition());
+    }
+
     public void addComputer(PcView.ComputerObject computer) {
         itemList.add(computer);
         sortList();
@@ -177,11 +229,12 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     }
 
     public View getFocusedRowView() {
-        if (focusedPosition == android.widget.AdapterView.INVALID_POSITION
-                || focusedPosition < 0 || focusedPosition >= itemList.size()) {
+        // One row on screen, so "the focused row" is the stage host's — resolving through
+        // focusedPosition would pick a host that is not drawn (see setStageIndex).
+        if (itemList.isEmpty()) {
             return null;
         }
-        PcView.ComputerObject obj = itemList.get(focusedPosition);
+        PcView.ComputerObject obj = itemList.get(stageHostPosition());
         return boundViews.get(obj.details.uuid);
     }
 
@@ -370,6 +423,116 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
      * v11: HOST LINK — the STATUS NIC-speed reply, desktop-formatted
      * ("1000" -> "1 Gbps"). link == null hides the block.
      */
+    /**
+     * v12: the right-hand GameFacts block — desktop HostStage.qml:1625, `lastPanel`, the block
+     * that stands on the floor beside the card: badge, cover, title, meta, figures.
+     *
+     * ⚠️ This is NOT the host's session numbers. Those live inside the card now, which is where
+     * the desktop keeps them (HostStage.qml:1218 sits inside the card, anchored 38 in from its
+     * left and right). The right column holds GameFacts, and only GameFacts.
+     *
+     * ⚠️ Source. The desktop feeds this from a playtime log it keeps itself on the machine that
+     * played (computermodel.cpp:1364 → PlaytimeManager). This client has no such log yet, so the
+     * block is fed from the host's own last-session reply — the only per-game record available
+     * here. Same block, same geometry, one different source; when a playtime log lands on Android
+     * this is the method it should feed instead.
+     *
+     * ago == null draws nothing at all: "An empty map means draw nothing at all ... There is no
+     * empty state" (HostStage.qml:1611-1613).
+     */
+    public void updateGameFactsByUuid(String uuid, String ago, String duration,
+                                      java.util.List<GameCover> games) {
+        View v = boundViews.get(uuid);
+        if (v == null) {
+            return;
+        }
+        final View col = v.findViewById(R.id.am_facts_col);
+        if (col == null) {
+            return;
+        }
+        if (ago == null || ago.isEmpty()) {
+            col.setVisibility(View.GONE);
+            return;
+        }
+
+        // Badge: "Last played <ago>" with the session's length beside it (HostStage.qml:1658-1665
+        // is the running/last-played wording; there are no "total" figures here — that number is
+        // the desktop's local log).
+        bindText(v, R.id.am_facts_badge_main,
+                context.getString(R.string.am_last_played_ago, ago));
+        bindText(v, R.id.am_facts_badge_muted, duration == null ? "" : duration);
+        View badge = v.findViewById(R.id.am_facts_badge);
+        if (badge != null) {
+            badge.setVisibility(View.VISIBLE);
+        }
+
+        // Cover and title come from the first entry of the host's own games list — the game the
+        // session was played in, which is what the desktop's cover and title are too.
+        String title = "";
+        android.graphics.Bitmap art = null;
+        if (games != null && !games.isEmpty()) {
+            GameCover gc = games.get(0);
+            if (gc.name != null) {
+                title = gc.name;
+            }
+            art = decodeCover(gc.cover);
+        }
+        bindText(v, R.id.am_facts_title, title);
+
+        final ImageView cover = v.findViewById(R.id.am_facts_cover);
+        if (cover != null) {
+            if (art != null) {
+                cover.setImageBitmap(art);
+                cover.setVisibility(View.VISIBLE);
+            } else {
+                cover.setVisibility(View.GONE);
+            }
+        }
+
+        // The meta row carries the store's mark and name. The host's reply has neither, so the
+        // row stays hidden rather than inventing a storefront (GameFacts.qml:321 hides it on
+        // empty text for the same reason).
+        View meta = v.findViewById(R.id.am_facts_meta);
+        if (meta != null) {
+            meta.setVisibility(View.GONE);
+        }
+
+        // One figure, not two: PLAYED. The desktop's second figure is the session COUNT from its
+        // own log, and the host does not report one — a "1" here would be inventing a number.
+        boolean hasPlayed = duration != null && !duration.isEmpty();
+        bindText(v, R.id.am_facts_played, hasPlayed ? duration : "\u2014");
+        View figures = v.findViewById(R.id.am_facts_figures);
+        if (figures != null) {
+            figures.setVisibility(hasPlayed ? View.VISIBLE : View.GONE);
+        }
+
+        col.setVisibility(View.VISIBLE);
+
+        // coverHeight (GameFacts.qml:147-156): whatever the panel has left once the block's own
+        // text has taken its share, floored at _px(90). Two passes, because the text's height is
+        // only real after layout has run.
+        final ImageView cv = cover;
+        if (cv != null) {
+            col.post(new Runnable() {
+                @Override
+                public void run() {
+                    View panel = (View) col.getParent();
+                    if (panel == null || panel.getHeight() <= 0 || cv.getHeight() <= 0) {
+                        return;
+                    }
+                    int others = col.getHeight() - cv.getHeight();
+                    int room = panel.getHeight() - dp(30) - dp(18) - others;
+                    int h = Math.max(dp(90), room);
+                    if (cv.getHeight() != h) {
+                        android.view.ViewGroup.LayoutParams lp = cv.getLayoutParams();
+                        lp.height = h;
+                        cv.setLayoutParams(lp);
+                    }
+                }
+            });
+        }
+    }
+
     public void updateHostLinkByUuid(String uuid, String link) {
         View v = boundViews.get(uuid);
         if (v == null) {

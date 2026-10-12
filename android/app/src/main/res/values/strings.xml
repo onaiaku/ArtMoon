@@ -367,7 +367,7 @@
     <string name="am_hero_auth">ArtLight Authorized</string>
     <string name="am_hero_ready">Ready to stream</string>
     <string name="am_hero_offline">Offline</string>
-    <string name="am_picker_add">+ Add a host</string>
+    <string name="am_picker_add">Add a host</string>
     <string name="am_footer_shutdown">Shutdown</string>
     <string name="am_footer_settings">Settings</string>
     <string name="am_footer_exit">Exit</string>
@@ -383,6 +383,16 @@
     <string name="am_stat_net">NET</string>
     <string name="am_stat_hostlat">Host lat.</string>
     <string name="am_stat_drops">Drops</string>
+    <!-- GameFacts (app/gui/GameFacts.qml) — the right-hand block on the host stage. -->
+    <string name="am_last_played_ago">Last played %1$s</string>
+    <string name="am_last_played">Last played</string>
+    <string name="am_streaming_now">Streaming now</string>
+    <string name="am_fig_played">Played</string>
+    <string name="am_fig_session">Session</string>
+    <string name="am_fig_sessions">Sessions</string>
+    <string name="am_panel_play_again">Play again</string>
+    <string name="am_panel_resume">Resume</string>
+
     <string name="am_auth_pending">ArtLight Pending</string>
     <!-- App picker (landscape master-detail) -->
     <string name="am_pick_play" translatable="false">Play</string>
