@@ -234,6 +234,60 @@ public class UiHelper {
     }
 
     /**
+     * §446 — the host's answer to a launch, shown as what it is (5.9.0 on the desktop:
+     * AppsScreen.qml:446, decided in session.cpp:2258).
+     *
+     * A 410 is not an error. Either a host action finished without a stream — Terminate, Disconnect
+     * Monitor, Disconnect Input — and this is its success message, or the host wants the launch
+     * confirmed by doing it again within 60 seconds. The caller has already told the two apart from
+     * the wording, because that is the only difference between them: same status code.
+     *
+     * One buttons when it is a message, two when it is a question. Same split as the desktop's
+     * `standardButtons: confirm ? (Dialog.Yes | Dialog.No) : Dialog.Ok`.
+     */
+    public static void displayHostNoticeDialog(Activity parent, String message, final Runnable onOk) {
+        new AlertDialog.Builder(parent)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (onOk != null) {
+                            onOk.run();
+                        }
+                    }
+                })
+                .show();
+    }
+
+    public static void displayHostNoticeConfirmDialog(Activity parent, String message,
+                                                      final Runnable onYes, final Runnable onNo) {
+        DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which) {
+                    case DialogInterface.BUTTON_POSITIVE:
+                        if (onYes != null) {
+                            onYes.run();
+                        }
+                        break;
+
+                    case DialogInterface.BUTTON_NEGATIVE:
+                        if (onNo != null) {
+                            onNo.run();
+                        }
+                        break;
+                }
+            }
+        };
+
+        new AlertDialog.Builder(parent)
+                .setMessage(message)
+                .setPositiveButton(parent.getResources().getString(R.string.yes), dialogClickListener)
+                .setNegativeButton(parent.getResources().getString(R.string.no), dialogClickListener)
+                .show();
+    }
+
+    /**
      * The hero card's Stop confirmation, with the game named. The desktop's Stop names the app it
      * is about to end (HomeScreen.qml stopRunning() -> stopRunningDialog.appName); the overflow
      * menu's Quit has no name to give and keeps the plain wording. Same dialog, same two answers.

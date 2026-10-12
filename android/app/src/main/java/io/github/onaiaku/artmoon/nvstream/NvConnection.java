@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Semaphore;
@@ -397,6 +398,21 @@ public class NvConnection {
                     }
                     context.connListener.stageComplete(appName);
                 } catch (HostHttpResponseException e) {
+                    // ⚠️ 410 is not an error. Apollo's convention, kept by Vibeshine and Vibepollo
+                    // 2.0: a host control that finishes without a stream (Terminate, Disconnect
+                    // Monitor/Input) answers 410 with a success message, and an action the server
+                    // wants confirmed (Terminate from a secondary client, replacing a running app)
+                    // answers 410 asking to launch the same entry again within 60 s. Only that
+                    // wording tells the two apart — the status code is the same — so it is matched
+                    // on the one phrase both prompts share. This is the desktop's own rule,
+                    // session.cpp:2258-2269, and it does not go through stageFailed: nothing failed.
+                    if (e.getErrorCode() == 410) {
+                        final String notice = e.getErrorMessage();
+                        LimeLog.info("Launch answered 410: " + notice);
+                        context.connListener.launchNotice(notice,
+                                notice != null && notice.toLowerCase(Locale.US).contains("again within"));
+                        return;
+                    }
                     e.printStackTrace();
                     context.connListener.displayMessage(e.getMessage());
                     context.connListener.stageFailed(appName, 0, e.getErrorCode());

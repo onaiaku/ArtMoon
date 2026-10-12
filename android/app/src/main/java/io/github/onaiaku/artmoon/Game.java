@@ -2640,6 +2640,61 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         }
     }
 
+    /*
+     * §446 — the host's own sentence about a launch, shown as what it is.
+     *
+     * Not an error dialog and not a toast for a failure: the host answered the launch with 410,
+     * which means either that a host action finished (and this is its message about it) or that it
+     * wants the same entry launched again within 60 s to confirm. The second one is a question, so
+     * it is asked as one — the desktop's rule, AppsScreen.qml:1862-1879 — and Yes launches the
+     * same entry again, found by id then and by intent here.
+     *
+     * Nothing has been launched at this point: NvConnection returned before starting the stream,
+     * so this sends the phone back to the picker rather than over a stream that never began. The
+     * one difference from the desktop, which hands the notice back to the page: on Android the
+     * activity that owns the launch is also the activity that was handling it, so the question is
+     * asked where the answer is still usable instead of giving the app id back up the stack.
+     */
+    @Override
+    public void launchNotice(final String message, final boolean confirm) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (confirm) {
+                    UiHelper.displayHostNoticeConfirmDialog(Game.this, message,
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    launchSameEntryAgain();
+                                }
+                            },
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    finish();
+                                }
+                            });
+                } else {
+                    UiHelper.displayHostNoticeDialog(Game.this, message, new Runnable() {
+                        @Override
+                        public void run() {
+                            finish();
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    // The same entry, launched again. The entry is the one this activity was started with, so the
+    // intent it carries is the entry — the desktop looks its app id back up because its segue is
+    // destroyed by the time the answer arrives (AppsScreen.qml:212-217); nothing is destroyed here.
+    private void launchSameEntryAgain() {
+        Intent again = new Intent(getIntent());
+        finish();
+        startActivity(again);
+    }
+
     @Override
     public void rumble(short controllerNumber, short lowFreqMotor, short highFreqMotor) {
         LimeLog.info(String.format((Locale)null, "Rumble on gamepad %d: %04x %04x", controllerNumber, lowFreqMotor, highFreqMotor));
