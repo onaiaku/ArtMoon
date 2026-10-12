@@ -227,7 +227,9 @@ public class HostMetricsPoller {
      * Desktop formatStreamTweakStatus/formatMbpsShort: "1000" -> "1 Gbps",
      * "600" -> "600 Mbps"; empty/unparseable/ERR -> null (the block hides).
      */
-    private static String formatMbpsShort(String raw) {
+    /** The desktop's own rendering of a NIC speed ("1000" -> "1 Gbps"). Public because the app
+     *  picker prints the same number on its config line. */
+    public static String formatMbpsShort(String raw) {
         if (raw == null || raw.isEmpty() || raw.startsWith("ERR")) {
             return null;
         }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One value on the config line. The desktop builds these from a Repeater: a group label (HOST,
+    STREAM) and then one badge per value, each its own pill — AppsScreen.qml:973. Inflated per
+    value rather than declared one by one, so the row carries as many as there are settings.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/AmCfgChip"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="6dp"
+    android:layout_marginLeft="6dp" />

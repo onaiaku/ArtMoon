@@ -17,6 +17,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -36,6 +37,8 @@ import io.github.onaiaku.artmoon.ArtMoonActivity;
 import io.github.onaiaku.artmoon.OrientationHelper;
 import io.github.onaiaku.artmoon.R;
 import io.github.onaiaku.artmoon.computers.ComputerManagerListener;
+import io.github.onaiaku.artmoon.artlight.ArtLightBridge;
+import io.github.onaiaku.artmoon.artlight.HostMetricsPoller;
 import io.github.onaiaku.artmoon.grid.AppAmbientArtwork;
 import io.github.onaiaku.artmoon.computers.ComputerManagerService;
 import io.github.onaiaku.artmoon.nvstream.http.ComputerDetails;
@@ -97,6 +100,7 @@ public class AppsPageView extends ArtMoonActivity {
     private final Set<Integer> keepVisible = new HashSet<Integer>();
 
     private AppAmbientArtwork ambientArtwork;
+    private ComputerManagerService.ApplistPoller poller;
     private AppsRowAdapter adapter;
     private ListView grid;
     private AppLibrary.Page page;
@@ -274,7 +278,12 @@ public class AppsPageView extends ArtMoonActivity {
      * <p>Three chips that would be guesses are hidden rather than filled with something plausible.
      */
     private void paintChips() {
-        findViewById(R.id.am_chip_online).setVisibility(View.VISIBLE);
+        TextView online = (TextView) findViewById(R.id.am_chip_online);
+        // The dot is drawn inside the pill, not beside it — the desktop's badge carries the same
+        // dot (AppsScreen.qml's chip row), and it is the only green on the screen.
+        online.setCompoundDrawablesWithIntrinsicBounds(R.drawable.am_dot_online, 0, 0, 0);
+        online.setCompoundDrawablePadding((int) (6 * getResources().getDisplayMetrics().density));
+        online.setVisibility(View.VISIBLE);
         findViewById(R.id.am_chip_profile).setVisibility(View.GONE);
         findViewById(R.id.am_chip_tailscale).setVisibility(View.GONE);
         findViewById(R.id.am_chip_link).setVisibility(View.GONE);
@@ -289,17 +298,89 @@ public class AppsPageView extends ArtMoonActivity {
                     : computer.localAddress != null ? computer.localAddress.address : "";
         }
         TextView host = (TextView) findViewById(R.id.am_cfg_host);
-        host.setText(address.isEmpty() ? hostName : address);
+        host.setText(address.isEmpty() ? "N/A" : address);
 
-        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(this);
-        StringBuilder sb = new StringBuilder();
-        sb.append(prefs.width).append("×").append(prefs.height);
-        sb.append("  ·  ").append(prefs.fps).append(" FPS");
-        sb.append("  ·  ").append(prefs.bitrate).append(" Mbps");
-        if (prefs.enableHdr) {
-            sb.append("  ·  HDR");
+        // The wire the host is on, from the host itself (ArtLight's STATUS reply). Hidden until it
+        // answers, and left hidden if it never does: a link speed this client invented would be
+        // worse than no speed at all.
+        final TextView speed = (TextView) findViewById(R.id.am_cfg_host_speed);
+        speed.setVisibility(View.GONE);
+        if (computer != null && !address.isEmpty()) {
+            new ArtLightBridge(this).requestStatus(address, new ArtLightBridge.ResponseCallback() {
+                @Override
+                public void onResult(String response) {
+                    final String label = HostMetricsPoller.formatMbpsShort(response);
+                    if (label == null) {
+                        return;
+                    }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isFinishing()) {
+                                return;
+                            }
+                            speed.setText(label);
+                            speed.setVisibility(View.VISIBLE);
+                        }
+                    });
+                }
+            });
         }
-        ((TextView) findViewById(R.id.am_cfg_stream)).setText(sb.toString());
+
+        // One pill per setting, the way the desktop draws them with a Repeater
+        // (AppsScreen.qml:962-969): the size by its own name where it has one, the rate, the
+        // bitrate in Mbps, HDR only when it is on, and the codec.
+        //
+        // ⚠️ The bitrate preference is in kbps. Divided by 1000 here because the desktop divides
+        // there (`(_effBitrate / 1000).toFixed(0)`) — without it the line claims 67000 Mbps.
+        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(this);
+        LinearLayout row = (LinearLayout) findViewById(R.id.am_cfg_stream_row);
+        row.removeAllViews();
+        addCfgChip(row, resLabel(prefs.width, prefs.height));
+        addCfgChip(row, prefs.fps + " FPS");
+        addCfgChip(row, (prefs.bitrate / 1000) + " Mbps");
+        if (prefs.enableHdr) {
+            addCfgChip(row, "HDR");
+        }
+        addCfgChip(row, codecLabel(prefs.videoFormat));
+    }
+
+    private void addCfgChip(LinearLayout row, String text) {
+        TextView chip = (TextView) android.view.LayoutInflater.from(this)
+                .inflate(R.layout.am_cfg_chip, row, false);
+        chip.setText(text);
+        row.addView(chip);
+    }
+
+    /** The desktop's own names for the sizes (AppsScreen.qml:79-86). */
+    private static String resLabel(int w, int h) {
+        if (w == 3840 && h == 2160) {
+            return "4K";
+        }
+        if (w == 2560 && h == 1440) {
+            return "1440p";
+        }
+        if (w == 1920 && h == 1080) {
+            return "1080p";
+        }
+        if (w == 1280 && h == 720) {
+            return "720p";
+        }
+        return w + "×" + h;
+    }
+
+    /** The desktop's codec words (AppsScreen.qml:76). */
+    private static String codecLabel(PreferenceConfiguration.FormatOption f) {
+        if (f == PreferenceConfiguration.FormatOption.FORCE_AV1) {
+            return "AV1";
+        }
+        if (f == PreferenceConfiguration.FormatOption.FORCE_HEVC) {
+            return "HEVC";
+        }
+        if (f == PreferenceConfiguration.FormatOption.FORCE_H264) {
+            return "H.264";
+        }
+        return "Auto codec";
     }
 
     private void wireTabs() {
@@ -359,89 +440,6 @@ public class AppsPageView extends ArtMoonActivity {
         findViewById(R.id.am_hero_stop).setOnClickListener(stop);
         findViewById(R.id.am_key_stop).setOnClickListener(stop);
 
-        View.OnClickListener customize = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openGamePanel();
-            }
-        };
-        findViewById(R.id.am_hero_customize).setOnClickListener(customize);
-        findViewById(R.id.am_key_customize).setOnClickListener(customize);
-    }
-
-    /**
-     * This game's own panel.
-     *
-     * <p>The desktop's panel is per-game stream overrides — resolution, codec, bitrate, HDR — and
-     * this client has no per-game settings model to override, so porting that panel would mean
-     * shipping a screen whose controls changed nothing. What it does have of its own per game is
-     * what this shows: what has been played on it, when, and the two things the user can decide for
-     * one entry and no other — whether it is pinned, and which tab it sits in. Reset gives the hours
-     * back, which is the desktop's own feature on the same panel.
-     *
-     * <p>The desktop's chrome around it — the cover in the header, the section tabs, the rows — is
-     * waiting for something to put in it. This is the panel's content, not its frame.
-     */
-    private void openGamePanel() {
-        final AppLibrary.Row row = selectedRow();
-        if (row == null) {
-            return;
-        }
-
-        final PlaytimeManager.PlaytimeRecord rec =
-                PlaytimeManager.recordFor(this, uuidString, row.name);
-        final boolean hasPlaytime = rec != null && rec.valid && (rec.totalSeconds > 0 || rec.sessionCount > 0);
-
-        StringBuilder body = new StringBuilder();
-        if (row.isApp) {
-            body.append("An app on this host.");
-        }
-        else if (hasPlaytime) {
-            body.append(PlaytimeManager.formatDuration(rec.totalSeconds)).append(" played");
-            body.append("  ·  ").append(rec.sessionCount == 1 ? "1 session"
-                    : rec.sessionCount + " sessions");
-            if (rec.lastPlayedUtc > 0) {
-                body.append("\nLast played ")
-                        .append(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                                .format(new Date(rec.lastPlayedUtc)));
-            }
-        }
-        else {
-            body.append("Nothing played on this host yet.");
-        }
-        body.append("\n\n");
-        body.append(row.pinned ? "Pinned to the top of the library." : "Not pinned.");
-        body.append("\n");
-        body.append(row.isApp ? "Listed under APPS." : "Listed under GAMES.");
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle(row.name)
-                .setMessage(body.toString())
-                .setNegativeButton("Close", null);
-
-        // Pin and unpin belong here as much as on the long press — it is the same decision, and a
-        // panel about one game is where a user looks for it.
-        builder.setNeutralButton(row.pinned ? "Unpin" : "Pin", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                PlaytimeManager.setPinned(AppsPageView.this, uuidString, row.name, !row.pinned);
-                rebuildPageKeeping(row.appId);
-            }
-        });
-
-        if (hasPlaytime) {
-            builder.setPositiveButton("Reset play time", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    PlaytimeManager.reset(AppsPageView.this, uuidString, row.name);
-                    // The hours are gone, so both the row's meta line and — if this was the last
-                    // played game — the order and the heading change with it.
-                    rebuildPageKeeping(row.appId);
-                }
-            });
-        }
-
-        builder.show();
     }
 
     /**
@@ -753,6 +751,15 @@ public class AppsPageView extends ArtMoonActivity {
         if (managerBinder == null || !inForeground) {
             return;
         }
+        // ⚠️ The host's poll reply carries no app list. It is fetched by its own poller, which the
+        // old screen started here too (AppView.startComputerUpdates). Without it the page shows no
+        // entries at all: the only list it would ever see is whatever the computer record happened
+        // to be holding when the screen opened.
+        if (poller == null) {
+            poller = managerBinder.createAppListPoller(computer);
+        }
+        poller.start();
+
         managerBinder.startPolling(new ComputerManagerListener() {
             @Override
             public void notifyComputerUpdated(final ComputerDetails details) {
@@ -902,6 +909,9 @@ public class AppsPageView extends ArtMoonActivity {
     @Override
     protected void onPause() {
         inForeground = false;
+        if (poller != null) {
+            poller.stop();
+        }
         if (managerBinder != null) {
             managerBinder.stopPolling();
         }

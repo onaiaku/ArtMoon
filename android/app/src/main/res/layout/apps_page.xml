@@ -55,6 +55,16 @@
             android:paddingTop="10dp"
             android:paddingBottom="2dp">
 
+            <ImageView
+                android:id="@+id/am_brand"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginRight="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/am_brand"
+                android:contentDescription="ArtMoon" />
+
             <TextView
                 android:id="@+id/am_host_name"
                 android:layout_width="wrap_content"
@@ -137,7 +147,14 @@
 
             <TextView
                 android:id="@+id/am_cfg_host"
-                style="@style/AmCfgChip" />
+                style="@style/AmCfgChip"
+                android:layout_marginStart="0dp"
+                android:layout_marginLeft="0dp" />
+
+            <TextView
+                android:id="@+id/am_cfg_host_speed"
+                style="@style/AmCfgChip"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/am_cfg_sep"
@@ -155,9 +172,13 @@
                 style="@style/AmCfgLabel"
                 android:text="@string/am_cfg_stream" />
 
-            <TextView
-                android:id="@+id/am_cfg_stream"
-                style="@style/AmCfgChip" />
+            <!-- One pill per setting, built in fillConfigLine — the desktop's Repeater. -->
+            <LinearLayout
+                android:id="@+id/am_cfg_stream_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="false" />
         </LinearLayout>
 
         <!-- ── the two columns ───────────────────────────────────────────────────────── -->
@@ -190,17 +211,20 @@
                     <TextView
                         android:id="@+id/am_tab_all"
                         style="@style/AmTab"
-                        android:background="@drawable/am_tab_underline" />
+                        android:background="@drawable/am_tab_underline"
+                        android:text="@string/am_tab_all" />
 
                     <TextView
                         android:id="@+id/am_tab_games"
                         style="@style/AmTab"
-                        android:background="@drawable/am_tab_underline" />
+                        android:background="@drawable/am_tab_underline"
+                        android:text="@string/am_tab_games" />
 
                     <TextView
                         android:id="@+id/am_tab_apps"
                         style="@style/AmTab"
-                        android:background="@drawable/am_tab_underline" />
+                        android:background="@drawable/am_tab_underline"
+                        android:text="@string/am_tab_apps" />
                 </LinearLayout>
 
                 <!-- The list runs the full height of the page — that is where the rows come from. -->
@@ -299,11 +323,6 @@
                         style="@style/AmHeroBtn" />
 
                     <TextView
-                        android:id="@+id/am_hero_customize"
-                        style="@style/AmHeroBtn"
-                        android:text="@string/am_hero_customize" />
-
-                    <TextView
                         android:id="@+id/am_hero_stop"
                         style="@style/AmHeroBtn"
                         android:text="@string/am_hero_stop"
@@ -329,10 +348,6 @@
 
             <TextView
                 android:id="@+id/am_key_launch"
-                style="@style/AmKeyHint" />
-
-            <TextView
-                android:id="@+id/am_key_customize"
                 style="@style/AmKeyHint" />
 
             <TextView
