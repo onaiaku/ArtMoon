@@ -116,7 +116,10 @@ public class HostMetricsPoller {
         }
         adapter.updateLastSessionByUuid(uuid, lk.ago, lk.duration, lk.grade, lk.gradeColor,
                 lk.rttMs, lk.rttPeakMs, lk.hostLatMs, lk.dropsPct, lk.gamesTotal, lk.games);
-        adapter.updateGameFactsByUuid(uuid, lk.ago, lk.duration, lk.games);
+        // ⚠️ No updateGameFactsByUuid here any more. The right-hand block names what THIS client
+        // last played, from the record on this machine (PlaytimeManager) — a host that answers
+        // LASTSESSION is not necessarily the host that knows, and a host that never answers it at
+        // all still has to draw the block. The session numbers above stay the host's own fact.
         if (lk.hostLink != null) {
             adapter.updateHostLinkByUuid(uuid, lk.hostLink);
         }
@@ -189,10 +192,10 @@ public class HostMetricsPoller {
                                 lk.gradeColor, lk.rttMs, lk.rttPeakMs, lk.hostLatMs, lk.dropsPct,
                                 lk.gamesTotal, lk.games);
 
-                        // The right-hand column is GameFacts — badge, cover, title, figures
-                        // (HostStage.qml:1625). The session NUMBERS above stay in the card, where
-                        // the desktop keeps them (HostStage.qml:1218 is inside the card).
-                        adapter.updateGameFactsByUuid(tgt.uuid, lk.ago, lk.duration, lk.games);
+                        // The session NUMBERS stay in the card, where the desktop keeps them
+                        // (HostStage.qml:1218 is inside the card). The right-hand column is not
+                        // touched from here: it names what THIS client last played, and that comes
+                        // from the record on this machine, not from this reply.
                     }
                 });
             }

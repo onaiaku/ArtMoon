@@ -13,6 +13,7 @@ import io.github.onaiaku.artmoon.grid.assets.DiskAssetLoader;
 import io.github.onaiaku.artmoon.nvstream.http.ComputerDetails;
 import io.github.onaiaku.artmoon.nvstream.http.NvApp;
 import io.github.onaiaku.artmoon.nvstream.http.NvHTTP;
+import io.github.onaiaku.artmoon.settings.PlaytimeManager;
 import io.github.onaiaku.artmoon.nvstream.http.PairingManager;
 import io.github.onaiaku.artmoon.nvstream.http.PairingManager.PairState;
 import io.github.onaiaku.artmoon.nvstream.wol.WakeOnLanSender;
@@ -1516,6 +1517,12 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         // app list: the button had a listener, but not this one. Every route below ends somewhere
         // real — resolution failure lands on the app list, which is the desktop's own fallback.
         final boolean running = computer.details.runningGameId != 0;
+
+        // The block's identity comes from the record THIS client keeps (PlaytimeManager), so it is
+        // pushed before the button is resolved against it: the button launches the name the block
+        // shows, and a block still holding last bind's game would launch that instead.
+        pushLastPlayed(computer.details);
+
         final String lastGame = pcGridAdapter != null
                 ? pcGridAdapter.lastGameNameFor(computer.details.uuid) : null;
 
@@ -1629,6 +1636,119 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                                             new NvApp("app", 0, false), managerBinder, null);
                     }
                 }, null);
+    }
+
+    /**
+     * Tells the card what THIS client last played on this host, from the record kept on this
+     * machine ({@code settings/PlaytimeManager}) — the port of the desktop's
+     * {@code ComputerModel::lastPlayedFor()} and the reason the desktop fixed this in 5.6.1.
+     *
+     * <p>Until now the block was named by the host's own last session, which only our ArtLight stack
+     * can answer: on a plain Sunshine, Apollo or Vibepollo host the block never appeared at all, and
+     * on ours it named whatever the host last ran, possibly from another device. The record is the
+     * client's, so it works against every host this app can stream from.</p>
+     *
+     * <p>&#9888; One deliberate difference from the desktop, and it is about a state the desktop does
+     * not have. {@code lastPlayedFor()} returns an empty map when the name is not in the host's app
+     * list, and the block is then not drawn at all — "rather than offering a button that would
+     * fail". That assumes a populated list, which the desktop model always has. This screen does not
+     * fetch one; it is filled in as a side effect of launching. So when the list is absent the block
+     * is still drawn from the record, with no cover: the record is itself proof the game was
+     * playable here, and hiding it because this screen has not fetched a list yet would lose the
+     * block on every fresh visit. The launch falls back to the app list on resolution failure, which
+     * is the desktop's own fallback.</p>
+     */
+    private void pushLastPlayed(ComputerDetails details) {
+        if (pcGridAdapter == null || details == null || details.uuid == null) {
+            return;
+        }
+
+        final PlaytimeManager.PlaytimeRecord rec =
+                PlaytimeManager.lastPlayedOn(this, details.uuid);
+        if (!rec.valid || rec.name == null || rec.name.isEmpty()) {
+            // No name, no block (HostStage.qml:215-216, 1611-1613).
+            pcGridAdapter.setLastPlayedByUuid(details.uuid, null, null, null, null);
+            return;
+        }
+
+        final int appId = appIdForName(details, rec.name);
+
+        // The artwork this client already pulled from the host — cache only, never a fetch
+        // (computermodel.cpp:1411-1417). No cached art means no art: HeroCover with no source
+        // draws nothing, and a picture-shaped hole is not a picture.
+        final android.graphics.Bitmap art = appId == 0 ? null : cachedBoxArt(details.uuid, appId);
+
+        pcGridAdapter.setLastPlayedByUuid(details.uuid, rec.name, art,
+                PlaytimeManager.formatDuration(rec.totalSeconds),
+                formatAgo(rec.lastPlayedUtc));
+    }
+
+    /**
+     * The host's own id for a game named in our record, from the app list this screen already has
+     * cached; 0 when it is not there. By NAME and not by a stored id, because ids move when the
+     * host rebuilds its app list — the name is what survives, which is why the record is keyed on
+     * it (playtime.h:10-17).
+     */
+    private int appIdForName(ComputerDetails details, String name) {
+        if (details.rawAppList == null || details.rawAppList.isEmpty()) {
+            return 0;
+        }
+        try {
+            for (NvApp a : NvHTTP.getAppListByReader(new java.io.StringReader(details.rawAppList))) {
+                if (a.getAppName() != null && a.getAppName().equalsIgnoreCase(name)) {
+                    return a.getAppId();
+                }
+            }
+        } catch (Exception e) {
+            LimeLog.info("lastPlayed: could not read the host's app list: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /** The box art already on disk for this host and app, or null. Never fetches. */
+    private android.graphics.Bitmap cachedBoxArt(String uuid, int appId) {
+        try {
+            java.io.File f = new DiskAssetLoader(this).getFile(uuid, appId);
+            if (f != null && f.exists()) {
+                return android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            LimeLog.info("lastPlayed: no cached cover: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * The badge's age, in the vocabulary the host's own LASTSESSION reply used, so the card reads
+     * the way it always has even though nothing about it comes from the host any more
+     * (computermodel.cpp:1507-1530).
+     */
+    private String formatAgo(long utcMillis) {
+        if (utcMillis <= 0) {
+            return "";
+        }
+        final long mins = (System.currentTimeMillis() - utcMillis) / 60000L;
+        if (mins < 1) {
+            return "just now";
+        }
+        if (mins < 60) {
+            return mins + " min ago";
+        }
+        final long hours = mins / 60;
+        if (hours < 24) {
+            return hours + " h ago";
+        }
+        final long days = hours / 24;
+        if (days == 1) {
+            return "yesterday";
+        }
+        if (days < 30) {
+            return days + " days ago";
+        }
+        // Past a month the exact figure stops meaning anything — what matters is that it has been
+        // a while.
+        final long months = days / 30;
+        return months <= 1 ? "a month ago" : months + " months ago";
     }
 
     /** The running game's name, if the host's app list is already cached here; null if not. */

@@ -29,6 +29,7 @@ import io.github.onaiaku.artmoon.nvstream.input.MouseButtonPacket;
 import io.github.onaiaku.artmoon.nvstream.jni.MoonBridge;
 import io.github.onaiaku.artmoon.preferences.GlPreferences;
 import io.github.onaiaku.artmoon.preferences.PreferenceConfiguration;
+import io.github.onaiaku.artmoon.settings.PlaytimeManager;
 import io.github.onaiaku.artmoon.ui.GameGestures;
 import io.github.onaiaku.artmoon.ui.StreamView;
 import io.github.onaiaku.artmoon.utils.Dialog;
@@ -60,6 +61,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Rational;
 import android.view.Display;
 import android.view.InputDevice;
@@ -129,6 +132,33 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private String appName;
     private NvApp app;
     private float desiredRefreshRate;
+
+    // ── Play time (settings/PlaytimeManager, the port of app/settings/playtime.cpp) ──────────
+    // Started in connectionStarted(), banked in stopConnection(), which is the one teardown
+    // funnel every end path goes through — its `connecting || connected` guard flips both flags,
+    // so endPlaytime() runs exactly once per session however the session ended.
+    private boolean playtimeTracking = false;
+    private String playtimeUuid;
+    private long playtimeStartMs = 0;
+    private long playtimeFlushedSecs = 0;
+    private final Handler playtimeHandler = new Handler(Looper.getMainLooper());
+
+    /**
+     * Re-arms itself every {@link PlaytimeManager#kMinSessionSeconds} while a session is up, which
+     * is the desktop's flush interval too (session.cpp:755). Banking the minutes as they pass is
+     * what keeps a session that dies without teardown — a kill, a battery pull — from losing
+     * everything it played.
+     */
+    private final Runnable playtimeFlush = new Runnable() {
+        @Override
+        public void run() {
+            if (!playtimeTracking) {
+                return;
+            }
+            flushPlaytime();
+            playtimeHandler.postDelayed(this, PlaytimeManager.kMinSessionSeconds * 1000);
+        }
+    };
 
     private InputCaptureProvider inputCaptureProvider;
     private int modifierFlags = 0;
@@ -2253,6 +2283,82 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     public void stageComplete(String stage) {
     }
 
+    // ── Play time ────────────────────────────────────────────────────────────────────────────
+    //
+    // The clock starts when the connection is up, not when the launch was asked for, and it is
+    // the client's own record — see PlaytimeManager. The desktop starts its own at the same
+    // moment and says why the gate matters (session.cpp:2484):
+    //
+    //   "⚠️ NOT gated on m_StreamTweakEnabled, unlike everything above: the hours are the
+    //    client's own record and belong to a plain Sunshine host as much as to a StreamTweak one.
+    //    It is gated on unlock mode ... and on the app being a game at all."
+    //
+    // There is no unlock mode here, so the only gate is the app being a game: isTracked() refuses
+    // the host's Desktop entry and its controls, which are entries in the app list but are not
+    // something anyone "played".
+
+    private void startPlaytime() {
+        if (playtimeTracking) {
+            return;
+        }
+        if (app == null || !PlaytimeManager.isTracked(appName)) {
+            return;
+        }
+
+        playtimeUuid = getIntent().getStringExtra(EXTRA_PC_UUID);
+        if (playtimeUuid == null || playtimeUuid.isEmpty()) {
+            // Nothing to key the record on. Better no record than one filed under "".
+            return;
+        }
+
+        playtimeTracking = true;
+        playtimeFlushedSecs = 0;
+        playtimeStartMs = SystemClock.elapsedRealtime();
+
+        playtimeHandler.postDelayed(playtimeFlush, PlaytimeManager.kMinSessionSeconds * 1000);
+    }
+
+    /** Banks the seconds since the last flush. Called on the main looper only. */
+    private void flushPlaytime() {
+        if (!playtimeTracking) {
+            return;
+        }
+
+        final long elapsed = (SystemClock.elapsedRealtime() - playtimeStartMs) / 1000;
+        final long unbanked = elapsed - playtimeFlushedSecs;
+        if (unbanked <= 0) {
+            return;
+        }
+
+        PlaytimeManager.addSeconds(this, playtimeUuid, appName, app.getAppId(), unbanked);
+        playtimeFlushedSecs = elapsed;
+    }
+
+    /**
+     * Closes the session's record: banks the minutes the flushes have not already taken, then
+     * records it as this host's last played game.
+     *
+     * <p>&#9888; The two durations are not interchangeable. `unbanked` is what
+     * {@link #flushPlaytime} has not taken — passing the whole session here would count every
+     * flushed minute twice. `elapsed` is the session's real length, which is what gets stored and
+     * what the threshold is judged against.</p>
+     */
+    private void endPlaytime() {
+        if (!playtimeTracking) {
+            return;
+        }
+
+        playtimeTracking = false;
+        playtimeHandler.removeCallbacks(playtimeFlush);
+
+        final long elapsed = (SystemClock.elapsedRealtime() - playtimeStartMs) / 1000;
+        final long unbanked = Math.max(0, elapsed - playtimeFlushedSecs);
+
+        // No stats yet: this client does not sample the decoder's whole-session totals, so every
+        // metric stays at PlaytimeManager's "never measured" default rather than being invented.
+        PlaytimeManager.endSession(this, playtimeUuid, appName, app.getAppId(), unbanked, elapsed, null);
+    }
+
     private void stopConnection() {
         if (connecting || connected) {
             connecting = connected = false;
@@ -2265,6 +2371,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 telemetrySampler.flushAndStop();
                 telemetrySampler = null;
             }
+
+            // Same window, and for the same reason as the flush above: bank the session's
+            // remaining minutes and record it as this host's last played game, before the
+            // connection object is torn down underneath it.
+            endPlaytime();
 
             // Update GameManager state to indicate we're no longer in game
             UiHelper.notifyStreamEnded(this);
@@ -2448,6 +2559,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+
+                // The play-time clock starts here, with the stream actually up — the same moment
+                // the desktop starts its own (session.cpp:2484). Not at launch: a connection that
+                // never establishes is not a session, and the minutes have to be real.
+                startPlaytime();
 
                 // Telemetry: sample+push every second while streaming.
                 if (telemetrySampler == null && streamHost != null) {

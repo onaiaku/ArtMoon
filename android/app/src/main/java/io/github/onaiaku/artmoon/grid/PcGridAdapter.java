@@ -296,11 +296,60 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
      * is built in code and has no ids to read; the button has to be able to ask at the moment it is
      * pressed, long after the poll that painted the block.
      */
-    private final java.util.HashMap<String, String> lastGameByUuid = new java.util.HashMap<>();
+    /**
+     * What this CLIENT last played on this host — from the record kept on this machine
+     * ({@link io.github.onaiaku.artmoon.settings.PlaytimeManager}), never from the host.
+     *
+     * <p>&#9888; This is the whole point of the class it replaced. The block used to be named from
+     * the host's last session ({@code LASTSESSION} over the ArtLight bridge), which only our own
+     * stack answers — so on a plain Sunshine, Apollo or Vibepollo host the block never appeared at
+     * all, and on our own hosts it named whatever the host last ran, possibly another device's
+     * session. The desktop hit exactly this and fixed it in 5.6.1 (HostStage.qml:201-216): "Nothing
+     * here comes from the host ... It now describes what YOU played, from a record kept on this
+     * machine, and works against a plain Sunshine host."</p>
+     *
+     * <p>The host's own session numbers are a SEPARATE fact with a separate owner: they are the
+     * card-interior LAST SESSION panel, painted by {@link #updateLastSessionByUuid} and still
+     * ArtLight-only. Two facts, both true at once, and neither standing in for the other.</p>
+     */
+    private static final class LastPlayed {
+        final String name;
+        final android.graphics.Bitmap cover;
+        final String total;   // the playtime TOTAL — the badge's muted half
+        final String ago;
 
-    /** The game the card names for this host, or null when we have never been told one. */
+        LastPlayed(String name, android.graphics.Bitmap cover, String total, String ago) {
+            this.name = name;
+            this.cover = cover;
+            this.total = total;
+            this.ago = ago;
+        }
+    }
+
+    private final java.util.HashMap<String, LastPlayed> lastPlayedByUuid = new java.util.HashMap<>();
+
+    /**
+     * Tells the block what this client last played here. An empty name clears it and the block
+     * goes back to not being drawn — the desktop's rule: no name, no block, and no empty state
+     * behind it (HostStage.qml:215-216, 1611-1613).
+     */
+    public void setLastPlayedByUuid(String uuid, String name, android.graphics.Bitmap cover,
+                                    String total, String ago) {
+        if (uuid == null) {
+            return;
+        }
+        if (name == null || name.isEmpty()) {
+            lastPlayedByUuid.remove(uuid);
+        } else {
+            lastPlayedByUuid.put(uuid, new LastPlayed(name, cover, total, ago));
+        }
+        refreshGameFacts(uuid);
+    }
+
+    /** The game the card names for this host, or null when nothing has been played here. */
     public String lastGameNameFor(String uuid) {
-        return uuid == null ? null : lastGameByUuid.get(uuid);
+        LastPlayed lp = uuid == null ? null : lastPlayedByUuid.get(uuid);
+        return lp == null ? null : lp.name;
     }
 
     /**
@@ -314,14 +363,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                                             int rttMs, int rttPeakMs, int hostLatMs,
                                             double dropsPct, int gamesTotal,
                                             java.util.List<GameCover> games) {
-            if (uuid != null) {
-                if (games != null && !games.isEmpty() && games.get(0) != null
-                        && games.get(0).name != null && !games.get(0).name.isEmpty()) {
-                    lastGameByUuid.put(uuid, games.get(0).name);
-                } else if (ago == null || ago.isEmpty()) {
-                    lastGameByUuid.remove(uuid);
-                }
-            }
+            // ⚠️ No "which game" work here any more, deliberately. This panel is the HOST's last
+            // session and nothing else; what game the block names comes from this client's own
+            // record and is pushed in by setLastPlayedByUuid(). The two used to share this method,
+            // which is how a host's session list came to name the card.
             View v = boundViews.get(uuid);
             if (v == null) {
                 return;
@@ -493,14 +538,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         }
     }
 
-    private static final class LastFacts {
-        String ago;
-        String duration;
-        java.util.List<GameCover> games;
-    }
-
     private final java.util.HashMap<String, RunningGame> runningGames = new java.util.HashMap<>();
-    private final java.util.HashMap<String, LastFacts> lastFactsByUuid = new java.util.HashMap<>();
 
     /** True while the host has a session running — the same gate the label and Stop ride. */
     public boolean isRunning(String uuid) {
@@ -537,10 +575,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         } else {
             runningGames.put(uuid, new RunningGame(gameId, name, cover));
         }
-        LastFacts lf = lastFactsByUuid.get(uuid);
-        if (lf != null) {
-            updateGameFactsByUuid(uuid, lf.ago, lf.duration, lf.games);
-        }
+        refreshGameFacts(uuid);
     }
 
     /**
@@ -580,18 +615,12 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         dot.setTag(R.id.am_facts_badge_dot, pulse);
     }
 
-    public void updateGameFactsByUuid(String uuid, String ago, String duration,
-                                      java.util.List<GameCover> games) {
-        if (uuid != null) {
-            LastFacts lf = lastFactsByUuid.get(uuid);
-            if (lf == null) {
-                lf = new LastFacts();
-                lastFactsByUuid.put(uuid, lf);
-            }
-            lf.ago = ago;
-            lf.duration = duration;
-            lf.games = games;
-        }
+    /**
+     * Repaints the right-hand block from what it already knows — the running session, and the game
+     * this client last played here. No arguments: the facts are held, so a repaint never re-reads a
+     * poll's payload, and the block cannot be named by something the host happened to say.
+     */
+    public void refreshGameFacts(String uuid) {
         View v = boundViews.get(uuid);
         if (v == null) {
             return;
@@ -604,6 +633,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
         final RunningGame rg = uuid == null ? null : runningGames.get(uuid);
         final boolean running = rg != null && rg.gameId != 0;
 
+        final LastPlayed lp = uuid == null ? null : lastPlayedByUuid.get(uuid);
+
         String title = "";
         android.graphics.Bitmap art = null;
         if (running) {
@@ -611,12 +642,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             // and the artwork are the running app's (HostStage.qml:1671-1681).
             title = rg.name == null ? "" : rg.name;
             art = rg.cover;
-        } else if (games != null && !games.isEmpty() && games.get(0) != null) {
-            GameCover gc = games.get(0);
-            if (gc.name != null) {
-                title = gc.name;
-            }
-            art = decodeCover(gc.cover);
+        } else if (lp != null) {
+            // What YOU played here, from the record on this machine — not the host's session.
+            title = lp.name;
+            art = lp.cover;
         }
         // No name, no block (HostStage.qml:215-216, 1611-1613) — except while a session is
         // running: the badge names the state before the host's list has told us the game's name,
@@ -629,12 +658,17 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
 
         bindText(v, R.id.am_facts_badge_main,
                 running ? context.getString(R.string.am_streaming_now)
-                        : (ago == null || ago.isEmpty()
+                        : (lp == null || lp.ago == null || lp.ago.isEmpty()
                            ? context.getString(R.string.am_last_played)
-                           : context.getString(R.string.am_last_played_ago, ago)));
+                           : context.getString(R.string.am_last_played_ago, lp.ago)));
         // No figure beside it while running: "the host does not say how long the session has run,
         // nor whose it is" (HostStage.qml:1663-1665 — badgeMuted is empty).
-        bindText(v, R.id.am_facts_badge_muted, "");
+        //
+        // Otherwise the muted half is the playtime TOTAL, which only the local record has — it was
+        // left empty while the block was named by the host, because a host's session list has no
+        // such number. The desktop draws the badge with its main half alone when `total` is empty.
+        bindText(v, R.id.am_facts_badge_muted,
+                (running || lp == null || lp.total == null) ? "" : lp.total);
         View badge = v.findViewById(R.id.am_facts_badge);
         if (badge != null) {
             badge.setVisibility(View.VISIBLE);
