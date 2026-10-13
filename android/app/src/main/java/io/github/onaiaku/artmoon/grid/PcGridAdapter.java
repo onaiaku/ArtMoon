@@ -483,24 +483,36 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             // against that edge IS `actionRow.y - _px(20)`, and anything past it is the doubled-up
             // case: the panel comes up by exactly the overflow, giving up the gap above it.
             //
-            // Reset first, then post: views are recycled, and the panel's own height is only known
-            // after a layout pass, which is also why a not-yet-measured panel retries once.
+            // Reset first. Views are recycled, and the panel's own height is only known after a
+            // layout pass — which is why this is a LAYOUT listener and not a one-shot post (see
+            // the ⚠️ note below).
             final View col = (panel.getParent() instanceof View) ? (View) panel.getParent() : null;
             panel.setTranslationY(0f);
             if (col != null) {
-                final int[] tries = {0};
-                panel.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (panel.getVisibility() != View.VISIBLE) return;
-                        if (panel.getHeight() <= 0 || col.getHeight() <= 0) {
-                            if (tries[0]++ < 2) panel.post(this);
-                            return;
+                if (panel.getTag(R.id.am_last_session) == null) {
+                    // ⚠️ THE CLAMP MUST RE-RUN ON EVERY LAYOUT, NOT ONCE AFTER BIND.
+                    // The first version of this posted a single runnable. It measured a panel that
+                    // had not yet been laid out at its new height — a recycled row still carries
+                    // the PREVIOUS host's geometry, which was smaller and fitted — so `over` came
+                    // out 0, nothing moved, and the numbers went back on top of the buttons. Nik:
+                    // "didnt change, from last time still clipping into the buttons the same
+                    // amount". A layout-change listener has no such gap: it fires with the real
+                    // bounds whenever the panel's own height changes, including the first time.
+                    panel.setTag(R.id.am_last_session, Boolean.TRUE);
+                    panel.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+                        @Override
+                        public void onLayoutChange(View v, int l, int t, int r, int b,
+                                                   int ol, int ot, int orr, int ob) {
+                            int over = b - col.getHeight();
+                            v.setTranslationY(over > 0 ? -over : 0f);
                         }
-                        int over = panel.getBottom() - col.getHeight();
-                        panel.setTranslationY(over > 0 ? -over : 0f);
-                    }
-                });
+                    });
+                } else {
+                    // Already listening — clamp against the geometry we have now; the listener
+                    // corrects it the moment the layout settles.
+                    int over = panel.getBottom() - col.getHeight();
+                    panel.setTranslationY(over > 0 ? -over : 0f);
+                }
             }
         }
 
