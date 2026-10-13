@@ -483,37 +483,35 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             // against that edge IS `actionRow.y - _px(20)`, and anything past it is the doubled-up
             // case: the panel comes up by exactly the overflow, giving up the gap above it.
             //
-            // Reset first. Views are recycled, and the panel's own height is only known after a
-            // layout pass — which is why this is a LAYOUT listener and not a one-shot post (see
-            // the ⚠️ note below).
-            final View col = (panel.getParent() instanceof View) ? (View) panel.getParent() : null;
-            panel.setTranslationY(0f);
-            if (col != null) {
-                if (panel.getTag(R.id.am_last_session) == null) {
-                    // ⚠️ THE CLAMP MUST RE-RUN ON EVERY LAYOUT, NOT ONCE AFTER BIND.
-                    // The first version of this posted a single runnable. It measured a panel that
-                    // had not yet been laid out at its new height — a recycled row still carries
-                    // the PREVIOUS host's geometry, which was smaller and fitted — so `over` came
-                    // out 0, nothing moved, and the numbers went back on top of the buttons. Nik:
-                    // "didnt change, from last time still clipping into the buttons the same
-                    // amount". A layout-change listener has no such gap: it fires with the real
-                    // bounds whenever the panel's own height changes, including the first time.
-                    panel.setTag(R.id.am_last_session, Boolean.TRUE);
-                    panel.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-                        @Override
-                        public void onLayoutChange(View v, int l, int t, int r, int b,
-                                                   int ol, int ot, int orr, int ob) {
-                            int over = b - col.getHeight();
-                            v.setTranslationY(over > 0 ? -over : 0f);
-                        }
-                    });
-                } else {
-                    // Already listening — clamp against the geometry we have now; the listener
-                    // corrects it the moment the layout settles.
-                    int over = panel.getBottom() - col.getHeight();
-                    panel.setTranslationY(over > 0 ? -over : 0f);
+            // ⚠️ NO CLAMP HERE ANY MORE, AND NO MEASUREMENT EITHER.
+            // The panel is now a bottom-pinned child of the CARD (pc_grid_item.xml, gravity=bottom,
+            // marginBottom 93dp = the row strip plus the desktop's _px(20)), so it cannot reach the
+            // buttons and the column cannot clip it — see that layout's comment. Two earlier
+            // attempts lived here instead: a post after the bind, which measured a recycled row's
+            // stale geometry and moved nothing, then an OnLayoutChangeListener, which fires only
+            // when the view's bounds actually CHANGE and so could be skipped entirely by a rebind
+            // that reset the translation to zero. Both were measurements of a thing the layout can
+            // simply promise. Nik saw all three attempts: "sill no change".
+            //
+            // TEMP DIAGNOSTIC — read the settled geometry back off the device, then delete this.
+            // `card` is the item's stage card; after the restructure the panel IS its child, so
+            // this logs the panel against the card and against the action row's own foot.
+            final View cardView = (View) panel.getParent();
+            panel.post(new Runnable() {
+                @Override
+                public void run() {
+                    View ar = (cardView == null) ? null : cardView.findViewById(R.id.am_action_row);
+                    android.util.Log.i("AM-GEO", "panel=" + panel.getTop() + ".." + panel.getBottom()
+                            + " h=" + panel.getHeight()
+                            + " | parent=" + ((cardView == null) ? "null"
+                                    : cardView.getClass().getSimpleName()) + " h="
+                            + ((cardView == null) ? -1 : cardView.getHeight())
+                            + " | action=" + ((ar == null) ? -1 : ar.getTop()) + " h="
+                            + ((ar == null) ? -1 : ar.getHeight())
+                            + " | uiScale=" + io.github.onaiaku.artmoon.ui.AmScale
+                                    .ofStage(context).uiScale());
                 }
-            }
+            });
         }
 
         /**

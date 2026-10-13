@@ -251,11 +251,51 @@
                         android:textColor="@color/am_text" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+            </LinearLayout>
+
+
+            <!-- ══════ last session — a BOTTOM-PINNED child of the CARD, not of the column ══════
+
+                 HostStage.qml:1237 is one line:
+
+                     y: Math.min(_idealY, actionRow.y - height - stage._px(20))
+
+                 and the desktop's note above it (:1230-1236) is the whole reason: "The fields and
+                 the buttons can be close enough that the ideal offset puts this panel under
+                 Enter/Profiles/Options, and a doubled-up grid is worse than a panel sitting a
+                 little high — so the panel gives up the gap before it gives up the buttons."
+
+                 The port copied the IDEAL half — 28dp under the block above, i.e. living inside the
+                 column — and never the clamp. On the Shield the card is the GridView's content box
+                 (320dp); the panel's own bottom lands at 276dp while the column clips at 253dp, so
+                 the numbers overflow by 23dp, which is exactly the slice Nik kept losing. Three
+                 attempts clamped by measurement — at bind, then on every layout — and all three
+                 moved nothing: "sill no change". A clamp that has to be measured can be missed.
+
+                 So the panel is pinned structurally instead — a child of the CARD with
+                 layout_gravity="bottom" and 93dp of bottom margin. 93 is this file's own number: the
+                 action row's strip (15 + 58) plus the desktop's _px(20), which is the offset the QML
+                 min() computes. It cannot reach the buttons because it is not laid out near them,
+                 and the column cannot clip it because it is not in the column.
+
+                 The one deliberate deviation: the desktop does not take the min() when the card has
+                 room, so there the panel sits under the fields. XML has no min(), so this hugs the
+                 buttons on every card. On a 320dp TV card that is where the min() lands anyway -->
+
             <LinearLayout
                 android:id="@+id/am_last_session"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
+                android:layout_gravity="bottom"
+                android:layout_marginBottom="93dp"
+                android:paddingStart="49dp"
+                android:paddingLeft="49dp"
+                android:paddingEnd="49dp"
+                android:paddingRight="49dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -441,11 +481,6 @@
                      carry was sized for the old right-hand column, and the numbers are the part
                      worth reading from the card." The 48x72 tile strip that stood here is gone
                      because the desktop deleted it, not because it was in the way. -->
-            </LinearLayout>
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
             </LinearLayout>
 
             <!-- HostStage.qml:1424-1477 — the action row at the card's foot. One row of
