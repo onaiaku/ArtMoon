@@ -501,6 +501,7 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 @Override
                 public void run() {
                     View ar = (cardView == null) ? null : cardView.findViewById(R.id.am_action_row);
+                    View hl = (cardView == null) ? null : cardView.findViewById(R.id.am_hostlink_block);
                     android.util.Log.i("AM-GEO", "panel=" + panel.getTop() + ".." + panel.getBottom()
                             + " h=" + panel.getHeight()
                             + " | parent=" + ((cardView == null) ? "null"
@@ -508,6 +509,10 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                             + ((cardView == null) ? -1 : cardView.getHeight())
                             + " | action=" + ((ar == null) ? -1 : ar.getTop()) + " h="
                             + ((ar == null) ? -1 : ar.getHeight())
+                            + " | hostlink=" + ((hl == null) ? -1 : hl.getTop()) + ".."
+                            + ((hl == null) ? -1 : hl.getBottom())
+                            + " vis=" + ((hl == null) ? -1 : hl.getVisibility())
+                            + " OVERLAP=" + ((hl == null) ? -1 : hl.getBottom() - panel.getTop())
                             + " | uiScale=" + io.github.onaiaku.artmoon.ui.AmScale
                                     .ofStage(context).uiScale());
                 }
