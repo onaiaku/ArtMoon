@@ -27,6 +27,7 @@ public class ComputerDatabaseManager {
     private static final String COMPUTER_TABLE_NAME = "Computers";
     private static final String COMPUTER_UUID_COLUMN_NAME = "UUID";
     private static final String COMPUTER_NAME_COLUMN_NAME = "ComputerName";
+    private static final String CUSTOM_NAME_COLUMN_NAME = "CustomName";
     private static final String ADDRESSES_COLUMN_NAME = "Addresses";
     private interface AddressFields {
         String LOCAL = "local";
@@ -66,6 +67,8 @@ public class ComputerDatabaseManager {
                 COMPUTER_TABLE_NAME, COMPUTER_UUID_COLUMN_NAME, COMPUTER_NAME_COLUMN_NAME,
                 ADDRESSES_COLUMN_NAME, MAC_ADDRESS_COLUMN_NAME, SERVER_CERT_COLUMN_NAME));
 
+        ensureCustomNameColumn();
+
         // Move all computers from the old DB (if any) to the new one
         List<ComputerDetails> oldComputers = LegacyDatabaseReader.migrateAllComputers(c);
         for (ComputerDetails computer : oldComputers) {
@@ -78,6 +81,37 @@ public class ComputerDatabaseManager {
         oldComputers = LegacyDatabaseReader3.migrateAllComputers(c);
         for (ComputerDetails computer : oldComputers) {
             updateComputer(computer);
+        }
+    }
+
+    /**
+     * Add the custom-name flag to a table that may already exist.
+     *
+     * <p>⚠️ This DB has no version table and no {@code onUpgrade} — it is opened with
+     * {@code openOrCreateDatabase()}, created with {@code CREATE TABLE IF NOT EXISTS}, and any
+     * open that throws is answered by deleting the file. So a column added to the CREATE would
+     * simply never appear on an install that already has the database, and every write naming it
+     * would fail there. Asking the table what it actually has, once per open, is the only upgrade
+     * path this file can have.
+     *
+     * <p>⚠️ The column is always APPENDED, never listed in the CREATE: {@code SELECT *} returns
+     * columns in the table's own order, so a fresh database and an upgraded one have to agree on
+     * where it sits — otherwise a fresh install reads the wrong column.
+     */
+    private void ensureCustomNameColumn() {
+        boolean present = false;
+        try (Cursor c = computerDb.rawQuery("PRAGMA table_info(" + COMPUTER_TABLE_NAME + ")", null)) {
+            int nameIdx = c.getColumnIndex("name");
+            while (c.moveToNext()) {
+                if (nameIdx >= 0 && CUSTOM_NAME_COLUMN_NAME.equalsIgnoreCase(c.getString(nameIdx))) {
+                    present = true;
+                    break;
+                }
+            }
+        }
+        if (!present) {
+            computerDb.execSQL("ALTER TABLE " + COMPUTER_TABLE_NAME + " ADD COLUMN "
+                    + CUSTOM_NAME_COLUMN_NAME + " INTEGER NOT NULL DEFAULT 0");
         }
     }
 
@@ -111,6 +145,7 @@ public class ComputerDatabaseManager {
         ContentValues values = new ContentValues();
         values.put(COMPUTER_UUID_COLUMN_NAME, details.uuid);
         values.put(COMPUTER_NAME_COLUMN_NAME, details.name);
+        values.put(CUSTOM_NAME_COLUMN_NAME, details.hasCustomName ? 1 : 0);
 
         try {
             JSONObject addresses = new JSONObject();
@@ -143,6 +178,12 @@ public class ComputerDatabaseManager {
 
         details.uuid = c.getString(0);
         details.name = c.getString(1);
+        // Looked up by name rather than read at a fixed index: this is the one column whose
+        // position is not settled by the CREATE — it is appended by ensureCustomNameColumn().
+        int customIdx = c.getColumnIndex(CUSTOM_NAME_COLUMN_NAME);
+        if (customIdx >= 0) {
+            details.hasCustomName = c.getInt(customIdx) != 0;
+        }
         try {
             JSONObject addresses = new JSONObject(c.getString(2));
             details.localAddress = tupleFromJson(addresses, AddressFields.LOCAL);

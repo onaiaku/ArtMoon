@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The rename field's box — HomeScreen.qml:2516-2521: Theme.ground, radius _px(8), and a border
+    that is Theme.line while it is idle and Theme.accent while it holds focus.
+
+    ⚠️ One shape, not a state-list selector, and that is deliberate: AmScale.applyTo() scales the
+    corner radius of a GradientDrawable it finds on a view, and a StateListDrawable full of nested
+    shapes is not one — the radius would stay at its design size while the box around it came
+    down, which is the same mistake that was drawing the pills' end caps through each other. The
+    focused border is swapped in code instead (PcView.showRenameHostDialog), through AmScale, so
+    every number here and there is the QML's own.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <stroke android:width="1dp" android:color="@color/am_line" />
+    <solid android:color="@color/am_ground" />
+</shape>

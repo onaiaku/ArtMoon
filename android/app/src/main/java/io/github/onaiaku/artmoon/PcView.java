@@ -67,6 +67,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements AdapterFragmentCallbacks {
     private static final int REQ_HERO_BG = 9101;
     private static final int BACKGROUND_ID = 14;
+    private static final int RENAME_ID = 15;
     private HostBackgroundManager heroBgManager;
     private String heroBgPendingUuid;
     private io.github.onaiaku.artmoon.artlight.PromptBar promptBar;
@@ -165,6 +166,13 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_shutdown), 26f);
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_settings), 26f);
         applyCapLetter((android.widget.TextView) findViewById(R.id.am_footer_kb_exit), 26f);
+
+        // Screen furniture that is not a control, and so is wired here rather than anywhere a
+        // page owns: the clock cluster against the wordmark and the client version in the footer.
+        // Neither is ever set from a literal — one comes from the device's clock, the other from
+        // the binary.
+        bindClockCluster();
+        bindClientVersion();
 
         // Edge-to-edge is not optional at targetSdk 36 on Android 15+ — the window runs under
         // the status bar and the navigation bar whether the app asks to or not, so the app owes
@@ -412,6 +420,11 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         inForeground = true;
         startComputerUpdates();
 
+        // The clock is set on the way in as well as on the tick: coming back from a long sleep it
+        // is the handler's timer that is late, and the corner should never show yesterday's time.
+        refreshClock();
+        startClockTick();
+
         // Gamepad: seed the ring on Open (or + Add a Host with no hosts) as
         // soon as layout is ready — never launch with nothing highlighted.
         if (InputModeManager.get().getMode() == InputModeManager.Mode.GAMEPAD) {
@@ -425,6 +438,9 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
 
         inForeground = false;
         stopComputerUpdates(false);
+
+        // Nothing repaints behind another app.
+        stopClockTick();
     }
 
     @Override
@@ -432,6 +448,92 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         super.onStop();
 
         Dialog.closeDialogs();
+    }
+
+    // ── The clock cluster and the client version ─────────────────────────────
+    //
+    // Both are read off the port's own furniture rather than invented. AppShell.qml:454 puts the
+    // one StatusCluster instance at the window's top-right, in the band the wordmark sits in, and
+    // AppShell.qml:691-699 ends the status bar's right cluster with the version. Neither is a
+    // control and neither belongs to a page, which is why they live here.
+
+    private android.widget.TextView clockView;
+    private android.widget.TextView clockDateView;
+    private final android.os.Handler clockTick =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+
+    private final Runnable clockTickTask = new Runnable() {
+        @Override
+        public void run() {
+            refreshClock();
+            // Five seconds, and comparing rather than aiming. StatusCluster.qml:36-39 — a timer
+            // armed for the next minute boundary comes back from suspension pointing at the past,
+            // which is why the desktop ticks and checks rather than scheduling the change. The
+            // interval is the only part that is ours, and on a phone it need not be a second.
+            clockTick.postDelayed(this, 5000);
+        }
+    };
+
+    private void bindClockCluster() {
+        clockView = (android.widget.TextView) findViewById(R.id.am_clock);
+        clockDateView = (android.widget.TextView) findViewById(R.id.am_date);
+        refreshClock();
+    }
+
+    private void startClockTick() {
+        clockTick.removeCallbacks(clockTickTask);
+        clockTick.postDelayed(clockTickTask, 5000);
+    }
+
+    private void stopClockTick() {
+        clockTick.removeCallbacks(clockTickTask);
+    }
+
+    private void refreshClock() {
+        if (clockView == null) {
+            return;
+        }
+
+        java.util.Date now = new java.util.Date();
+
+        // StatusCluster.qml:63-69 — the desktop's clockFormat preference picks between "HH:mm" and
+        // its "h:mm AP", where the hour drops its leading zero and AM/PM is uppercase because the
+        // two go together. The port reads the device's own 12/24-hour setting rather than growing
+        // a second copy of it in Settings, and uppercases so the line reads the way the desktop's
+        // does.
+        boolean is24 = android.text.format.DateFormat.is24HourFormat(this);
+        String time = new java.text.SimpleDateFormat(is24 ? "HH:mm" : "h:mm a",
+                java.util.Locale.US).format(now);
+        if (!is24) {
+            time = time.toUpperCase(java.util.Locale.US);
+        }
+
+        // Repainted only on a change, which is the desktop's own rule: the line updates when the
+        // minute moves, not when the timer fires.
+        if (!time.contentEquals(clockView.getText())) {
+            clockView.setText(time);
+        }
+
+        if (clockDateView != null) {
+            // StatusCluster.qml:81-95 — the date is the quiet line under the clock. The desktop
+            // offers three field orders as a preference; a device already knows which one its
+            // owner expects, so nothing here overrules it.
+            String date = android.text.format.DateFormat.getDateFormat(this).format(now);
+            if (!date.contentEquals(clockDateView.getText())) {
+                clockDateView.setText(date);
+            }
+        }
+    }
+
+    private void bindClientVersion() {
+        android.widget.TextView version = (android.widget.TextView) findViewById(R.id.am_version);
+        if (version != null) {
+            // AppShell.qml:49-55 — read from the binary, never written here. The desktop stopped
+            // hand-bumping a literal after 5.2.1 shipped a release claiming the previous version.
+            // The Android twin of VERSION_STR is BuildConfig.VERSION_NAME, generated from
+            // build.gradle, so this label and the installed APK cannot drift apart either.
+            version.setText("v" + BuildConfig.VERSION_NAME);
+        }
     }
 
     @Override
@@ -499,6 +601,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
         menu.add(Menu.NONE, BACKGROUND_ID, 7, getResources().getString(R.string.pcview_menu_background));
 
         menu.add(Menu.NONE, TEST_NETWORK_ID, 5, getResources().getString(R.string.pcview_menu_test_network));
+        // HomeScreen.qml:2259 — between Test Network and Delete, which is the desktop's own
+        // order. Same order number as Test Network, so insertion order decides and it lands on
+        // the row after it, exactly where the desktop's tile list has it.
+        menu.add(Menu.NONE, RENAME_ID, 5, getResources().getString(R.string.pcview_menu_rename));
         menu.add(Menu.NONE, DELETE_ID, 6, getResources().getString(R.string.pcview_menu_delete_pc));
         menu.add(Menu.NONE, VIEW_DETAILS_ID, 7,  getResources().getString(R.string.pcview_menu_details));
     }
@@ -794,6 +900,10 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                 ServerHelper.doNetworkTest(PcView.this);
                 return true;
 
+            case RENAME_ID:
+                showRenameHostDialog(computer);
+                return true;
+
             case GAMESTREAM_EOL_ID:
                 HelpLauncher.launchGameStreamEolFaq(PcView.this);
                 return true;
@@ -971,6 +1081,84 @@ public class PcView extends io.github.onaiaku.artmoon.ArtMoonActivity implements
                                               : details.remoteAddress != null ? details.remoteAddress.address
                                               : details.localAddress.address);
                         Toast.makeText(PcView.this, getResources().getString(R.string.am_power_sent), Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    // ── Rename this host, on this client's record only ───────────────────────
+
+    /**
+     * The menu tile is HomeScreen.qml:2259, the dialog is 2443-2527, and what storing the name
+     * does is computermanager.cpp:764.
+     *
+     * <p>The host keeps its own name on its own network — this is the name *we* show for it,
+     * which is why it is marked custom as it is written, and why that mark is the thing that
+     * keeps discovery from taking it straight back off us.
+     */
+    private void showRenameHostDialog(final ComputerObject computer) {
+        if (managerBinder == null) {
+            Toast.makeText(this, getResources().getString(R.string.error_manager_not_running),
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        final io.github.onaiaku.artmoon.ui.AmScale scale =
+                io.github.onaiaku.artmoon.ui.AmScale.ofScreen(this);
+
+        android.view.View content = getLayoutInflater().inflate(R.layout.am_rename_host, null);
+        // A FRESH inflation, so the QML's base numbers in that layout are multiplied once — the
+        // same call initializeViews() makes on the screen itself. Never on a recycled view.
+        io.github.onaiaku.artmoon.ui.AmScale.applyTo(content, scale);
+
+        final android.widget.EditText editText = content.findViewById(R.id.am_rename_field);
+        editText.setText(computer.details.name == null ? "" : computer.details.name);
+        editText.selectAll();
+        editText.requestFocus();
+
+        // The field's border follows focus, exactly as the QML's does (HomeScreen.qml:2519-2520:
+        // Theme.accent at 2 while it holds focus, Theme.line at 1 otherwise). The widths are the
+        // QML's numbers, so they go through AmScale; the drawable's radius has already been scaled
+        // with the rest of the tree.
+        final int accentColor = getResources().getColor(R.color.am_accent);
+        final int lineColor = getResources().getColor(R.color.am_line);
+        editText.setOnFocusChangeListener(new android.view.View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(android.view.View v, boolean hasFocus) {
+                android.graphics.drawable.Drawable bg = v.getBackground();
+                if (bg instanceof android.graphics.drawable.GradientDrawable) {
+                    ((android.graphics.drawable.GradientDrawable) bg).setStroke(
+                            hasFocus ? scale.lengthPx(2, PcView.this)
+                                     : scale.lengthPx(1, PcView.this),
+                            hasFocus ? accentColor : lineColor);
+                }
+            }
+        });
+
+        new android.app.AlertDialog.Builder(this)
+                .setView(content)
+                .setPositiveButton(android.R.string.ok,
+                        new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        String name = editText.getText().toString().trim();
+                        if (name.isEmpty()) {
+                            return;
+                        }
+
+                        // ⚠️ Our own copy carries the flag too, and that is the half that is easy
+                        // to miss: the copy on this screen is what the next poll merges into, and
+                        // it is the flag on the record RECEIVING a merge that defends the name
+                        // (ComputerDetails.update). Without it the strip would show the new name
+                        // only until discovery answered.
+                        computer.details.name = name;
+                        computer.details.hasCustomName = true;
+
+                        managerBinder.renameComputer(computer.details.uuid, name);
+
+                        pcGridAdapter.notifyDataSetChanged();
+                        rebuildHostTabs();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)

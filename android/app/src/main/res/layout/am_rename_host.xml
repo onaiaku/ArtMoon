@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Rename this host — HomeScreen.qml:2443-2527, the dialog's own content, number for number.
+
+    ⚠️ Every number in here is the QML's own base number. PcView inflates this fresh and runs it
+    through AmScale.applyTo() once — the same call the screen itself gets — so nothing in this
+    file is a hand-tuned dp value.
+
+    The frame around it (the panel, its radius, its padding) is Android's AlertDialog, not this
+    file. The desktop's NavigableDialog padding of _px(32) is deliberately NOT repeated here:
+    AlertDialog already brings its own, and adding the desktop's on top of it is how a dialog ends
+    up with padding nobody asked for. What belongs to the QML is everything inside the frame.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/am_rename_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal">
+
+    <!-- "RENAME HOST" — Theme.fontSmall (13), bold, tracking 1.6 * _u written the way the port
+         writes tracking in a layout: as an em fraction of the font it is tracking (1.6/13). -->
+    <TextView
+        android:id="@+id/am_rename_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/am_rename_header"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1231"
+        android:textColor="@color/am_text3" />
+
+    <!-- The prompt — Theme.fontTitle (19), centred, wrapped at the QML's 520. -->
+    <TextView
+        android:id="@+id/am_rename_prompt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:maxWidth="520dp"
+        android:gravity="center"
+        android:text="@string/am_rename_prompt"
+        android:textSize="19sp"
+        android:textColor="@color/am_text" />
+
+    <!-- The field — preferredWidth 360, implicitHeight 48, fontTitle, bold, centred.
+
+         ⚠️ maxLength 15 is the desktop's own cap and its own reason (HomeScreen.qml:2492-2505):
+         the same 15 characters Windows allows for a computer name, which is the NetBIOS limit.
+         A discovered name can never exceed it, but this field could — and the host name is drawn
+         in a row with no width constraint on both the desktop's Home card and this port's tab
+         strip, so an over-long one runs on instead of eliding. Capping the one input that can
+         produce one is cheaper than constraining every place it is read. -->
+    <EditText
+        android:id="@+id/am_rename_field"
+        android:layout_width="360dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="22dp"
+        android:background="@drawable/am_field"
+        android:inputType="textPersonName|textNoSuggestions"
+        android:maxLength="15"
+        android:maxLines="1"
+        android:singleLine="true"
+        android:gravity="center"
+        android:textSize="19sp"
+        android:textStyle="bold"
+        android:textColor="@color/am_text"
+        tools:ignore="Autofill,LabelFor" />
+</LinearLayout>

@@ -372,6 +372,20 @@ public class ComputerManagerService extends Service {
             ComputerManagerService.this.removeComputer(computer);
         }
 
+        /**
+         * A name the user typed for this host, on this client's own record.
+         *
+         * <p>The desktop's ComputerManager::renameHost (computermanager.cpp:764) marks the host
+         * custom as it stores the name, and that flag is the whole reason a renamed host stays
+         * renamed: without it the next poll puts the host's own hostname straight back on top.
+         * Same rule here, and it has to land in three places — the database, the in-memory record
+         * the next poll merges into, and the flag on both — or it survives only until discovery
+         * catches up.
+         */
+        public void renameComputer(String uuid, String name) {
+            ComputerManagerService.this.renameComputer(uuid, name);
+        }
+
         public void stopPolling() {
             // Just call the unbind handler to cleanup
             ComputerManagerService.this.onUnbind(null);
@@ -604,6 +618,50 @@ public class ComputerManagerService extends Service {
         }
         else {
             return false;
+        }
+    }
+
+    /**
+     * Store a user-typed host name, and the flag that defends it.
+     *
+     * <p>Three writes, and all three are load-bearing: the database row (so it survives a
+     * restart), the in-memory record the poller merges into (so the poll that is already in
+     * flight does not hand the host's name back), and {@code hasCustomName} on each — without
+     * that flag the next serverinfo response overwrites the name the user chose
+     * (nvcomputer.cpp:722, the desktop's own gate).
+     */
+    private void renameComputer(String uuid, String name) {
+        if (uuid == null || name == null || name.trim().isEmpty()) {
+            return;
+        }
+        final String trimmed = name.trim();
+
+        if (!getLocalDatabaseReference()) {
+            return;
+        }
+
+        try {
+            ComputerDetails stored = dbManager.getComputerByUUID(uuid);
+            if (stored != null) {
+                stored.name = trimmed;
+                stored.hasCustomName = true;
+                dbManager.updateComputer(stored);
+            }
+        } finally {
+            releaseLocalDatabaseReference();
+        }
+
+        synchronized (pollingTuples) {
+            for (PollingTuple tuple : pollingTuples) {
+                if (uuid.equals(tuple.computer.uuid)) {
+                    // Same lock invalidateStateForComputer() takes, for the same reason: a poll
+                    // running right now must not write over this while the flag is going on.
+                    synchronized (tuple.networkLock) {
+                        tuple.computer.name = trimmed;
+                        tuple.computer.hasCustomName = true;
+                    }
+                }
+            }
         }
     }
 

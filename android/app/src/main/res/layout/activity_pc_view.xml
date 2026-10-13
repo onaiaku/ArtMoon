@@ -90,6 +90,54 @@
                 android:textSize="13sp"
                 android:textColor="@color/am_text3" />
         </LinearLayout>
+
+        <!-- Keeps the brand at the left and lets the cluster take the corner. -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- ══════ clock cluster — AppShell.qml:454 + StatusCluster.qml ══════
+
+             The desktop instantiates StatusCluster once, in AppShell, and no page draws its own:
+             anchored _px(22) from the top and _px(44) from the right — the same 44/22 this row
+             already carries, which is the whole reason it lands here. Its own note says the size
+             has to sit "against the wordmark opposite", and that is exactly what it is opposite
+             of.
+
+             Two lines, and the second is the quiet one: the clock is what you look at, the date
+             under it is the surround (StatusCluster.qml:15-22). No battery chip: that is
+             PowerStatus, which the port does not have, and it only appears on a device that has
+             one anyway. -->
+        <LinearLayout
+            android:id="@+id/am_clock_cluster"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <!-- Theme.fontH1, Medium, Theme.text (StatusCluster.qml:63-74). sans-serif-medium is
+                 Android's own Medium — the same weight, without pinning a font-weight attribute
+                 that only exists above API 28. -->
+            <TextView
+                android:id="@+id/am_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="28sp"
+                android:textColor="@color/am_text"
+                android:fontFamily="sans-serif-medium"
+                tools:text="21:04" />
+
+            <!-- Theme.fontSmall, Theme.text3. -->
+            <TextView
+                android:id="@+id/am_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/am_text3"
+                tools:text="13/10/2026" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- ══════ tab strip — HomeScreen.qml:1824-1970 ══════
@@ -387,6 +435,35 @@
                 android:layout_marginStart="9dp"
                 android:layout_marginLeft="9dp" />
         </LinearLayout>
+
+        <!-- ══════ the client version — AppShell.qml:691-699 ══════
+
+             The desktop's status bar has a right cluster, and the version label is its last item:
+             flush right when nothing else is running, and the thing an update chip slots to the
+             left of when one is. Same label, same corner.
+
+             "v" + the binary's own version and never a literal: AppShell.qml:49-55 stopped
+             hand-bumping one after 5.2.1 shipped a whole release claiming the previous version.
+             Here the binary's version is BuildConfig.VERSION_NAME, generated from build.gradle,
+             so the label and the APK cannot disagree either.
+
+             PromptBar finds its chips BY ID (artlight/PromptBar.java), so a sibling it does not
+             know about is not in its way; the pills keep the left and a weighted spacer is all
+             the layout needs to put this on the right. -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Theme.text2, Theme.fontSmall, tracking 1 (written as 1/13 em, per the port's rule). -->
+        <TextView
+            android:id="@+id/am_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/am_text2"
+            android:letterSpacing="0.0769"
+            tools:text="v1.9.1" />
     </LinearLayout>
 
 

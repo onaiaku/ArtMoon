@@ -60,6 +60,15 @@ public class ComputerDetails {
     // Persistent attributes
     public String uuid;
     public String name;
+
+    /**
+     * The user typed this host's name; discovery does not get to replace it.
+     *
+     * <p>nvcomputer.h:134 — the desktop's own field, written by renameHost() and read at exactly
+     * one place (nvcomputer.cpp:722), where it is the gate on taking the discovered name. Without
+     * it a rename survives until the next poll and no longer.
+     */
+    public boolean hasCustomName;
     public AddressTuple localAddress;
     public AddressTuple remoteAddress;
     public AddressTuple manualAddress;
@@ -85,6 +94,11 @@ public class ComputerDetails {
     public ComputerDetails(ComputerDetails details) {
         // Copy details from the other computer
         update(details);
+        // ⚠️ AFTER update(), never before. update() is the merge, and it is the flag on the
+        // RECEIVER that decides whether a name is taken — set it first and a copy of a renamed
+        // host would refuse its own name. Set here, the copy carries the flag without the merge
+        // ever reading it off the poll (which always arrives with false and would clear it).
+        this.hasCustomName = details.hasCustomName;
     }
 
     public int guessExternalPort() {
@@ -110,7 +124,13 @@ public class ComputerDetails {
 
     public void update(ComputerDetails details) {
         this.state = details.state;
-        this.name = details.name;
+        // ⚠️ A renamed host keeps its name. nvcomputer.cpp:722 — the desktop takes the
+        // discovered name only when the user has not typed one. Note which side the flag is
+        // read from: this object's. Every ComputerDetails that arrives from discovery carries
+        // false, so a poll can never clear a name the user chose.
+        if (!hasCustomName) {
+            this.name = details.name;
+        }
         this.uuid = details.uuid;
         if (details.activeAddress != null) {
             this.activeAddress = details.activeAddress;

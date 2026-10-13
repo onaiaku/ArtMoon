@@ -23,6 +23,13 @@
     <string name="pcview_menu_test_network">Test Network Connection</string>
     <string name="pcview_menu_details">View Details</string>
     <string name="pcview_menu_background">Background</string>
+    <!-- HomeScreen.qml:2259 — the desktop's own label, and the desktop's own order: it sits
+         between Test Network and Delete there, and it does here too. -->
+    <string name="pcview_menu_rename">Rename</string>
+
+    <!-- The rename dialog — HomeScreen.qml:2443-2527, its two labels verbatim. -->
+    <string name="am_rename_header">RENAME HOST</string>
+    <string name="am_rename_prompt">Enter the new name for this host</string>
     <string name="pcview_menu_eol">NVIDIA GameStream End-of-Service</string>
 
     <!-- Network test strings -->
