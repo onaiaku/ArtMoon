@@ -27,3 +27,8 @@ mockups/
 # Untracked from the index on 09/09/2026 with git rm --cached, so this rule now
 # actually bites; the file itself is still on disk.
 scripts/build_output.txt
+
+# Hermes scratch files. A `.hermes-tmp.*` file got committed by accident on 12/10/2026 —
+# 0 bytes, caught while cutting 2.0.0 and untracked from the index on 13/10/2026. This rule
+# is what stops it coming back.
+.hermes-tmp.*
