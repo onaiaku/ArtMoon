@@ -397,6 +397,8 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 return;
             }
             if (ago == null || ago.isEmpty()) {
+                // Clear any clamp before hiding, or a recycled panel comes back shifted.
+                panel.setTranslationY(0f);
                 panel.setVisibility(View.GONE);
                 return;
             }
@@ -455,6 +457,51 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
             }
 
             panel.setVisibility(View.VISIBLE);
+
+            // ── THE CLAMP (HostStage.qml:1237) ────────────────────────────────────────────────
+            // The desktop keeps this panel whole AND keeps it off the buttons, and it does it in
+            // one line:
+            //
+            //     y: Math.min(_idealY, actionRow.y - height - stage._px(20))
+            //
+            // `_idealY` is "directly under the fields" (:1229), which is where the layout already
+            // puts it — 28dp below the block above. The min() is the half that only matters when
+            // the card is short, and the desktop is explicit about why it exists (:1230-1236):
+            //
+            //     "The fields and the buttons can be close enough that the ideal offset puts this
+            //      panel under Enter/Profiles/Options, and a doubled-up grid is worse than a panel
+            //      sitting a little high — so the panel gives up the gap before it gives up the
+            //      buttons. On a card with room, the min() is never taken."
+            //
+            // A "doubled-up grid" is exactly what Nik saw twice: the three stat cells landing on
+            // the Open/Options row. The port had the ideal offset and never had the clamp, so the
+            // panel had nowhere to go but under the buttons — and the column it lives in clips.
+            //
+            // Android has no absolute y to clamp, but it has the same two facts: the column is
+            // what clips, and its bottom edge is already the strip the action row owns plus the
+            // desktop's own _px(20) — 15 + 58 + 20 = 93dp, see the layout. So measuring the panel
+            // against that edge IS `actionRow.y - _px(20)`, and anything past it is the doubled-up
+            // case: the panel comes up by exactly the overflow, giving up the gap above it.
+            //
+            // Reset first, then post: views are recycled, and the panel's own height is only known
+            // after a layout pass, which is also why a not-yet-measured panel retries once.
+            final View col = (panel.getParent() instanceof View) ? (View) panel.getParent() : null;
+            panel.setTranslationY(0f);
+            if (col != null) {
+                final int[] tries = {0};
+                panel.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (panel.getVisibility() != View.VISIBLE) return;
+                        if (panel.getHeight() <= 0 || col.getHeight() <= 0) {
+                            if (tries[0]++ < 2) panel.post(this);
+                            return;
+                        }
+                        int over = panel.getBottom() - col.getHeight();
+                        panel.setTranslationY(over > 0 ? -over : 0f);
+                    }
+                });
+            }
         }
 
         /**
