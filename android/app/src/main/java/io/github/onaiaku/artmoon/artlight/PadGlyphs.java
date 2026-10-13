@@ -169,11 +169,29 @@ public final class PadGlyphs {
      * draws glyphs and caps at one baseline.
      */
     public static Drawable sized(android.content.res.Resources res, int drawableId) {
+        return sized(res, drawableId, Math.round(GLYPH_DP * res.getDisplayMetrics().density));
+    }
+
+    /**
+     * The same, for a caller that knows how tall the cap it is drawing into actually is.
+     *
+     * ⚠️ The density-only default above is what clipped the footer glyphs. Every box on the
+     * screen comes down with AmScale (the layout's 24dp keycap is 35px on the Shield at
+     * uiScale 0.72), and the glyph was the one thing sized from density alone — 22dp, 44px —
+     * so the circle's top and bottom were cut off by the cap holding it: measured on the
+     * Shield, 13 Oct 2026, the circle 78px wide and only 70px tall, with a flat 32px-wide
+     * first row where a full circle's would be a point.
+     *
+     * The desktop never had this: AppShell.qml draws the glyph at _px(26) inside a _px(44)
+     * row, both from the one uiScale. PadGlyphs.GLYPH_DP is the base number, so it has to
+     * travel through the same scale as the cap around it.
+     */
+    public static Drawable sized(android.content.res.Resources res, int drawableId, int facePx) {
         Drawable d = res.getDrawable(drawableId);
         if (d == null) {
             return null;
         }
-        final int face = Math.round(GLYPH_DP * res.getDisplayMetrics().density);
+        final int face = Math.max(1, facePx);
         final int iw = Math.max(1, d.getIntrinsicWidth());
         final int ih = Math.max(1, d.getIntrinsicHeight());
 

@@ -148,7 +148,7 @@ public final class PromptBar {
                     int glyph = PadGlyphs.drawableFor(
                             InputModeManager.get().getGlyphSet(), buttonKeyFor(p.action));
                     android.graphics.drawable.Drawable d = glyph != 0
-                            ? PadGlyphs.sized(activity.getResources(), glyph) : null;
+                            ? PadGlyphs.sized(activity.getResources(), glyph, capFacePx(p.keycap)) : null;
                     if (d != null) {
                         p.keycap.setText("");
                         p.keycap.setCompoundDrawables(d, null, null, null);
@@ -167,6 +167,31 @@ public final class PromptBar {
                 }
             }
         }
+    }
+
+    /**
+     * The glyph's box in pixels: GLYPH_DP through the same scale as the screen around it, and
+     * never taller than the cap it is going into.
+     *
+     * The desktop draws the glyph at _px(26) inside a _px(44) row — both from one uiScale
+     * (AppShell.qml:601 and :470). The Android tree gets that same factor through
+     * AmScale.applyTo, so the footer cap is 24dp × uiScale — 35px on the Shield at uiScale 0.72.
+     * PadGlyphs sized the glyph from density alone, which left it at 22dp = 44px inside a 35px
+     * cap: the circle's top and bottom were both cut off, which is exactly what the Shield
+     * showed on 13 Oct 2026.
+     *
+     * The cap's own height is the final word deliberately. A glyph that does not fit its cap is
+     * broken on every device, whatever the scale says — and getHeight() is 0 before the first
+     * layout pass, so the scaled number stands there.
+     */
+    private int capFacePx(TextView cap) {
+        int face = io.github.onaiaku.artmoon.ui.AmScale.ofScreen(activity)
+                .lengthPx(PadGlyphs.GLYPH_DP, activity);
+        int room = cap.getHeight() - cap.getPaddingTop() - cap.getPaddingBottom();
+        if (room > 0 && room < face) {
+            face = room;
+        }
+        return face;
     }
 
     /** Undo everything gamepad mode did to a keycap, so text mode is untouched. */
