@@ -380,6 +380,10 @@
     <string name="pcview_menu_artlight_pair">Pair ArtLight Control</string>
     <string name="am_hero_auth">ArtLight Authorized</string>
     <string name="am_hero_ready">Ready to stream</string>
+    <!-- HostStage.qml:1072-1073 — the chip pushed into the row only when HDR is on:
+         `if (stage._effHdr) m.push({ text: "HDR" })`. It is BETWEEN the bitrate and the codec,
+         which is where the desktop puts it, and the label is the desktop's own. -->
+    <string name="am_spec_hdr">HDR</string>
     <string name="am_hero_offline">Offline</string>
     <string name="am_picker_add">Add a host</string>
     <string name="am_footer_shutdown">Shutdown</string>

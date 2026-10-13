@@ -1041,6 +1041,12 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
                 specAudio.setText(audioLabel(prefs.audioConfiguration));
                 // HDR is pushed into the row only when it is on (HostStage.qml:1072-1073), so it
                 // appears BETWEEN the bitrate and the codec rather than at the end.
+                //
+                // ⚠️ Its label is the only chip text that is not set here — it lives on the view
+                // in the layout (@string/am_spec_hdr, "HDR", the desktop's own literal). That is
+                // not a style choice: this line used to reveal a chip whose text nothing in the
+                // port had ever written, so turning HDR on drew an empty badge between the
+                // bitrate and the codec.
                 specHdr.setVisibility(prefs.enableHdr ? View.VISIBLE : View.GONE);
             } else if (specHdr != null) {
                 specHdr.setVisibility(View.GONE);
