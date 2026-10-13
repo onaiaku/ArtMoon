@@ -216,3 +216,53 @@ is really true on the phone.
 porting it, which is why the faults keep arriving one at a time instead of all at once. This file
 exists so each item is **marked by him**, never claimed by me.
 
+---
+
+## 13 Oct 2026 — two faults fixed on the Shield, and three gaps he found by looking at both surfaces
+
+He was on the Shield, controller in hand, and marked both fixes himself. Then, with the picker
+running, he compared it against the desktop and named three things the desktop has and this port
+does not. All three are in the build below; none of them is marked.
+
+### Fixed, and marked by him the same afternoon
+
+**1. The hero card's "Ready to stream" line was the width of its own ellipsis. — FIXED (`05ef42fd`)**
+
+Not a wrong word and not a wrong size: a *frozen measurement*. Measured off the Shield, the row was
+859px wide with the line inside it 78px — and 78px is exactly the width of "Rea…". The same line
+measures 197px once the app has restarted, which is why it looked right again after the update and
+why the fault kept coming back.
+
+`bindSublRow()` sets each child's width to its measured natural width, and a single-line ellipsized
+`TextView` measures itself from the line it is **drawing** — once it had clipped itself, the next
+measurement read the clipped width back and froze it. The row then saw 859 available against 78
+needed, `fit` stayed 1, and the ellipsis stayed with the whole card free beside it. The ellipsize now
+comes off for the measurement, so the natural width is the text's; the clamp is untouched for a row
+that genuinely is too narrow.
+
+Nik, 13 Oct 2026: *"the read to stream text looks correct"*.
+
+**2. The footer's pad glyphs were drawn larger than the caps holding them. — FIXED (`9e0ebbc3`)**
+
+The cap is 24dp through `AmScale`, which on the Shield (uiScale 0.72) is **35px**. The glyph was the
+one thing on the screen sized from density alone — 22dp, **44px** — so a circle a quarter larger than
+its box was clipped top and bottom. Measured off the Shield: 78px wide, 70px tall, and a flat 32px-wide
+first row where a round top comes to a point. 70px tall is exactly the view's own height, which is what
+says the box is what cuts it — not the artwork, not the screen edge.
+
+It now travels through `AmScale` like the cap it sits in: 22 base → **32px** inside a 35px box, 3px of
+slack top and bottom. The desktop has always drawn the two from one scale (`_px(26)` inside a
+`_px(44)` row), and the cap's own height is now the ceiling — a glyph that does not fit its cap is
+broken on every device.
+
+Nik, 13 Oct 2026: *"thats better, buttons now display correctly"*.
+
+### The three he found by comparing the desktop to the phone — built, unmarked
+
+| Desktop § | Missing | Where it stands |
+|---|---|---|
+| **The clock** — `AppShell.qml:454` (the one instance, anchored `_px(22)` top / `_px(44)` right), `StatusCluster.qml` | nothing on the phone at all | **BUILT 13 Oct 2026, awaiting his mark.** It lands at the right end of the port's brand row, because that row already carries the desktop's own 44 sides / 22 top — the same corner the cluster is anchored to — and the desktop's own note says the cluster has to sit *"against the wordmark opposite"*, which is precisely what it is opposite of. Clock at `fontH1` (28), Medium, `Theme.text`; the date under it at `fontSmall` (13), `Theme.text3`. **No battery chip** — that is `PowerStatus`, which the port has no twin of, and the desktop only draws it on a device that has one. 12/24-hour comes from the device's own setting rather than a second copy of the desktop's `clockFormat` preference, and the date order from the device rather than the desktop's DF/`dateFormat` preference: a phone already knows what its owner expects. The quiet date line is his to keep or drop |
+| **Rename** — `HomeScreen.qml:2259` (the tile), `:2443-2527` (the dialog), `computermanager.cpp:764` (what storing it does) | the menu tile, the dialog, **and the rule that keeps a rename** | **BUILT 13 Oct 2026, awaiting his mark.** ⚠️ The interesting half was not the dialog. The desktop marks the host `hasCustomName` as it stores the name (`nvcomputer.h:134`) and only takes a discovered name when that flag is unset (`nvcomputer.cpp:722`) — and the port had **no such rule anywhere**: `ComputerDetails.update()` took the discovered name unconditionally, so a rename here would have lasted exactly until the first poll answered. So the flag, the merge rule, a `CustomName` column (appended by a guarded `ALTER` — this database has no version table and no `onUpgrade`, so that is the only upgrade it can have), the service write that lands in the database *and* in the in-memory record the next poll merges into, the tile in the desktop's own slot (between Test Network and Delete), the dialog with the desktop's two labels verbatim, and the field's own 15-character cap with the desktop's reason for it (the NetBIOS limit; the name is drawn in a row with no width constraint, so an over-long one runs on instead of eliding). ⚠️ On the Shield there is no keyboard, so the field cannot be typed into there — the Fold is where this one is usable, and that is true of every text field in the app, not just this one |
+| **The client version** — `AppShell.qml:691-699` | nothing in the footer | **BUILT 13 Oct 2026, awaiting his mark.** `"v" + BuildConfig.VERSION_NAME`, `Theme.text2`, `fontSmall`, tracking 1 (written as 1/13 em, the port's rule for tracking in a layout). It ends the footer, which is where the desktop's status bar keeps it — flush right when nothing else is running. Read from the binary and never typed in: `BuildConfig.VERSION_NAME` is generated from `build.gradle`, so this label cannot claim a version the APK is not, which is the desktop's own lesson from 5.2.1 |
+
+
