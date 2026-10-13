@@ -463,7 +463,7 @@
             android:textSize="13sp"
             android:textColor="@color/am_text2"
             android:letterSpacing="0.0769"
-            tools:text="v1.9.1" />
+            tools:text="v2.0.0" />
     </LinearLayout>
 
 

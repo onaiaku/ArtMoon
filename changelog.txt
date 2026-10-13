@@ -5,6 +5,64 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.0.0 (13/10/2026)**
+--------------------------------------
+
+The Android app is a real ArtMoon client now — the whole interface, and a controller to drive it.
+
+**New — 17**
+
+**Interface**
+- **The Android app picker is the desktop's own screen.** The list sits on the left, the focused game's cover and details on the right, and its artwork blurred behind the page — the desktop's two columns and its spotlight, rather than an approximation of them. Nothing was pasted over the old list: the old list is gone, and the few things that only lived in it came across with it.
+- **The main screen is ported from the desktop.** The hero card, the stage, the badge row, the action row and the host strip follow the desktop's own layout and spacing instead of being sized by eye.
+- **One type scale, one set of colours, one set of real fonts.** Every screen now sizes itself the same way and against the same base as the desktop, instead of each view choosing its own numbers.
+- **The app's floor** — the wash and the moving waves behind the interface, taken from the desktop's own ambient background.
+- **A clock on the main screen, and the client's version in the footer.** The version is read out of the build rather than typed in, so the label can never claim a number the app is not.
+
+**Input**
+- **A controller drives the Android interface.** X stops the running session, A launches what the spotlight is showing, B is back, Y is Settings, and Select opens the game's menu. The ring belongs to the list: a d-pad press at the end of it is just an edge, and never a jump onto a button.
+- **Real pad artwork, by button position.** The glyphs come from the pad in your hand — a Switch pad swaps A and B, and Select is drawn as artwork rather than spelled out.
+- **The host strip's arrows page the stage**, from a controller or from a keyboard.
+
+**Library**
+- **GAMES and APPS, with counts.** Three tabs that remember the one you chose, each carrying how many entries it holds.
+- **Pin an entry, and move one by hand.** Start (or P) pins it and the prompt follows the row it is on; the right stick (or M) moves it between GAMES and APPS.
+- **Play time for the game in the spotlight** — hours and sessions for the entry you are looking at, not a fixed row.
+- **Last played sits at the top**, and a session this client only watched still counts as yours.
+- **Store marks** — the seven storefront logos, drawn from the same artwork the desktop uses, under the game's name.
+- **The host's own answer to a launch** — that it finished, or that launching it again within 60 seconds confirms it — instead of a generic error.
+
+**Settings**
+- **Rename a host, and the name stays.** A name you give a PC is kept as yours and is no longer overwritten the next time the host answers.
+
+**Android**
+- **Resume and Stop sit side by side**, so the pad walks them left to right.
+- **Landscape is locked**, which removes the portrait layout damage underneath it.
+
+**Fixed — 12**
+
+**Android**
+- **The action pills were being sliced whenever a game showed play time.** A short column took the missing space out of its last child, so the launch and Stop buttons came out shaved and their glyphs were stretched into half-discs. The cover gives up the room now, so the buttons never can again.
+- **The spotlight's cover was never filled.** The right-hand preview had been the bare blue rectangle ever since the old list came out, because the code that filled it went with that screen.
+- **"Ready to stream" was the width of its own ellipsis.** The line measured itself while it was clipped, so it stayed frozen at the width of "Rea…" with the whole card free beside it.
+- **The footer's pad glyphs were drawn larger than the caps holding them**, so every circle was cut off top and bottom.
+- **Box art that only appeared after a scroll.** The spotlight cleared its cover whenever the cursor sat on a section heading; one scroll moved it onto a real row and the art came back.
+- **The first entry was only sometimes selected.** The page waited on a timer for the host to answer, and a list that arrived after it ran out left the page with nothing selected. The cursor lands when the rows are actually there now.
+- **The d-pad stopped dead on a section heading.** It walks past headings now, in the direction you pressed, and stops at the ends.
+- **The last-session panel no longer overlaps the action row** on the main screen.
+- **The pin mark was a gold star.** It is the desktop's pin.
+- **The app no longer blames the host for its own empty state** — "some may be hidden on the host" is gone.
+- **The root build was missing from the rename** the rest of the app had already had.
+
+**Desktop**
+- **A session this client only watched is still its last played game.**
+
+**Good to know — 1**
+
+**Android**
+- Hidden apps is gone. It was never a desktop feature, and it has been removed from the app rather than hidden — the menu entry, the preference, and the wording that blamed the host for it.
+
+--------------------------------------
 **Version 1.9.1 (10/10/2026)**
 --------------------------------------
 
