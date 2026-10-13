@@ -1186,9 +1186,35 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
     /** The width a child wants, measured with no limit at all — QML's implicitWidth. */
     private static int naturalWidth(View v) {
         int w0 = v.getMeasuredWidth(), h0 = v.getMeasuredHeight();
+
+        // ⚠️ AN ELLIPSIZED LINE MEASURES ITSELF FROM THE LINE IT IS DRAWING, NOT FROM ITS TEXT.
+        //
+        // The ready line is `singleLine + ellipsize=end`. Once it has ever clipped
+        // "Ready to stream" down to "Rea…", an UNSPECIFIED pass reads that clipped width back, so
+        // `bindSublRow` freezes the child to it — and the freeze is permanent: the row is then
+        // `available (859px) / natural (78px) > 1`, `fit` stays 1, and the card keeps the ellipsis
+        // with the whole width free beside it. Measured on the Shield, 13 Oct 2026: the row was
+        // 859px wide and the line inside it 78px, reading "Rea…".
+        //
+        // So the ellipsize comes off for the measurement. The TEXT is the natural width; the
+        // ellipsis is only ever what the box it happened to be in could fit.
+        android.text.TextUtils.TruncateAt elide = null;
+        android.widget.TextView tv = null;
+        if (v instanceof android.widget.TextView) {
+            tv = (android.widget.TextView) v;
+            elide = tv.getEllipsize();
+            if (elide != null) {
+                tv.setEllipsize(null);
+            }
+        }
+
         v.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
                   View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
         int w = v.getMeasuredWidth();
+
+        if (tv != null && elide != null) {
+            tv.setEllipsize(elide);
+        }
         // Put it back: the parent re-measures after this anyway, but leave no trace.
         v.measure(View.MeasureSpec.makeMeasureSpec(w0, View.MeasureSpec.EXACTLY),
                   View.MeasureSpec.makeMeasureSpec(h0, View.MeasureSpec.EXACTLY));
