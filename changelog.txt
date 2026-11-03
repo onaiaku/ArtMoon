@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.11 (03/11/2026)**
+--------------------------------------
+
+The second screen asks for the screen it is actually on.
+
+**Changed — 1**
+
+**Display**
+- **The second window sends its own panel's mode to the host**, instead of the main stream's. A 1440p panel no longer gets a 4K display built for it, with everything that costs in sharpness and performance. A per-app override still wins, because that is a deliberate choice.
+
+--------------------------------------
 **Version 2.1.10 (03/11/2026)**
 --------------------------------------
 

@@ -7,6 +7,8 @@
 #include <QCoreApplication>
 #include <QTimer>
 
+#include <SDL.h>
+
 #define COMPUTER_SEEK_TIMEOUT 30000
 #define APP_SEEK_TIMEOUT 10000
 
@@ -100,6 +102,40 @@ public:
              * and a Remote Monitor session colliding with itself (3 Nov, 16:41).
              */
             prefs->streamOnDisplay = m_Preferences->streamOnDisplay;
+
+            /*
+             * The second screen is the only window that knows which panel it is on. Everything
+             * else in the chain - the host, the virtual display - can only repeat whatever mode
+             * it is told, so until now it was told the MAIN stream's mode and built a 4K display
+             * for a 1440p screen. Ask the panel it will actually be shown on for its own numbers.
+             *
+             * A per-app override still wins: that is someone deliberately choosing a mode, and
+             * a deliberate choice beats a default we can read.
+             */
+            if (!prefs->streamOnDisplay.isEmpty() &&
+                !AppSettingsManager::get()->hasOverride(m_Computer->uuid, app.id)) {
+                const bool videoReady = SDL_WasInit(SDL_INIT_VIDEO) != 0 ||
+                                        SDL_InitSubSystem(SDL_INIT_VIDEO) == 0;
+                if (videoReady) {
+                    const int displays = SDL_GetNumVideoDisplays();
+                    for (int i = 0; i < displays; i++) {
+                        const char *name = SDL_GetDisplayName(i);
+                        if (name == nullptr || prefs->streamOnDisplay != QString::fromUtf8(name)) {
+                            continue;
+                        }
+                        SDL_DisplayMode panel {};
+                        if (SDL_GetDesktopDisplayMode(i, &panel) == 0 &&
+                            panel.w > 0 && panel.h > 0) {
+                            prefs->width = panel.w;
+                            prefs->height = panel.h;
+                            if (panel.refresh_rate > 0) {
+                                prefs->fps = panel.refresh_rate;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
 
             session = new Session(m_Computer, app, prefs);
             prefs->setParent(session);
