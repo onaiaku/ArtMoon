@@ -104,6 +104,21 @@ public:
      */
     Q_INVOKABLE QVariantMap videoOptions();
 
+    /*
+     * Every display this machine is driving, in SDL's own index order:
+     *
+     *   [{ index, name, x, y, width, height, primary }]
+     *
+     * The name is what the second-screen picker stores, because it survives a reboot and a
+     * cable swap where an index does not — plug the monitors back in in the other order and
+     * index 1 is suddenly the other panel. Names come from SDL_GetDisplayName() and are the
+     * panel's own ("PG42UQ", "VG32AQL1A"); where the platform reports nothing useful the
+     * entry falls back to "Display N" so the list is never blank.
+     *
+     * Read at the same moment as videoOptions(), from the snapshot refreshDisplays() took.
+     */
+    Q_INVOKABLE QVariantList displayList();
+
     /**
      * The VRR stream rate recommended for the client display, and the refresh it was
      * derived from: { fps, refreshHz }, or an empty map when no display reports a
@@ -216,6 +231,10 @@ private:
     QList<QRect> monitorNativeResolutions;
     QList<QRect> monitorSafeAreaResolutions;
     QList<int> monitorRefreshRates;
+
+    // One map per display, index-parallel with SDL's display indices (see displayList()).
+    // Built inside refreshDisplays() where the names and bounds are already being read.
+    QVariantList monitorDisplays;
 
     // Per-display geometry (global desktop coords) and normalized rate list, for
     // refreshRatesForPoint() — lets the UI ask what the display under the window

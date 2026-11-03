@@ -42,6 +42,7 @@
 
 #include <QtEndian>
 #include <QCoreApplication>
+#include <QProcess>
 #include <QThreadPool>
 #include <QNetworkAccessManager>
 #include <QPainter>
@@ -1806,15 +1807,41 @@ private:
 void Session::getWindowDimensions(int& x, int& y,
                                   int& width, int& height)
 {
-    int displayIndex = 0;
+    int displayIndex = -1;
 
-    if (m_Window != nullptr) {
+    /*
+     * A display named on the command line wins over everything below. That is the
+     * second-screen instance: ArtMoon starts it itself, tells it which of this machine's own
+     * screens it belongs on, and it has no app window and no UI screen to inherit from.
+     *
+     * ⚠️ Matched on the NAME, and a name that is no longer connected falls through to the
+     * ordinary behaviour rather than failing. Someone unplugging a monitor between launch and
+     * stream start should get a stream on the screen in front of them, not none.
+     */
+    if (m_Preferences != nullptr && !m_Preferences->streamOnDisplay.isEmpty()) {
+        for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
+            const char* name = SDL_GetDisplayName(i);
+            if (name != nullptr && m_Preferences->streamOnDisplay == QString::fromUtf8(name)) {
+                displayIndex = i;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "Stream window requested on display %d ('%s')", i, name);
+                break;
+            }
+        }
+        if (displayIndex < 0) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "Requested display '%s' is not connected; using the default display",
+                        m_Preferences->streamOnDisplay.toUtf8().constData());
+        }
+    }
+
+    if (displayIndex < 0 && m_Window != nullptr) {
         displayIndex = SDL_GetWindowDisplayIndex(m_Window);
         SDL_assert(displayIndex >= 0);
     }
     // Create our window on the same display that Qt's UI
     // was being displayed on.
-    else {
+    else if (displayIndex < 0) {
         Q_ASSERT(m_QtWindow != nullptr);
         if (m_QtWindow != nullptr) {
             QScreen* screen = m_QtWindow->screen();
@@ -1849,6 +1876,12 @@ void Session::getWindowDimensions(int& x, int& y,
                             "Qt window is not associated with a QScreen!");
             }
         }
+    }
+
+    // Every path above may legitimately come back with -1 — no name matched, no Qt window, no
+    // QScreen — and SDL_GetDisplayUsableBounds() with a negative index is undefined behaviour.
+    if (displayIndex < 0) {
+        displayIndex = 0;
     }
 
     SDL_Rect usableBounds;
@@ -2751,8 +2784,86 @@ void Session::requestGracefulStop()
     SDL_PushEvent(&event);
 }
 
+namespace {
+
+/*
+ * The second screen, without a second device (6.4.0).
+ *
+ * When a display has been ticked in Settings > Display > Second screen, a stream that starts
+ * here also starts the host's virtual display in a second window on that screen. The extra
+ * window is its own process: ArtMoon holds exactly one streaming session per process (the
+ * session engine's s_ActiveSession and its semaphore), so a second session in this one is a
+ * rewrite of the session model, not a setting. A child process is the honest version — the
+ * host already serves two sessions at once, which is what the old second-device flow proved.
+ *
+ * Three things are checked before anything is spawned, and each of them is a way this could
+ * fail quietly and look broken:
+ *   1. No display chosen — feature off, do nothing at all.
+ *   2. This session IS the second screen (streamOnDisplay set) — never spawn from it, or the
+ *      machine makes copies of itself every time a stream starts.
+ *   3. The chosen display is no longer connected — do not open a second window anywhere.
+ *      A stream on the wrong screen is worse than no stream, and the settings row says the
+ *      display is missing so it is not a silent nothing.
+ */
+void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* prefs)
+{
+    const QString wanted = prefs->secondScreenDisplay;
+    if (wanted.isEmpty() || !prefs->streamOnDisplay.isEmpty()) {
+        return;
+    }
+
+    bool connected = false;
+    for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
+        const char* name = SDL_GetDisplayName(i);
+        if (name != nullptr && wanted == QString::fromUtf8(name)) {
+            connected = true;
+            break;
+        }
+    }
+    if (!connected) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Second screen '%s' is not connected; not opening a second window",
+                    wanted.toUtf8().constData());
+        return;
+    }
+
+    // The host's own virtual-display entry, found by control kind rather than by name: the
+    // served name is padded for sorting and can be the game's title instead.
+    QString appName;
+    for (const NvApp& app : computer->appList) {
+        if (hostControlKind(app.id, app.uuid, app.name) == HostControl::VirtualDisplay) {
+            appName = app.name;
+            break;
+        }
+    }
+    if (appName.isEmpty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Second screen is configured but the host offers no Virtual Display entry");
+        return;
+    }
+
+    QStringList args;
+    args << QStringLiteral("stream")
+         << computer->uuid
+         << appName
+         << QStringLiteral("--display-mode") << QStringLiteral("fullscreen")
+         << QStringLiteral("--on-display") << wanted;
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Opening the second screen on '%s'", wanted.toUtf8().constData());
+
+    if (!QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Failed to start the second-screen instance");
+    }
+}
+
+} // namespace
+
 void Session::exec()
 {
+    launchSecondScreenIfConfigured(m_Computer, m_Preferences);
+
     // If the connection failed, clean up and abort the connection.
     if (!m_AsyncConnectionSuccess) {
         if (m_HostMetricsPoller)

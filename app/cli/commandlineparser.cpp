@@ -354,6 +354,9 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     parser.addValueOption("bitrate", "bitrate in Kbps");
     parser.addValueOption("packet-size", "video packet size");
     parser.addChoiceOption("display-mode", "display mode", m_WindowModeMap.keys());
+    // Which of this machine's displays the stream window belongs on, by name. Used by the
+    // second-screen launch (ArtMoon starts the extra instance itself); harmless otherwise.
+    parser.addValueOption("on-display", "open the stream window on this display name");
     parser.addChoiceOption("audio-config", "audio config", m_AudioConfigMap.keys());
     parser.addToggleOption("multi-controller", "multiple controller support");
     parser.addToggleOption("quit-after", "quit app after session");
@@ -429,6 +432,12 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
         if (preferences->packetSize < 1024) {
             parser.showError("Packet size must be greater than 1024 bytes");
         }
+    }
+
+    // In-memory only, like the rest of the stream options: a one-off placement must never
+    // rewrite what the person has saved in the settings page.
+    if (parser.isSet("on-display")) {
+        preferences->streamOnDisplay = parser.value("on-display");
     }
 
     // Resolve --display option

@@ -64,6 +64,7 @@
 #define SER_OVERLAYITEMS "overlayitems"
 // Busids this machine's owner has asked to offer to an importer. Intent, not state — the
 // privileged input service is what turns it into a bind. See streamingpreferences.h.
+#define SER_SECONDSCREEN "secondscreendisplay"
 #define SER_USBIPWANTED "usbipwanted"
 #define SER_USBIPREMEMBERED "usbipremembered"
 #define SER_SWAPMOUSEBUTTONS "swapmousebuttons"
@@ -300,6 +301,9 @@ void StreamingPreferences::reload()
     // title that opens its own launcher never satisfies it at all.
     waitForGameOnScreen = settings.value(SER_WAITFORGAME, false).toBool();
     clipboardSync = settings.value(SER_CLIPBOARDSYNC, false).toBool();
+    // The display chosen as the second screen, by NAME ("PG42UQ"), not by index: an index
+    // changes when the monitors are plugged in in a different order. Empty means off.
+    secondScreenDisplay = settings.value(SER_SECONDSCREEN, QString()).toString();
     usbIpWantedBusids = settings.value(SER_USBIPWANTED, QStringList()).toStringList();
     usbIpRememberedDevices = settings.value(SER_USBIPREMEMBERED, QStringList()).toStringList();
     // ── Performance overlay ──────────────────────────────────────────────────
@@ -443,6 +447,7 @@ void StreamingPreferences::save()
     // switch would look like it never took. Dropping it retires the migration for good.
     settings.remove(SER_OVERLAYMODE);
     settings.setValue(SER_AUDIOCFG, static_cast<int>(audioConfig));
+    settings.setValue(SER_SECONDSCREEN, secondScreenDisplay);
     settings.setValue(SER_USBIPWANTED, usbIpWantedBusids);
     settings.setValue(SER_USBIPREMEMBERED, usbIpRememberedDevices);
     settings.setValue(SER_HDR, enableHdr);

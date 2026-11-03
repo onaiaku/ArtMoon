@@ -357,6 +357,7 @@ void SystemProperties::refreshDisplays()
 
     monitorNativeResolutions.clear();
     monitorRefreshRates.clear();
+    monitorDisplays.clear();
     monitorDisplayBounds.clear();
     monitorRatesByDisplay.clear();
     monitorSafeAreaResolutions.clear();
@@ -368,6 +369,40 @@ void SystemProperties::refreshDisplays()
     for (int displayIndex = 0; displayIndex < SDL_GetNumVideoDisplays(); displayIndex++) {
         SDL_DisplayMode desktopMode;
         SDL_Rect safeArea;
+        SDL_Rect displayBounds;
+
+        /*
+         * Name and geometry first, before any mode probing. A panel whose modes cannot be
+         * read still exists, still carries a name, and can still be chosen as the second
+         * screen — so this entry must not depend on the probe below succeeding. Appended in
+         * SDL's own index order, which is what displayList() promises.
+         */
+        const char* rawDisplayName = SDL_GetDisplayName(displayIndex);
+        QVariantMap displayEntry;
+        displayEntry.insert(QStringLiteral("index"), displayIndex);
+        displayEntry.insert(QStringLiteral("name"),
+                            (rawDisplayName && *rawDisplayName)
+                                ? QString::fromUtf8(rawDisplayName)
+                                : QStringLiteral("Display %1").arg(displayIndex + 1));
+        if (SDL_GetDisplayBounds(displayIndex, &displayBounds) == 0) {
+            displayEntry.insert(QStringLiteral("x"), displayBounds.x);
+            displayEntry.insert(QStringLiteral("y"), displayBounds.y);
+            displayEntry.insert(QStringLiteral("width"), displayBounds.w);
+            displayEntry.insert(QStringLiteral("height"), displayBounds.h);
+            // Good enough to name the panel the taskbar is on: Windows and X11 place the
+            // primary display's origin at 0,0. Wayland reports every display at 0,0, where
+            // this instead marks whichever one SDL listed first — used only for a label.
+            displayEntry.insert(QStringLiteral("primary"),
+                                displayBounds.x == 0 && displayBounds.y == 0);
+        }
+        else {
+            displayEntry.insert(QStringLiteral("x"), 0);
+            displayEntry.insert(QStringLiteral("y"), 0);
+            displayEntry.insert(QStringLiteral("width"), 0);
+            displayEntry.insert(QStringLiteral("height"), 0);
+            displayEntry.insert(QStringLiteral("primary"), displayIndex == 0);
+        }
+        monitorDisplays.append(displayEntry);
 
         if (StreamUtils::getNativeDesktopMode(displayIndex, &desktopMode, &safeArea)) {
             if (desktopMode.w <= 8192 && desktopMode.h <= 8192) {
@@ -547,6 +582,19 @@ QVariantMap SystemProperties::videoOptions()
     map.insert(QStringLiteral("resHint"), VideoOptions::nativeResolutionHint());
     map.insert(QStringLiteral("displays"), VideoOptions::displayCount());
     return map;
+}
+
+QVariantList SystemProperties::displayList()
+{
+    // Same guard as videoOptions(): take the snapshot if startup never did (a launch straight
+    // into a stream). Keyed off displayCount() rather than the map itself, because that is the
+    // one thing refreshDisplays() fills unconditionally — an empty map alone would also be
+    // empty on a machine with no displays, and asking again would not help.
+    if (VideoOptions::displayCount() == 0) {
+        refreshDisplays();
+    }
+
+    return monitorDisplays;
 }
 
 void SystemProperties::restartApplication()

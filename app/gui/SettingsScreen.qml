@@ -1896,6 +1896,107 @@ FocusScope {
                                 onToggled: function(v) { StreamingPreferences.smoothVrrFrameTiming = v; StreamingPreferences.save() }
                             }
                         }
+                        RowSeparator { }
+
+                        // ── Second screen ─────────────────────────────────────
+                        /*
+                         * Picks which of THIS machine's displays receives the host's second
+                         * screen. Off by default and off by choice: an empty name means the
+                         * feature does nothing at all.
+                         *
+                         * One selector of names rather than a list of checkboxes, because only
+                         * one display can be the second screen — and because the two-monitor
+                         * desk that wants this has two entries in it, not twenty.
+                         */
+                        Item {
+                            id: secondScreenRow
+                            width: parent.width
+                            height: settingsScreen._rowHeightTall
+
+                            readonly property var _displays: SystemProperties.displayList()
+
+                            /*
+                             * The saved display is kept in the strip even when it is unplugged,
+                             * greyed out and unselectable, rather than silently collapsing the
+                             * row to "Off" — a setting that is still set must not look unset.
+                             * It comes back to life the moment the panel is plugged in again.
+                             */
+                            readonly property var _names: _displays.map(function(d) { return d.name })
+                            readonly property var _values: {
+                                var names = _names
+                                var saved = StreamingPreferences.secondScreenDisplay
+                                if (saved !== "" && names.indexOf(saved) === -1) {
+                                    names = names.concat([saved])
+                                }
+                                return [""].concat(names)
+                            }
+                            readonly property int _missingIndex: {
+                                var saved = StreamingPreferences.secondScreenDisplay
+                                if (saved === "" || _names.indexOf(saved) !== -1) return -1
+                                return _values.indexOf(saved)
+                            }
+
+                            Column {
+                                anchors.left: parent.left
+                                anchors.leftMargin: settingsScreen._px(16)
+                                anchors.right: secondScreenSelector.left
+                                anchors.rightMargin: settingsScreen._px(16)
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: settingsScreen._px(3)
+
+                                Label {
+                                    text: qsTr("Second screen")
+                                    font.family: Theme.family
+                                    font.pixelSize: settingsScreen._px(Theme.fontBody)
+                                    font.bold: true
+                                    color: settingsScreen._text
+                                }
+                                Label {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    text: secondScreenRow._missingIndex >= 0
+                                          ? qsTr("%1 is not connected. No second screen will open until it is.").arg(StreamingPreferences.secondScreenDisplay)
+                                          : secondScreenRow._displays.length > 1
+                                            ? qsTr("Opens the host's second screen here when a stream starts, fullscreen on the display you pick.")
+                                            : qsTr("Connect a second display to use a second screen without another device.")
+                                    font.family: Theme.family
+                                    font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                    color: settingsScreen._textDim
+                                }
+                            }
+
+                            SegmentedSelector {
+                                id: secondScreenSelector
+                                anchors.right: parent.right
+                                anchors.rightMargin: settingsScreen._px(16)
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                enabled: secondScreenRow._displays.length > 1
+                                opacity: enabled ? 1.0 : 0.4
+
+                                // Index 0 is "off"; the stored value is the display's NAME, so a
+                                // reboot or a re-plugged cable does not point the row at a
+                                // different panel.
+                                labels: [qsTr("Off")].concat(secondScreenRow._values.slice(1))
+                                disabledIndices: secondScreenRow._missingIndex >= 0
+                                                 ? [secondScreenRow._missingIndex] : []
+
+                                Binding on currentIndex {
+                                    value: {
+                                        var saved = StreamingPreferences.secondScreenDisplay
+                                        var values = secondScreenRow._values
+                                        for (var i = 0; i < values.length; i++) {
+                                            if (values[i] === saved) return i
+                                        }
+                                        return 0
+                                    }
+                                }
+                                onActivated: function(idx) {
+                                    StreamingPreferences.secondScreenDisplay = secondScreenRow._values[idx]
+                                    StreamingPreferences.save()
+                                }
+                            }
+                        }
                     }
                 }
 

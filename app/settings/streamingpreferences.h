@@ -322,6 +322,15 @@ public:
     Q_PROPERTY(QStringList usbIpWantedBusids MEMBER usbIpWantedBusids NOTIFY usbIpWantedBusidsChanged)
 
     /*
+     * Which of THIS machine's own screens is the second screen, by the display's own name
+     * ("PG42UQ") — empty means the feature is off and nothing changes.
+     *
+     * A name and not an index: plug the two monitors back in the other way round and index 1
+     * is a different panel. A name is what the person ticked.
+     */
+    Q_PROPERTY(QString secondScreenDisplay MEMBER secondScreenDisplay NOTIFY secondScreenDisplayChanged)
+
+    /*
      * The same choice as usbIpWantedBusids, but keyed on the DEVICE rather than on the busid it
      * happened to be plugged into — so a drive that is pulled out and put back is offered
      * switched on again, which is what the person meant when they ticked it. Nothing is offered,
@@ -408,6 +417,15 @@ public:
     DateFormat dateFormat;
 
     // Busids the user has asked to share. See the Q_PROPERTY note above.
+    QString secondScreenDisplay;
+
+    /*
+     * Where THIS session's window goes, by display name — set from --on-display and never
+     * saved. Deliberately separate from secondScreenDisplay: the ordinary main stream must
+     * stay on whichever display the UI is on, even when a second screen is configured.
+     * Empty means "wherever the app window is", which is the behaviour everything had before.
+     */
+    QString streamOnDisplay;
     QStringList usbIpWantedBusids;
 
     // Devices the user has asked to share, by identity (serial, else vid:pid). See above.
@@ -465,6 +483,7 @@ signals:
     void inputPromptsChanged();
     void clockFormatChanged();
     void dateFormatChanged();
+    void secondScreenDisplayChanged();
     void usbIpWantedBusidsChanged();
     void usbIpRememberedDevicesChanged();
 private:
