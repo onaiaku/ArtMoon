@@ -54,6 +54,35 @@ public:
         Session* session;
         NvApp app;
 
+    /*
+     * Look for our app in the list we hold *now*. Called when the app search begins and again
+     * on every host update, because the list can already be complete before the search starts:
+     * the poller fetches it, finds nothing changed, and therefore emits no update at all — so a
+     * waiter that only reacts to updates waits out the full timeout while holding the answer.
+     * That is 3 Nov 15:36 exactly: the timeout message printed the host's list and "Remote
+     * Monitor" (id 2147483505) was in it, unpadded and spelled right.
+     */
+    auto tryStartSession = [&]() {
+        if (m_State != StateSeekApp) {
+            return;
+        }
+
+        const int index = getAppIndex();
+        if (index == -1) {
+            return;
+        }
+
+        app = m_Computer->appList[index];
+        m_TimeoutTimer->stop();
+        if (isNotStreaming() || isStreamingApp(app) || isSecondScreenInstance()) {
+            m_State = StateStartSession;
+            session = new Session(m_Computer, app, m_Preferences);
+            emit q->sessionCreated(app.name, session);
+        } else {
+            emit q->appQuitRequired(getCurrentAppName());
+        }
+    };
+
         switch (event.type) {
         // Occurs when CliStartStreamSegue becomes visible and the UI calls launcher's execute()
         case Event::Executed:
@@ -84,6 +113,7 @@ public:
                     m_Computer = event.computer;
                     m_TimeoutTimer->start(APP_SEEK_TIMEOUT);
                     emit q->searchingApp();
+                    tryStartSession();
                 } else {
                     m_State = StateFailure;
                     QString msg = QObject::tr("Computer %1 has not been paired. "
@@ -95,20 +125,7 @@ public:
             break;
         // Occurs when a computer is updated
         case Event::ComputerUpdated:
-            if (m_State == StateSeekApp) {
-                int index = getAppIndex();
-                if (-1 != index) {
-                    app = m_Computer->appList[index];
-                    m_TimeoutTimer->stop();
-                    if (isNotStreaming() || isStreamingApp(app) || isSecondScreenInstance()) {
-                        m_State = StateStartSession;
-                        session = new Session(m_Computer, app, m_Preferences);
-                        emit q->sessionCreated(app.name, session);
-                    } else {
-                        emit q->appQuitRequired(getCurrentAppName());
-                    }
-                }
-            }
+            tryStartSession();
             break;
         // Occurs when there was another app running on computer and user accepted quit
         // confirmation dialog

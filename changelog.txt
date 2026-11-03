@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.8 (03/11/2026)**
+--------------------------------------
+
+The launcher stops waiting for news that will never come.
+
+**Fixed — 1**
+
+**Display**
+- **"Failed to find application" when the app is right there.** The launcher searched for its app only when the host reported a change. A fresh poll that finds the app list exactly as it was reports no change at all — so if the list was already complete when the search began, no search ever ran and the window gave up after ten seconds while holding the entry all along. The list is checked as soon as the search starts, and on every update after that.
+
+--------------------------------------
 **Version 2.1.7 (03/11/2026)**
 --------------------------------------
 
