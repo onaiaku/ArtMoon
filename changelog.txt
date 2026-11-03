@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.7 (03/11/2026)**
+--------------------------------------
+
+The second screen can find its tile again.
+
+**Fixed — 1**
+
+**Display**
+- **"Failed to find application Remote Monitor" — for real this time.** The host ranks its reserved tiles for Moonlight's launch list by prefixing spaces, so the same entry is "Remote Monitor" when nothing is running and "    Remote Monitor" while a game is. A second screen only ever starts while a game is running, i.e. only ever against the padded name, and the lookup compared names exactly — so it found the case that never happens and missed the one that always does. Names are compared trimmed and case-insensitively now, and a failure prints what the host actually listed instead of only what we asked for.
+
+--------------------------------------
 **Version 2.1.6 (03/11/2026)**
 --------------------------------------
 

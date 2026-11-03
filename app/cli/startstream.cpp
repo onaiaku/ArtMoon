@@ -134,7 +134,8 @@ public:
             }
             if (m_State == StateSeekApp) {
                 m_State = StateFailure;
-                emit q->failed(QObject::tr("Failed to find application %1").arg(m_AppName));
+                emit q->failed(QObject::tr("Failed to find application %1 — %2")
+                                     .arg(m_AppName, appListNames()));
             }
             break;
         }
@@ -142,12 +143,34 @@ public:
 
     int getAppIndex() const
     {
+        /*
+         * Trimmed, case-insensitive. ArtLight ranks its host controls for Moonlight's launch
+         * list by prefixing spaces that sort them after the configured apps, so the same tile
+         * is "Remote Monitor" while the host is idle and "    Remote Monitor" while a game is
+         * running - and the second screen is only ever started while a game is running. An
+         * exact comparison found the one case that never happens and missed the one that
+         * always does: 3 Nov 15:13 and 15:23 both failed this way, while the headless test
+         * with nothing streaming at 14:04 passed.
+         */
+        const QString wanted = m_AppName.trimmed();
         for (int i = 0; i < m_Computer->appList.length(); i++) {
-            if (m_Computer->appList[i].name.toLower() == m_AppName.toLower()) {
+            if (m_Computer->appList[i].name.trimmed().compare(wanted, Qt::CaseInsensitive) == 0) {
                 return i;
             }
         }
         return -1;
+    }
+
+    // Names as the host listed them, for the failure line. A list we could not search is a
+    // fact worth printing; the old message named only what we wanted and nothing we had.
+    QString appListNames() const
+    {
+        QStringList names;
+        for (const NvApp& entry : m_Computer->appList) {
+            names.append(QStringLiteral("'%1' (id %2)").arg(entry.name).arg(entry.id));
+        }
+        return names.isEmpty() ? QStringLiteral("the host listed no applications")
+                                : QStringLiteral("the host listed %1").arg(names.join(QStringLiteral(", ")));
     }
 
     bool isNotStreaming() const
