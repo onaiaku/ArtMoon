@@ -100,7 +100,7 @@ public:
                 if (-1 != index) {
                     app = m_Computer->appList[index];
                     m_TimeoutTimer->stop();
-                    if (isNotStreaming() || isStreamingApp(app)) {
+                    if (isNotStreaming() || isStreamingApp(app) || isSecondScreenInstance()) {
                         m_State = StateStartSession;
                         session = new Session(m_Computer, app, m_Preferences);
                         emit q->sessionCreated(app.name, session);
@@ -153,6 +153,22 @@ public:
     bool isNotStreaming() const
     {
         return m_Computer->currentGameId == 0;
+    }
+
+    /*
+     * The second-screen window is started by this program while the main stream is already
+     * running, so the host always answers that some other app — Desktop, the game — is the
+     * current one. The check below reads that as "you must close it first" and pops the
+     * "quit the running application?" question, which is exactly wrong here: the thing it
+     * offers to close is the stream this window is being added to.
+     *
+     * ArtLight gives a client a Remote Monitor session *alongside* its game session, so the
+     * two are not alternatives. Only ever set by our own launcher, so this cannot loosen the
+     * rule for anyone typing the command by hand.
+     */
+    bool isSecondScreenInstance() const
+    {
+        return m_Preferences != nullptr && !m_Preferences->streamOnDisplay.isEmpty();
     }
 
     bool isStreamingApp(NvApp app) const

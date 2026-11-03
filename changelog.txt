@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.4 (03/11/2026)**
+--------------------------------------
+
+The second screen stops asking to close the stream it belongs to.
+
+**Fixed — 1**
+
+**Display**
+- **No more "quit the running application?" when the second screen opens.** Starting it while the main stream is up made the second window notice that another app was already running on the host and offer to close it — the other app being the very stream you were watching. ArtLight runs the Remote Monitor alongside the game session, so the second window now starts beside it instead of asking, and nothing is closed.
+
+--------------------------------------
 **Version 2.1.3 (03/11/2026)**
 --------------------------------------
 
