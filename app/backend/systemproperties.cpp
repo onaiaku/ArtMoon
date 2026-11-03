@@ -402,6 +402,19 @@ void SystemProperties::refreshDisplays()
             displayEntry.insert(QStringLiteral("height"), 0);
             displayEntry.insert(QStringLiteral("primary"), displayIndex == 0);
         }
+        /*
+         * The second-screen row names the panel it will fill; this is the other half of that
+         * sentence — the mode that panel is actually running. Taken from the display's current
+         * mode rather than the desktop bounds, because bounds are in scaled desktop units while
+         * the mode is what the host is told to build.
+         */
+        SDL_DisplayMode currentMode;
+        if (SDL_GetCurrentDisplayMode(displayIndex, &currentMode) == 0) {
+            displayEntry.insert(QStringLiteral("modeWidth"), currentMode.w);
+            displayEntry.insert(QStringLiteral("modeHeight"), currentMode.h);
+            displayEntry.insert(QStringLiteral("refresh"), currentMode.refresh_rate);
+        }
+
         monitorDisplays.append(displayEntry);
 
         if (StreamUtils::getNativeDesktopMode(displayIndex, &desktopMode, &safeArea)) {

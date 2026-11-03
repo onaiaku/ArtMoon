@@ -1911,7 +1911,8 @@ FocusScope {
                         Item {
                             id: secondScreenRow
                             width: parent.width
-                            height: settingsScreen._rowHeightTall
+                            height: Math.max(settingsScreen._rowHeightTall,
+                                             secondScreenCol.implicitHeight + settingsScreen._px(18))
 
                             readonly property var _displays: SystemProperties.displayList()
 
@@ -1935,8 +1936,28 @@ FocusScope {
                                 if (saved === "" || _names.indexOf(saved) !== -1) return -1
                                 return _values.indexOf(saved)
                             }
+                            /*
+                             * What the ticked panel is actually running. Only this side can read
+                             * it — the host is told the mode, it cannot ask the screen — so showing
+                             * it here is the one place the choice and its consequence sit together.
+                             */
+                            readonly property string _selectedMode: {
+                                var saved = StreamingPreferences.secondScreenDisplay
+                                if (saved === "") return ""
+                                for (var i = 0; i < _displays.length; i++) {
+                                    var d = _displays[i]
+                                    if (d.name !== saved) continue
+                                    if (!d.modeWidth || !d.modeHeight) return ""
+                                    var hz = d.refresh && d.refresh > 0 ? Math.round(d.refresh) : 0
+                                    return hz > 0
+                                        ? qsTr("%1 × %2 at %3 Hz").arg(d.modeWidth).arg(d.modeHeight).arg(hz)
+                                        : qsTr("%1 × %2").arg(d.modeWidth).arg(d.modeHeight)
+                                }
+                                return ""
+                            }
 
                             Column {
+                                id: secondScreenCol
                                 anchors.left: parent.left
                                 anchors.leftMargin: settingsScreen._px(16)
                                 anchors.right: secondScreenSelector.left
@@ -1954,11 +1975,13 @@ FocusScope {
                                 Label {
                                     width: parent.width
                                     wrapMode: Text.WordWrap
-                                    text: secondScreenRow._missingIndex >= 0
+                                    text: (secondScreenRow._missingIndex >= 0
                                           ? qsTr("%1 is not connected. No second screen will open until it is.").arg(StreamingPreferences.secondScreenDisplay)
                                           : secondScreenRow._displays.length > 1
                                             ? qsTr("Opens the host's second screen here when a stream starts, fullscreen on the display you pick.")
-                                            : qsTr("Connect a second display to use a second screen without another device.")
+                                            : qsTr("Connect a second display to use a second screen without another device."))
+                                          + (secondScreenRow._selectedMode !== ""
+                                             ? "\n" + secondScreenRow._selectedMode : "")
                                     font.family: Theme.family
                                     font.pixelSize: settingsScreen._px(Theme.fontSmall)
                                     color: settingsScreen._textDim

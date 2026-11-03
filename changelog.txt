@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.12 (03/11/2026)**
+--------------------------------------
+
+The second screen row tells you what the panel it is set to will actually run at.
+
+**Changed — 1**
+
+**Display**
+- **The Second screen row shows the selected display's resolution and refresh rate** beneath its description, read from the panel itself. Only this side can see it, and it is the mode the host is told to build, so the choice and its consequence now sit in the same place.
+
+--------------------------------------
 **Version 2.1.11 (03/11/2026)**
 --------------------------------------
 
