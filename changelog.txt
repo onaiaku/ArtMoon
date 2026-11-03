@@ -10,7 +10,7 @@ https://github.com/onaiaku/ArtMoon
 
 The second screen actually opens — on the right display, and in time.
 
-**Fixed — 2**
+**Fixed — 3**
 
 **Display**
 - **The second screen opens at all.** Choosing one of this machine's displays now opens the host's second screen on it. It was asking the host for an entry the host does not publish, so the setting was saved, the row looked right, and the stream went to one screen and said nothing about the other. It now uses the entry the host really offers, and if it ever declines it writes why to `second-screen.log` beside the app's settings rather than failing in silence.
