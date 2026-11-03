@@ -20,6 +20,7 @@ signals:
 
 private slots:
     void onComputerUpdated(NvComputer *computer);
+    void recheck();
     void onTimeout();
 
 private:
@@ -31,4 +32,5 @@ private:
     ComputerManager *m_ComputerManager;
     QString m_ComputerName;
     QTimer *m_TimeoutTimer;
+    QTimer *m_RecheckTimer = nullptr;
 };

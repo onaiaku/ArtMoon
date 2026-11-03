@@ -5,15 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
-**Version 2.1.1 (03/11/2026)**
+**Version 2.1.2 (03/11/2026)**
 --------------------------------------
 
-The second screen actually opens.
+The second screen actually opens — on the right display, and in time.
 
-**Fixed — 1**
+**Fixed — 2**
 
 **Display**
-- **The second screen opens.** Choosing one of this machine's displays now opens the host's second screen on it. It was asking the host for an entry the host does not publish, so the setting was saved, the row looked right, and the stream went to one screen and said nothing about the other. It now uses the entry the host really offers, and if it ever declines it writes why to `second-screen.log` beside the app's settings rather than failing in silence.
+- **The second screen opens at all.** Choosing one of this machine's displays now opens the host's second screen on it. It was asking the host for an entry the host does not publish, so the setting was saved, the row looked right, and the stream went to one screen and said nothing about the other. It now uses the entry the host really offers, and if it ever declines it writes why to `second-screen.log` beside the app's settings rather than failing in silence.
+- **Starting a stream from the command line no longer waits 30 seconds and gives up on a host that is already switched on.** The launcher watched for the host's state to *change*; a host that was already online when the process started had already changed, so nothing ever fired and the wait ran out. It now also asks the host directly, and the second screen opens within a second instead of timing out.
+- **The connecting window appears on the second screen from the first frame**, rather than showing on the main screen until the stream itself moves across.
 
 --------------------------------------
 **Version 2.1.0 (03/11/2026)**

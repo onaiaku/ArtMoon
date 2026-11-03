@@ -41,6 +41,39 @@ void ComputerSeeker::start(int timeout)
     }
 
     m_ComputerManager->startPolling();
+
+    /*
+     * A host that is already online before this process started never emits a state change:
+     * the manager marks it online while it loads the saved list, and computerStateChanged
+     * fires only when a state MOVES. The seeker listened for that one signal, so
+     * `stream <host>` against a host that was already up sat silent for the full 30 seconds
+     * and then reported "Failed to connect" — reproduced 3 Nov 2026 with the second-screen
+     * launcher, which by definition starts while the host is already streaming.
+     *
+     * So ask directly as well, every quarter second, instead of waiting to be told.
+     */
+    if (m_RecheckTimer == nullptr) {
+        m_RecheckTimer = new QTimer(this);
+        m_RecheckTimer->setInterval(250);
+        connect(m_RecheckTimer, &QTimer::timeout, this, &ComputerSeeker::recheck);
+    }
+    m_RecheckTimer->start();
+}
+
+void ComputerSeeker::recheck()
+{
+    if (!m_TimeoutTimer->isActive()) {
+        m_RecheckTimer->stop();
+        return;
+    }
+
+    NvComputer *computer = findMatchingComputer();
+    if (computer != nullptr && isOnline(computer)) {
+        m_RecheckTimer->stop();
+        m_ComputerManager->stopPollingAsync();
+        m_TimeoutTimer->stop();
+        emit computerFound(computer);
+    }
 }
 
 void ComputerSeeker::onComputerUpdated(NvComputer *computer)

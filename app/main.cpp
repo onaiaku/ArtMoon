@@ -1191,6 +1191,41 @@ int main(int argc, char *argv[])
         if (engine.rootObjects().isEmpty())
             return -1;
 
+        /*
+         * A second-screen instance belongs on the display it was told to open on from its
+         * first frame, not from the moment the stream connects. This window is Qt's, and Qt
+         * has no idea which of the machine's screens "VG32AQL1A" is — it only knows device
+         * paths. SDL is the side that carries those names, so ask it for the bounds and move
+         * the window there. Without this the connecting page appears on the main screen and
+         * only the stream window itself ends up on the right monitor, which reads as the
+         * feature ignoring its own setting.
+         */
+        if (commandLineParserResult == GlobalCommandLineParser::StreamRequested) {
+            const QString wantedDisplay = StreamingPreferences::get()->streamOnDisplay;
+            if (!wantedDisplay.isEmpty()) {
+                if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
+                    SDL_InitSubSystem(SDL_INIT_VIDEO);
+                }
+                for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
+                    const char* name = SDL_GetDisplayName(i);
+                    if (name == nullptr || wantedDisplay != QString::fromUtf8(name)) {
+                        continue;
+                    }
+                    SDL_Rect bounds;
+                    if (SDL_GetDisplayBounds(i, &bounds) != 0) {
+                        break;
+                    }
+                    for (QObject* obj : engine.rootObjects()) {
+                        QWindow* win = qobject_cast<QWindow*>(obj);
+                        if (win != nullptr) {
+                            win->setPosition(bounds.x, bounds.y);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
         // Bring our window to the foreground when a second instance asks.
         if (singleInstance != nullptr) {
             QObject::connect(singleInstance, &SingleInstance::raiseRequested, &app, [&engine]() {
