@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.6 (03/11/2026)**
+--------------------------------------
+
+The second screen no longer gives up before it has read the app list.
+
+**Fixed — 1**
+
+**Display**
+- **"Failed to find application Remote Monitor" is gone.** Starting a stream from the command line stopped polling the host the instant it saw the host was up — which can be before the app list has arrived — so the launcher looked for its app in a list it had just prevented from being fetched, waited its timeout, and gave up. It keeps polling now, and the second window starts.
+
+--------------------------------------
 **Version 2.1.5 (03/11/2026)**
 --------------------------------------
 

@@ -70,8 +70,17 @@ void ComputerSeeker::recheck()
     NvComputer *computer = findMatchingComputer();
     if (computer != nullptr && isOnline(computer)) {
         m_RecheckTimer->stop();
-        m_ComputerManager->stopPollingAsync();
         m_TimeoutTimer->stop();
+
+        /*
+         * Deliberately NOT stopPollingAsync() here. The cached state this matched says the
+         * host is up, but its app list may not have arrived yet, and the caller's next step is
+         * to look for its app in exactly that list. Stopping the poller at this instant killed
+         * the very update that would have delivered it — the launch then waited its app-list
+         * timeout and reported "Failed to find application", which is what 2.1.5 did on a
+         * second-screen launch roughly half the time (15:13 on 3 Nov, and not 14:04 before it).
+ * The poller is left running; the process exits when the session starts or the user leaves.
+         */
         emit computerFound(computer);
     }
 }
@@ -82,7 +91,8 @@ void ComputerSeeker::onComputerUpdated(NvComputer *computer)
         return;
     }
     if (matchComputer(computer) && isOnline(computer)) {
-        m_ComputerManager->stopPollingAsync();
+        // Same reason as the direct re-check below: the state update and the app list arrive
+        // from the same poll, and stopping here can drop the half the caller actually needs.
         m_TimeoutTimer->stop();
         emit computerFound(computer);
     }
