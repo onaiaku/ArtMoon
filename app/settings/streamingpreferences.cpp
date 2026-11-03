@@ -193,6 +193,17 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
     p->clockFormat = clockFormat;
     p->dateFormat = dateFormat;
 
+    /*
+     * Second screen rides with the session's copy. A session never reads the singleton — it is
+     * handed a clone — so a field left out of this list is a preference the streaming side never
+     * sees: the settings row saves it, shows it, and the stream behaves as if nothing had been
+     * asked for. That is exactly how it failed the first time.
+     *
+     * ⚠️ streamOnDisplay is NOT copied, on purpose: it is this session's placement from
+     * --on-display, and inheriting it would make every session think it was the second screen.
+     */
+    p->secondScreenDisplay = secondScreenDisplay;
+
     p->setParent(parent);
     return p;
 }

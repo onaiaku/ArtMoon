@@ -2812,6 +2812,21 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
         return;
     }
 
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Second screen configured for '%s'", wanted.toUtf8().constData());
+
+    /*
+     * This runs before the video subsystem has been brought up for the stream, and asking SDL
+     * for displays before SDL_INIT_VIDEO has been initialised answers nothing at all — which
+     * reads here as "the monitor is unplugged" and silently refuses to open the second window.
+     */
+    if (SDL_WasInit(SDL_INIT_VIDEO) == 0 && SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Second screen: SDL video unavailable (%s); not opening a second window",
+                    SDL_GetError());
+        return;
+    }
+
     bool connected = false;
     for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
         const char* name = SDL_GetDisplayName(i);
