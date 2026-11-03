@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.10 (03/11/2026)**
+--------------------------------------
+
+One second screen, not three.
+
+**Fixed — 1**
+
+**Display**
+- **The second screen no longer starts a second screen of its own.** It kept the setting that says "open a second window on this monitor" (it is, after all, the second window) but lost the one that says "you are already it". So it opened another, which collided with the one that was already running and failed — the three-window case on 3 Nov at 16:41. The placement it was launched with is carried onto its own settings again.
+
+--------------------------------------
 **Version 2.1.9 (03/11/2026)**
 --------------------------------------
 

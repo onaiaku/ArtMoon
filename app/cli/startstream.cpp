@@ -88,6 +88,19 @@ public:
              */
             StreamingPreferences* prefs = AppSettingsManager::get()->buildPrefs(
                 m_Preferences, m_Computer->uuid, app.id);
+
+            /*
+             * buildPrefs clones through StreamingPreferences::clone(), which deliberately does
+             * not carry streamOnDisplay: that field is a session's placement from --on-display,
+             * and a copy of it would make every session believe it was the second screen.
+             * The clone is exactly where we need it though, because this process *is* the
+             * second screen, and the placement is the instruction it was started with. Without
+             * this copy the child lost its own placement: isSecondScreenInstance() went false,
+             * and the session then spawned a second screen of its own - three ArtMoon windows
+             * and a Remote Monitor session colliding with itself (3 Nov, 16:41).
+             */
+            prefs->streamOnDisplay = m_Preferences->streamOnDisplay;
+
             session = new Session(m_Computer, app, prefs);
             prefs->setParent(session);
             emit q->sessionCreated(app.name, session);
