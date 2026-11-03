@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.0 (03/11/2026)**
+--------------------------------------
+
+A second screen without a second device — both of your monitors, one machine.
+
+**New — 1**
+
+**Display**
+- **Second screen.** Pick one of this machine's own displays under Settings → Display → Second screen, and a stream opens the host's virtual display there as well: the main stream on the primary screen and the second screen fullscreen on the monitor you chose, with no phone or laptop on the desk. The choice is stored by the display's own name, so re-plugging the monitors in a different order does not move it to the other panel. If that monitor is not connected, the row says so and the stream carries on with the main screen alone.
+
+--------------------------------------
 **Version 2.0.0 (13/10/2026)**
 --------------------------------------
 
