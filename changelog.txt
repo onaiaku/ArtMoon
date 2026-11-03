@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.3 (03/11/2026)**
+--------------------------------------
+
+The second screen goes when you do.
+
+**New — 1**
+
+**Display**
+- **Ending a stream ends the second screen, on the host as well.** Disconnecting, quitting, or the host dropping you now closes the second window and disconnects that Remote Monitor session on the host PC, instead of closing the window and leaving the host streaming into a panel nobody is watching until you go back into the app list and press Disconnect Monitor yourself. It closes the window first so its transport is torn down properly, then presses the host's own Disconnect Monitor control for you.
+
+--------------------------------------
 **Version 2.1.2 (03/11/2026)**
 --------------------------------------
 

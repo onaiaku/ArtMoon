@@ -55,6 +55,12 @@
 #include <QCursor>
 #include <QScreen>
 
+class NvComputer;
+namespace {
+// Defined with the second-screen launcher far below; used by the cleanup task above it.
+void stopSecondScreenOnHost(NvComputer* computer);
+}
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickOpenGLUtils>
 #endif
@@ -1768,6 +1774,18 @@ private:
         // the dialog. If the question ever comes back, log which side fired rather than
         // reasoning about it.
 
+        /*
+         * A second screen belongs to this session: when the stream ends — disconnecting,
+         * quitting the app after it, or the host dropping us — it goes with it, in both
+         * senses. Closing our own window is the visible half; disconnecting the Remote
+         * Monitor on the host is the half that stops the host encoding into a panel nobody
+         * is watching. The second-screen instance itself never does this (its session is the
+         * one being taken down), which is what the streamOnDisplay check is for.
+         */
+        if (m_Session->m_Preferences->streamOnDisplay.isEmpty()) {
+            stopSecondScreenOnHost(m_Session->m_Computer);
+        }
+
         // Notify the UI
         if (shouldQuit) {
             emit m_Session->quitStarting();
@@ -2833,6 +2851,10 @@ void secondScreenLog(const QString& line)
     }
 }
 
+// The child this session started, and whether it ever came up.
+QProcess* g_SecondScreenProcess = nullptr;
+bool      g_SecondScreenStarted = false;
+
 void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* prefs)
 {
     const QString wanted = prefs->secondScreenDisplay;
@@ -2920,8 +2942,97 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
                         .arg(QCoreApplication::applicationFilePath(),
                              args.join(QLatin1Char(' '))));
 
-    if (!QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
+    /*
+     * Kept, not detached: this program has to be able to close the second screen and to take
+     * its session down on the host when the user leaves. A detached process is unreachable
+     * the moment it starts, which is how the second window used to outlive the stream.
+     */
+    g_SecondScreenProcess = new QProcess();
+    g_SecondScreenProcess->setProgram(QCoreApplication::applicationFilePath());
+    g_SecondScreenProcess->setArguments(args);
+    g_SecondScreenProcess->start();
+    if (!g_SecondScreenProcess->waitForStarted(5000)) {
         secondScreenLog(QStringLiteral("failed to start the second-screen instance"));
+        delete g_SecondScreenProcess;
+        g_SecondScreenProcess = nullptr;
+        return;
+    }
+    g_SecondScreenStarted = true;
+    secondScreenLog(QStringLiteral("second-screen instance started (pid %1)")
+                        .arg(g_SecondScreenProcess->processId()));
+}
+
+/*
+ * Taking the second screen down has two halves, and neither is optional.
+ *
+ * Closing our window stops the picture on this machine, but the session it opened belongs to
+ * the host, and ArtLight keeps a Remote Monitor connected after a stream ends on purpose —
+ * that is what lets a phone wander off and come back. On one machine that behaviour leaves
+ * the host encoding into a panel nobody is looking at, and the only way out is to walk back
+ * into the app list and press "Disconnect Monitor". So this presses it: closing the window
+ * first (so its own transport is torn down and does not race the control), then launching the
+ * host's own Disconnect Monitor entry, which is exactly what that app-list button does.
+ */
+void stopSecondScreenOnHost(NvComputer* computer)
+{
+    if (!g_SecondScreenStarted) {
+        return;
+    }
+    g_SecondScreenStarted = false;
+
+    if (g_SecondScreenProcess != nullptr) {
+        QProcess* child = g_SecondScreenProcess;
+        g_SecondScreenProcess = nullptr;
+
+        if (child->state() != QProcess::NotRunning) {
+            // WM_CLOSE first: the child tears its own stream down properly instead of dying
+            // with a half-open RTSP session the host would have to time out.
+            child->terminate();
+            if (!child->waitForFinished(5000)) {
+                secondScreenLog(QStringLiteral("second window did not close; killing it"));
+                child->kill();
+                child->waitForFinished(2000);
+            }
+        }
+        child->deleteLater();
+        secondScreenLog(QStringLiteral("second-screen window closed"));
+    }
+
+    if (computer == nullptr) {
+        return;
+    }
+
+    // Ask the host which entry is its Disconnect Monitor control; fall back to the fixed id
+    // for hosts that list it under a name this build has not seen.
+    int controlId = 2147483502;
+    for (const NvApp& app : computer->appList) {
+        if (hostControlKind(app.id, app.uuid, app.name) == HostControl::DisconnectMonitor) {
+            controlId = app.id;
+            break;
+        }
+    }
+
+    const QString arguments =
+            QStringLiteral("appid=%1&mode=1280x720x60&additionalStates=1&sops=0&rikeyid=0")
+                .arg(controlId) +
+            QString::fromLatin1(LiGetLaunchUrlQueryParameters());
+
+    NvHTTP http(computer);
+    try {
+        const QString response =
+                http.openConnectionToString(http.m_BaseUrlHttps, "launch", arguments, 5000);
+        secondScreenLog(QStringLiteral("host answered the Disconnect Monitor request: %1")
+                            .arg(response.simplified()));
+    }
+    catch (const GfeHttpResponseException& e) {
+        // 410 is not a failure here: the host uses it to say the control completed.
+        secondScreenLog(QStringLiteral("Disconnect Monitor: host status %1 (%2)")
+                            .arg(e.getStatusCode())
+                            .arg(QString::fromUtf8(e.getStatusMessage())));
+    }
+    catch (const std::exception& e) {
+        secondScreenLog(QStringLiteral("Disconnect Monitor request failed: %1")
+                            .arg(QString::fromUtf8(e.what())));
     }
 }
 
