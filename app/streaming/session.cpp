@@ -42,7 +42,11 @@
 
 #include <QtEndian>
 #include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QProcess>
+#include <QStandardPaths>
+#include <QDateTime>
 #include <QThreadPool>
 #include <QNetworkAccessManager>
 #include <QPainter>
@@ -2805,6 +2809,30 @@ namespace {
  *      A stream on the wrong screen is worse than no stream, and the settings row says the
  *      display is missing so it is not a silent nothing.
  */
+/*
+ * A stream launched from the Start menu has no console, so a second screen that declines to
+ * open would say nothing at all — which is exactly what a broken feature and a working one
+ * look like from the outside. This keeps a short, plain record next to the app's own data so
+ * the answer is a file to read rather than another guess.
+ */
+void secondScreenLog(const QString& line)
+{
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Second screen: %s", line.toUtf8().constData());
+
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dir.isEmpty()) {
+        return;
+    }
+    QDir().mkpath(dir);
+    QFile f(dir + QStringLiteral("/second-screen.log"));
+    if (f.open(QIODevice::Append | QIODevice::Text)) {
+        f.write(QStringLiteral("%1  %2\n")
+                    .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
+                    .arg(line)
+                    .toUtf8());
+    }
+}
+
 void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* prefs)
 {
     const QString wanted = prefs->secondScreenDisplay;
@@ -2812,8 +2840,7 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
         return;
     }
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "Second screen configured for '%s'", wanted.toUtf8().constData());
+    secondScreenLog(QStringLiteral("configured for '%1'").arg(wanted));
 
     /*
      * This runs before the video subsystem has been brought up for the stream, and asking SDL
@@ -2821,41 +2848,66 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
      * reads here as "the monitor is unplugged" and silently refuses to open the second window.
      */
     if (SDL_WasInit(SDL_INIT_VIDEO) == 0 && SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Second screen: SDL video unavailable (%s); not opening a second window",
-                    SDL_GetError());
+        secondScreenLog(QStringLiteral("SDL video unavailable (%1); not opening a second window")
+                            .arg(QString::fromUtf8(SDL_GetError())));
         return;
     }
 
+    QStringList seenNames;
     bool connected = false;
     for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
         const char* name = SDL_GetDisplayName(i);
-        if (name != nullptr && wanted == QString::fromUtf8(name)) {
+        const QString n = (name && *name) ? QString::fromUtf8(name)
+                                          : QStringLiteral("<unnamed %1>").arg(i);
+        seenNames.append(n);
+        if (n == wanted) {
             connected = true;
-            break;
         }
     }
+
+    secondScreenLog(QStringLiteral("displays SDL reports: %1").arg(seenNames.join(QStringLiteral(", "))));
+
     if (!connected) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Second screen '%s' is not connected; not opening a second window",
-                    wanted.toUtf8().constData());
+        secondScreenLog(QStringLiteral("'%1' is not among them; not opening a second window").arg(wanted));
         return;
     }
 
-    // The host's own virtual-display entry, found by control kind rather than by name: the
-    // served name is padded for sorting and can be the game's title instead.
+    /*
+     * Which entry actually gives this client a second screen, checked against a real host
+     * rather than assumed: Vibeshine and Vibepollo list "Remote Monitor" (the control whose
+     * own description is "a virtual display of its own that survives the stream"), and they
+     * list no Virtual Display entry at all. Looking only for VirtualDisplay found nothing,
+     * returned, and did nothing at all — which is exactly what "the second screen never
+     * opens" looked like from the sofa. Take either, Remote Monitor first.
+     */
     QString appName;
+    QStringList controlNames;
     for (const NvApp& app : computer->appList) {
-        if (hostControlKind(app.id, app.uuid, app.name) == HostControl::VirtualDisplay) {
+        const HostControl kind = hostControlKind(app.id, app.uuid, app.name);
+        if (kind == HostControl::None) {
+            continue;
+        }
+        controlNames.append(app.name.trimmed());
+        if (kind == HostControl::RemoteMonitor && appName.isEmpty()) {
             appName = app.name;
-            break;
         }
     }
     if (appName.isEmpty()) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Second screen is configured but the host offers no Virtual Display entry");
+        for (const NvApp& app : computer->appList) {
+            if (hostControlKind(app.id, app.uuid, app.name) == HostControl::VirtualDisplay) {
+                appName = app.name;
+                break;
+            }
+        }
+    }
+    if (appName.isEmpty()) {
+        secondScreenLog(QStringLiteral("host offers no Remote Monitor or Virtual Display entry; "
+                                       "control entries were: %1")
+                            .arg(controlNames.isEmpty() ? QStringLiteral("none")
+                                                        : controlNames.join(QStringLiteral(", "))));
         return;
     }
+    secondScreenLog(QStringLiteral("opening '%1' on '%2'").arg(appName.trimmed(), wanted));
 
     QStringList args;
     args << QStringLiteral("stream")
@@ -2864,12 +2916,12 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
          << QStringLiteral("--display-mode") << QStringLiteral("fullscreen")
          << QStringLiteral("--on-display") << wanted;
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "Opening the second screen on '%s'", wanted.toUtf8().constData());
+    secondScreenLog(QStringLiteral("opening %1 %2")
+                        .arg(QCoreApplication::applicationFilePath(),
+                             args.join(QLatin1Char(' '))));
 
     if (!QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to start the second-screen instance");
+        secondScreenLog(QStringLiteral("failed to start the second-screen instance"));
     }
 }
 
