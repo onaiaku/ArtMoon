@@ -2833,16 +2833,25 @@ namespace {
  * look like from the outside. This keeps a short, plain record next to the app's own data so
  * the answer is a file to read rather than another guess.
  */
+QString secondScreenLogPath()
+{
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dir.isEmpty()) {
+        return QString();
+    }
+    QDir().mkpath(dir);
+    return dir + QStringLiteral("/second-screen.log");
+}
+
 void secondScreenLog(const QString& line)
 {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Second screen: %s", line.toUtf8().constData());
 
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (dir.isEmpty()) {
+    const QString path = secondScreenLogPath();
+    if (path.isEmpty()) {
         return;
     }
-    QDir().mkpath(dir);
-    QFile f(dir + QStringLiteral("/second-screen.log"));
+    QFile f(path);
     if (f.open(QIODevice::Append | QIODevice::Text)) {
         f.write(QStringLiteral("%1  %2\n")
                     .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
@@ -2950,6 +2959,15 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
     g_SecondScreenProcess = new QProcess();
     g_SecondScreenProcess->setProgram(QCoreApplication::applicationFilePath());
     g_SecondScreenProcess->setArguments(args);
+
+    /*
+     * The second window has no console, so anything it says about a host refusal exists only
+     * in a dialog that is gone by the time either of us reads it. Point its stderr at this
+     * same log before it starts: its own messages and every host status line then arrive in
+     * one file, in order.
+     */
+    g_SecondScreenProcess->setStandardErrorFile(secondScreenLogPath(), QIODevice::Append);
+
     g_SecondScreenProcess->start();
     if (!g_SecondScreenProcess->waitForStarted(5000)) {
         secondScreenLog(QStringLiteral("failed to start the second-screen instance"));
@@ -3012,9 +3030,17 @@ void stopSecondScreenOnHost(NvComputer* computer)
         }
     }
 
+    /*
+     * The host rejects a launch that omits any of appid, rikey, rikeyid or
+     * localAudioPlayMode — 400 "Missing a required launch parameter", which is what the first
+     * version of this request got back. A control ignores the stream settings, but it still
+     * has to be a well-formed launch.
+     */
     const QString arguments =
-            QStringLiteral("appid=%1&mode=1280x720x60&additionalStates=1&sops=0&rikeyid=0")
-                .arg(controlId) +
+            QStringLiteral("appid=%1&mode=1280x720x60&additionalStates=1&sops=0"
+                           "&rikey=%2&rikeyid=0&localAudioPlayMode=0")
+                .arg(controlId)
+                .arg(QStringLiteral("00000000000000000000000000000000")) +
             QString::fromLatin1(LiGetLaunchUrlQueryParameters());
 
     NvHTTP http(computer);

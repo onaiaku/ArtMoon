@@ -5,6 +5,18 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.5 (03/11/2026)**
+--------------------------------------
+
+What the second window says, kept.
+
+**Fixed — 2**
+
+**Display**
+- **The second window's own messages go into `second-screen.log`.** A window started from the Start menu has no console, so a host refusal existed only in a dialog that was gone by the time anyone could read it. Its output now lands in the same log as the launcher's, in order, with the host's status line.
+- **Disconnecting the second screen sends a well-formed launch.** The request was missing two parameters the host insists on, so it was answered with `400 Missing a required launch parameter` instead of disconnecting anything.
+
+--------------------------------------
 **Version 2.1.4 (03/11/2026)**
 --------------------------------------
 
