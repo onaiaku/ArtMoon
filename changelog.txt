@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.1.9 (03/11/2026)**
+--------------------------------------
+
+The command line stops ignoring your per-app settings.
+
+**Fixed — 1**
+
+**Display**
+- **Per-app settings now apply to a stream started from the command line** — including the second screen, which is always started that way. It built its session from the global settings only, so an override such as 1440p138 for Remote Monitor was stored, shown in the dialog, and then never used: every launch asked the host for the global mode instead. It now uses the same cascade the app picker does: global, then this host's profile, then this app's overrides.
+
+--------------------------------------
 **Version 2.1.8 (03/11/2026)**
 --------------------------------------
 

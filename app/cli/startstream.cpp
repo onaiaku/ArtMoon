@@ -1,6 +1,7 @@
 #include "startstream.h"
 #include "backend/computermanager.h"
 #include "backend/computerseeker.h"
+#include "settings/appsettings.h"
 #include "streaming/session.h"
 
 #include <QCoreApplication>
@@ -76,7 +77,19 @@ public:
         m_TimeoutTimer->stop();
         if (isNotStreaming() || isStreamingApp(app) || isSecondScreenInstance()) {
             m_State = StateStartSession;
-            session = new Session(m_Computer, app, m_Preferences);
+
+            /*
+             * The same cascade the app picker uses — global, then this host's profile, then
+             * this app's overrides — rather than the raw global object. Launching from the
+             * command line used to bypass it completely, so a per-app override was silently
+             * ignored. The second window is always launched from here, which is how Nik's
+             * 1440p138 override for Remote Monitor produced four launches all asking for
+             * 3840x2160x138 (3 Nov 2026) and looked like the setting did nothing.
+             */
+            StreamingPreferences* prefs = AppSettingsManager::get()->buildPrefs(
+                m_Preferences, m_Computer->uuid, app.id);
+            session = new Session(m_Computer, app, prefs);
+            prefs->setParent(session);
             emit q->sessionCreated(app.name, session);
         } else {
             emit q->appQuitRequired(getCurrentAppName());
