@@ -2182,10 +2182,52 @@ FocusScope {
                                     anchors.rightMargin: settingsScreen._px(16)
                                     anchors.verticalCenter: parent.verticalCenter
 
-                                    readonly property var _w: [0, 1280, 1920, 2560, 3840]
-                                    readonly property var _h: [0, 720, 1080, 1440, 2160]
+                                    /*
+                                     * The same rule as the frame rate beside it: the four presets this
+                                     * row has always offered, plus the size the chosen panel actually
+                                     * runs. A hardcoded strip cannot know that, and a 1440p desk screen
+                                     * was being offered 4K as though the panel had it.
+                                     */
+                                    readonly property var _native: {
+                                        var saved = StreamingPreferences.secondScreenDisplay
+                                        var displays = SystemProperties.displayList()
+                                        for (var i = 0; i < displays.length; i++) {
+                                            if (displays[i].name !== saved) continue
+                                            var r = SystemProperties.getNativeResolution(i)
+                                            return (r && r.width > 0 && r.height > 0) ? r : null
+                                        }
+                                        return null
+                                    }
+                                    /*
+                                     * Width and height travel as pairs, never as two lists that can drift
+                                     * apart: an ultrawide panel contributes 3440x1440, and appending its
+                                     * width alone would leave every later index paired with the wrong
+                                     * height.
+                                     */
+                                    readonly property var _pairs: {
+                                        var out = [[0, 0], [1280, 720], [1920, 1080], [2560, 1440], [3840, 2160]]
+                                        var n = _native
+                                        if (n) {
+                                            var known = false
+                                            for (var i = 1; i < out.length; i++)
+                                                if (out[i][0] === n.width && out[i][1] === n.height) known = true
+                                            if (!known) out.push([n.width, n.height])
+                                        }
+                                        return out
+                                    }
+                                    readonly property var _w: _pairs.map(function(p) { return p[0] })
+                                    readonly property var _h: _pairs.map(function(p) { return p[1] })
 
-                                    labels: [qsTr("Auto"), "720p", "1080p", "1440p", "4K"]
+                                    labels: {
+                                        var out = [qsTr("Auto"), "720p", "1080p", "1440p", "4K"]
+                                        for (var i = 5; i < _pairs.length; i++) {
+                                            var shared = false
+                                            for (var j = 1; j < i; j++) if (_pairs[j][1] === _pairs[i][1]) shared = true
+                                            out.push(shared ? (_pairs[i][0] + "\u00D7" + _pairs[i][1])
+                                                            : (_pairs[i][1] + "p"))
+                                        }
+                                        return out
+                                    }
 
                                     Binding on currentIndex {
                                         value: {
@@ -2202,6 +2244,21 @@ FocusScope {
                                         StreamingPreferences.secondScreenWidth = _w[idx]
                                         StreamingPreferences.secondScreenHeight = _h[idx]
                                         StreamingPreferences.save()
+                                    }
+                                    // Same correction as the frame rate row: a size this panel has
+                                    // never reported would show as Auto while still being requested.
+                                    Component.onCompleted: {
+                                        var w = StreamingPreferences.secondScreenWidth
+                                        var h = StreamingPreferences.secondScreenHeight
+                                        if (!_native || w <= 0 || h <= 0) return
+                                        var found = false
+                                        for (var i = 1; i < _pairs.length; i++)
+                                            if (_pairs[i][0] === w && _pairs[i][1] === h) found = true
+                                        if (!found) {
+                                            StreamingPreferences.secondScreenWidth = 0
+                                            StreamingPreferences.secondScreenHeight = 0
+                                            StreamingPreferences.save()
+                                        }
                                     }
                                 }
                             }
@@ -2240,8 +2297,30 @@ FocusScope {
                                     anchors.rightMargin: settingsScreen._px(16)
                                     anchors.verticalCenter: parent.verticalCenter
 
-                                    readonly property var _values: [0, 30, 60, 90, 120, 144, 165, 240]
-                                    labels: [qsTr("Auto"), "30", "60", "90", "120", "144", "165", "240"]
+                                    /*
+                                     * What the chosen panel actually reports, plus the four presets every
+                                     * picker here has always offered - the same construction as the main
+                                     * stream's frame-rate row, which is why that row never offered 240 on a
+                                     * 144 Hz screen. The hardcoded 30..240 strip this replaces was written
+                                     * before the display list existed and advertised rates the panel had
+                                     * never heard of.
+                                     *
+                                     * No panel chosen yet means the row asks this machine rather than
+                                     * inventing an answer: with Auto, the window opens wherever it opens and
+                                     * the host builds the display at that panel's own mode.
+                                     */
+                                    readonly property var _rates: {
+                                        var saved = StreamingPreferences.secondScreenDisplay
+                                        if (saved === "") return SystemProperties.availableRefreshRates
+                                        var displays = SystemProperties.displayList()
+                                        for (var i = 0; i < displays.length; i++) {
+                                            if (displays[i].name !== saved) continue
+                                            return SystemProperties.refreshRatesForPoint(displays[i].x, displays[i].y)
+                                        }
+                                        return SystemProperties.availableRefreshRates
+                                    }
+                                    readonly property var _values: [0].concat(_rates)
+                                    labels: [qsTr("Auto")].concat(_rates.map(function(r) { return String(r) }))
 
                                     Binding on currentIndex {
                                         value: {
@@ -2249,6 +2328,19 @@ FocusScope {
                                             if (f <= 0) return 0
                                             var idx = secondFpsSelector._values.indexOf(f)
                                             return idx === -1 ? 0 : idx
+                                        }
+                                    }
+                                    /*
+                                     * A stored rate this panel cannot do is not a preference, it is a
+                                     * leftover: the row would read Auto while the host was still told
+                                     * 165. Correct it once the panel is known, never while the list is
+                                     * still empty (that would wipe a perfectly good 144 at startup).
+                                     */
+                                    Component.onCompleted: {
+                                        var f = StreamingPreferences.secondScreenFps
+                                        if (_rates.length > 0 && f > 0 && _values.indexOf(f) === -1) {
+                                            StreamingPreferences.secondScreenFps = 0
+                                            StreamingPreferences.save()
                                         }
                                     }
                                     onActivated: function(idx) {
