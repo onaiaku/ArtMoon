@@ -105,6 +105,17 @@ public:
     }
 };
 
+/*
+ * The second screen's own log: one file beside the main one, so what the extra window asked
+ * for can be read without guessing. Declared here because the window that resolves its
+ * numbers (the CLI stream process) is not the one that writes them down.
+ *
+ * ⚠️ Not named secondScreenLog: that one lives in this file's anonymous namespace, and a
+ * second declaration of the same name at global scope makes every call in session.cpp
+ * ambiguous. This is the narrow public door onto it.
+ */
+void logSecondScreen(const QString& line);
+
 class Session : public QObject
 {
     Q_OBJECT

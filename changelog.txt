@@ -5,6 +5,20 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.2.0 (04/11/2026)**
+--------------------------------------
+
+The second screen gets its own picture settings, so the two windows stop sharing one number between them.
+
+**New — 4**
+
+**Display**
+- **Second screen bitrate** has its own slider. The two streams are two sessions and each one negotiates its own bitrate, so a second screen set to 500 Mbps is another 500 Mbps on the wire rather than a share of the first - and now that is a decision you make in Settings instead of discovering it in your router graph.
+- **Second screen resolution** is chosen separately, with Auto following the mode of the panel the window opens on. This is the size the host builds the second virtual display at, not a window scaled to fit afterwards.
+- **Second screen frame rate** is chosen separately too, from 30 up to 240, with Auto taking the panel's own rate.
+- **Every row starts on Auto**, which behaves exactly as it did before these rows existed: bitrate follows the main stream, resolution and frame rate follow the panel. Nothing changes unless you change it.
+
+--------------------------------------
 **Version 2.1.12 (03/11/2026)**
 --------------------------------------
 

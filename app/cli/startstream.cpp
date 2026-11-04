@@ -137,6 +137,30 @@ public:
                 }
             }
 
+            /*
+             * The second screen's own numbers, from Settings → Display → Second screen.
+             *
+             * Applied last, and only for the window that is the second screen, because
+             * everything above is a default: a resolution and frame rate read off the panel,
+             * and a bitrate inherited from the main stream. A deliberate choice has to beat
+             * both, and 0 means "nothing was chosen" rather than "choose nothing".
+             */
+            if (!prefs->streamOnDisplay.isEmpty()) {
+                if (prefs->secondScreenWidth > 0 && prefs->secondScreenHeight > 0) {
+                    prefs->width = prefs->secondScreenWidth;
+                    prefs->height = prefs->secondScreenHeight;
+                }
+                if (prefs->secondScreenFps > 0) {
+                    prefs->fps = prefs->secondScreenFps;
+                }
+                if (prefs->secondScreenBitrateKbps > 0) {
+                    prefs->bitrateKbps = prefs->secondScreenBitrateKbps;
+                }
+                logSecondScreen(QStringLiteral("stream settings: %1x%2 @ %3 fps, %4 Mbps")
+                                    .arg(prefs->width).arg(prefs->height).arg(prefs->fps)
+                                    .arg(prefs->bitrateKbps / 1000.0, 0, 'f', 1));
+            }
+
             session = new Session(m_Computer, app, prefs);
             prefs->setParent(session);
             emit q->sessionCreated(app.name, session);

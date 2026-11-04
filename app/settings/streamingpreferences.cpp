@@ -65,6 +65,12 @@
 // Busids this machine's owner has asked to offer to an importer. Intent, not state — the
 // privileged input service is what turns it into a bind. See streamingpreferences.h.
 #define SER_SECONDSCREEN "secondscreendisplay"
+// The second screen's own stream numbers. Absent or 0 means inherit, which is what every
+// install that never opens these rows gets.
+#define SER_SECONDSCREEN_BITRATE "secondscreenbitrate"
+#define SER_SECONDSCREEN_WIDTH "secondscreenwidth"
+#define SER_SECONDSCREEN_HEIGHT "secondscreenheight"
+#define SER_SECONDSCREEN_FPS "secondscreenfps"
 #define SER_USBIPWANTED "usbipwanted"
 #define SER_USBIPREMEMBERED "usbipremembered"
 #define SER_SWAPMOUSEBUTTONS "swapmousebuttons"
@@ -203,6 +209,13 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
      * --on-display, and inheriting it would make every session think it was the second screen.
      */
     p->secondScreenDisplay = secondScreenDisplay;
+    // The second screen's own numbers ride the clone for the same reason the display name does:
+    // the session is handed a copy, and a field left out here is a settings row that saves,
+    // displays, and changes nothing. Absent (0) still means inherit.
+    p->secondScreenBitrateKbps = secondScreenBitrateKbps;
+    p->secondScreenWidth = secondScreenWidth;
+    p->secondScreenHeight = secondScreenHeight;
+    p->secondScreenFps = secondScreenFps;
 
     p->setParent(parent);
     return p;
@@ -315,6 +328,10 @@ void StreamingPreferences::reload()
     // The display chosen as the second screen, by NAME ("PG42UQ"), not by index: an index
     // changes when the monitors are plugged in in a different order. Empty means off.
     secondScreenDisplay = settings.value(SER_SECONDSCREEN, QString()).toString();
+    secondScreenBitrateKbps = settings.value(SER_SECONDSCREEN_BITRATE, 0).toInt();
+    secondScreenWidth = settings.value(SER_SECONDSCREEN_WIDTH, 0).toInt();
+    secondScreenHeight = settings.value(SER_SECONDSCREEN_HEIGHT, 0).toInt();
+    secondScreenFps = settings.value(SER_SECONDSCREEN_FPS, 0).toInt();
     usbIpWantedBusids = settings.value(SER_USBIPWANTED, QStringList()).toStringList();
     usbIpRememberedDevices = settings.value(SER_USBIPREMEMBERED, QStringList()).toStringList();
     // ── Performance overlay ──────────────────────────────────────────────────
@@ -459,6 +476,10 @@ void StreamingPreferences::save()
     settings.remove(SER_OVERLAYMODE);
     settings.setValue(SER_AUDIOCFG, static_cast<int>(audioConfig));
     settings.setValue(SER_SECONDSCREEN, secondScreenDisplay);
+    settings.setValue(SER_SECONDSCREEN_BITRATE, secondScreenBitrateKbps);
+    settings.setValue(SER_SECONDSCREEN_WIDTH, secondScreenWidth);
+    settings.setValue(SER_SECONDSCREEN_HEIGHT, secondScreenHeight);
+    settings.setValue(SER_SECONDSCREEN_FPS, secondScreenFps);
     settings.setValue(SER_USBIPWANTED, usbIpWantedBusids);
     settings.setValue(SER_USBIPREMEMBERED, usbIpRememberedDevices);
     settings.setValue(SER_HDR, enableHdr);

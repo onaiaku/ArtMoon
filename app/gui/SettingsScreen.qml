@@ -2020,6 +2020,237 @@ FocusScope {
                                 }
                             }
                         }
+
+                        /*
+                         * ── The second screen's own stream settings ────────────────
+                         *
+                         * The same three the main stream has, for the extra window only: a
+                         * bitrate, a resolution and a frame rate. Each starts at Auto, and
+                         * Auto is a real answer rather than a blank: bitrate follows the main
+                         * stream exactly as it always did, and the mode follows the panel the
+                         * window is on - which is what the row above already reports.
+                         *
+                         * They exist because the two streams are two sessions: each one
+                         * negotiates its own numbers, so a second display asking for 500 Mbps
+                         * is a second 500 Mbps on the wire, not a share of the first. This is
+                         * where that choice is made rather than discovered in a router graph.
+                         */
+                        Column {
+                            id: secondScreenSettingsCol
+                            width: parent.width
+                            visible: StreamingPreferences.secondScreenDisplay !== ""
+                            height: visible ? implicitHeight : 0
+
+                            readonly property var _panel: {
+                                var list = SystemProperties.displayList()
+                                var saved = StreamingPreferences.secondScreenDisplay
+                                for (var i = 0; i < list.length; i++) {
+                                    if (list[i].name === saved) return list[i]
+                                }
+                                return null
+                            }
+                            readonly property string _panelMode: {
+                                var p = secondScreenSettingsCol._panel
+                                if (!p || !p.modeWidth || !p.modeHeight) return ""
+                                var hz = p.refresh && p.refresh > 0 ? Math.round(p.refresh) : 0
+                                return hz > 0
+                                    ? qsTr("%1 × %2 at %3 Hz").arg(p.modeWidth).arg(p.modeHeight).arg(hz)
+                                    : qsTr("%1 × %2").arg(p.modeWidth).arg(p.modeHeight)
+                            }
+
+                            RowSeparator { }
+
+                            // ── Bitrate ───────────────────────────────────────────
+                            Item {
+                                width: parent.width
+                                height: settingsScreen._rowHeightTall
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: settingsScreen._px(3)
+
+                                    Label {
+                                        text: qsTr("Second screen bitrate")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontBody)
+                                        font.bold: true
+                                        color: settingsScreen._text
+                                    }
+                                    Label {
+                                        text: StreamingPreferences.secondScreenBitrateKbps > 0
+                                              ? qsTr("Its own ceiling. The main stream keeps its own.")
+                                              : qsTr("Same as the main stream.")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                        color: settingsScreen._textDim
+                                    }
+                                }
+
+                                FocusFrame { anchors.fill: secondBitrateSlider; anchors.margins: -6; target: secondBitrateSlider }
+
+                                Label {
+                                    id: secondBitrateValue
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: settingsScreen._px(96)
+                                    horizontalAlignment: Text.AlignRight
+                                    text: StreamingPreferences.secondScreenBitrateKbps > 0
+                                          ? (StreamingPreferences.secondScreenBitrateKbps / 1000).toFixed(0) + qsTr(" Mbps")
+                                          : qsTr("Auto")
+                                    color: StreamingPreferences.secondScreenBitrateKbps > 0 ? Theme.accent : settingsScreen._textDim
+                                    font.family: Theme.family
+                                    font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                    font.bold: true
+                                }
+
+                                Slider {
+                                    id: secondBitrateSlider
+                                    anchors.right: secondBitrateValue.left
+                                    anchors.rightMargin: settingsScreen._px(12)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: settingsScreen._px(240)
+
+                                    // 0 is Auto, and it is the bottom of the track rather than a
+                                    // separate switch: "let it follow the main stream" belongs on
+                                    // the same control as the number it replaces.
+                                    from: 0
+                                    to: StreamingPreferences.getMaxBitrate(StreamingPreferences.videoCodecConfig)
+                                    stepSize: 500
+                                    snapMode: Slider.SnapAlways
+                                    value: StreamingPreferences.secondScreenBitrateKbps
+
+                                    onValueChanged: {
+                                        if (StreamingPreferences.secondScreenBitrateKbps !== value) {
+                                            StreamingPreferences.secondScreenBitrateKbps = value
+                                            secondBitrateSaveTimer.restart()
+                                        }
+                                    }
+                                    Timer {
+                                        id: secondBitrateSaveTimer
+                                        interval: 600
+                                        onTriggered: StreamingPreferences.save()
+                                    }
+                                }
+                            }
+
+                            RowSeparator { }
+
+                            // ── Resolution ────────────────────────────────────────
+                            Item {
+                                width: parent.width
+                                height: settingsScreen._rowHeightTall
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: settingsScreen._px(3)
+
+                                    Label {
+                                        text: qsTr("Second screen resolution")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontBody)
+                                        font.bold: true
+                                        color: settingsScreen._text
+                                    }
+                                    Label {
+                                        // What Auto actually asks for, because this is the number
+                                        // the host builds the second virtual display at — not a
+                                        // window size scaled to fit afterwards.
+                                        text: secondScreenSettingsCol._panelMode.length > 0
+                                              ? qsTr("Auto follows this panel: %1").arg(secondScreenSettingsCol._panelMode)
+                                              : qsTr("Auto follows the panel's own mode.")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                        color: settingsScreen._textDim
+                                    }
+                                }
+
+                                SegmentedSelector {
+                                    id: secondResSelector
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    readonly property var _w: [0, 1280, 1920, 2560, 3840]
+                                    readonly property var _h: [0, 720, 1080, 1440, 2160]
+
+                                    labels: [qsTr("Auto"), "720p", "1080p", "1440p", "4K"]
+
+                                    Binding on currentIndex {
+                                        value: {
+                                            var w = StreamingPreferences.secondScreenWidth
+                                            var h = StreamingPreferences.secondScreenHeight
+                                            if (w <= 0 || h <= 0) return 0
+                                            for (var i = 1; i < secondResSelector._w.length; i++) {
+                                                if (secondResSelector._w[i] === w && secondResSelector._h[i] === h) return i
+                                            }
+                                            return 0
+                                        }
+                                    }
+                                    onActivated: function(idx) {
+                                        StreamingPreferences.secondScreenWidth = _w[idx]
+                                        StreamingPreferences.secondScreenHeight = _h[idx]
+                                        StreamingPreferences.save()
+                                    }
+                                }
+                            }
+
+                            RowSeparator { }
+
+                            // ── Frame rate ────────────────────────────────────────
+                            Item {
+                                width: parent.width
+                                height: settingsScreen._rowHeightTall
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: settingsScreen._px(3)
+
+                                    Label {
+                                        text: qsTr("Second screen frame rate")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontBody)
+                                        font.bold: true
+                                        color: settingsScreen._text
+                                    }
+                                    Label {
+                                        text: qsTr("Independent of the main stream's frame rate.")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                        color: settingsScreen._textDim
+                                    }
+                                }
+
+                                SegmentedSelector {
+                                    id: secondFpsSelector
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    readonly property var _values: [0, 30, 60, 90, 120, 144, 165, 240]
+                                    labels: [qsTr("Auto"), "30", "60", "90", "120", "144", "165", "240"]
+
+                                    Binding on currentIndex {
+                                        value: {
+                                            var f = StreamingPreferences.secondScreenFps
+                                            if (f <= 0) return 0
+                                            var idx = secondFpsSelector._values.indexOf(f)
+                                            return idx === -1 ? 0 : idx
+                                        }
+                                    }
+                                    onActivated: function(idx) {
+                                        StreamingPreferences.secondScreenFps = secondFpsSelector._values[idx]
+                                        StreamingPreferences.save()
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

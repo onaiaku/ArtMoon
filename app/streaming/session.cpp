@@ -3978,3 +3978,14 @@ QString Session::vrrCalibrationContext() const
         .arg(m_Computer->uuid).arg(m_App.id).arg(m_StreamConfig.bitrate)
         .arg(QSysInfo::kernelVersion()).arg(networks.join(";"));
 }
+
+/*
+ * The public door onto the second screen's log. The writer above is inside this file's
+ * anonymous namespace, so another translation unit (the CLI stream process, which resolves
+ * the second window's own numbers) cannot call it by that name without making every call
+ * here ambiguous.
+ */
+void logSecondScreen(const QString& line)
+{
+    secondScreenLog(line);
+}

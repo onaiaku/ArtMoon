@@ -331,6 +331,20 @@ public:
     Q_PROPERTY(QString secondScreenDisplay MEMBER secondScreenDisplay NOTIFY secondScreenDisplayChanged)
 
     /*
+     * The second screen's own stream settings, the same three the main stream has: bitrate,
+     * resolution and frame rate. Each is 0 by default, which means "do what you already did":
+     * bitrate follows the main stream, resolution and frame rate follow the panel the window
+     * is on. Set one and only that one changes.
+     *
+     * They live here rather than as an override on the Remote Monitor app because the thing
+     * being described is this machine's second panel, not a title in the host's app list.
+     */
+    Q_PROPERTY(int secondScreenBitrateKbps MEMBER secondScreenBitrateKbps NOTIFY secondScreenStreamChanged)
+    Q_PROPERTY(int secondScreenWidth MEMBER secondScreenWidth NOTIFY secondScreenStreamChanged)
+    Q_PROPERTY(int secondScreenHeight MEMBER secondScreenHeight NOTIFY secondScreenStreamChanged)
+    Q_PROPERTY(int secondScreenFps MEMBER secondScreenFps NOTIFY secondScreenStreamChanged)
+
+    /*
      * The same choice as usbIpWantedBusids, but keyed on the DEVICE rather than on the busid it
      * happened to be plugged into — so a drive that is pulled out and put back is offered
      * switched on again, which is what the person meant when they ticked it. Nothing is offered,
@@ -418,6 +432,12 @@ public:
 
     // Busids the user has asked to share. See the Q_PROPERTY note above.
     QString secondScreenDisplay;
+    // The second screen's own numbers. 0 = inherit (bitrate from the main stream, resolution and
+    // frame rate from the panel). See the Q_PROPERTY note above.
+    int secondScreenBitrateKbps;
+    int secondScreenWidth;
+    int secondScreenHeight;
+    int secondScreenFps;
 
     /*
      * Where THIS session's window goes, by display name — set from --on-display and never
@@ -484,6 +504,7 @@ signals:
     void clockFormatChanged();
     void dateFormatChanged();
     void secondScreenDisplayChanged();
+    void secondScreenStreamChanged();
     void usbIpWantedBusidsChanged();
     void usbIpRememberedDevicesChanged();
 private:
