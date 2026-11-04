@@ -59,6 +59,7 @@ class NvComputer;
 namespace {
 // Defined with the second-screen launcher far below; used by the cleanup task above it.
 void stopSecondScreenOnHost(NvComputer* computer);
+void closeSecondScreenWindow();
 }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -1794,15 +1795,29 @@ private:
         // reasoning about it.
 
         /*
-         * A second screen belongs to this session: when the stream ends — disconnecting,
-         * quitting the app after it, or the host dropping us — it goes with it, in both
-         * senses. Closing our own window is the visible half; disconnecting the Remote
-         * Monitor on the host is the half that stops the host encoding into a panel nobody
-         * is watching. The second-screen instance itself never does this (its session is the
-         * one being taken down), which is what the streamOnDisplay check is for.
+         * What happens to the second screen depends on why this session is ending, and the two
+         * halves are not interchangeable.
+         *
+         * Leaving the stream — the exit combo, or any disconnect that leaves the app running —
+         * closes our window and nothing more. The host pauses, keeps both displays for its
+         * paused-display window, and a rejoin gets the same two panels back. Telling the host
+         * to release the monitor here was the 503: the release recomposed a one-node topology,
+         * the apply failed against the display it had just let go of, and the recovery left the
+         * monitor with no display to reclaim.
+         *
+         * Stopping the stream — Stop in the UI, which is what sets quitAppAfter — is the only
+         * exit there is, so it is the only place that releases the display.
+         *
+         * The second-screen instance itself never does either (its session is the one being
+         * taken down), which is what the streamOnDisplay check is for.
          */
         if (m_Session->m_Preferences->streamOnDisplay.isEmpty()) {
-            stopSecondScreenOnHost(m_Session->m_Computer);
+            if (shouldQuit) {
+                stopSecondScreenOnHost(m_Session->m_Computer);
+            }
+            else {
+                closeSecondScreenWindow();
+            }
         }
 
         // Notify the UI
@@ -3005,17 +3020,14 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
 }
 
 /*
- * Taking the second screen down has two halves, and neither is optional.
+ * Closing the second window, and nothing else.
  *
- * Closing our window stops the picture on this machine, but the session it opened belongs to
- * the host, and ArtLight keeps a Remote Monitor connected after a stream ends on purpose —
- * that is what lets a phone wander off and come back. On one machine that behaviour leaves
- * the host encoding into a panel nobody is looking at, and the only way out is to walk back
- * into the app list and press "Disconnect Monitor". So this presses it: closing the window
- * first (so its own transport is torn down and does not race the control), then launching the
- * host's own Disconnect Monitor entry, which is exactly what that app-list button does.
+ * The window is ours; the session inside it is the host's. Closing it ends the picture on
+ * this machine and tears its transport down properly, but it deliberately does not tell the
+ * host to release the display — that is a different decision, made by whether the stream is
+ * ending or only being left. See stopSecondScreenOnHost below.
  */
-void stopSecondScreenOnHost(NvComputer* computer)
+void closeSecondScreenWindow()
 {
     if (!g_SecondScreenStarted) {
         return;
@@ -3039,6 +3051,24 @@ void stopSecondScreenOnHost(NvComputer* computer)
         child->deleteLater();
         secondScreenLog(QStringLiteral("second-screen window closed"));
     }
+
+}
+
+/*
+ * Stopping the stream for good: close the window, then tell the host to release the display.
+ *
+ * This is the exit path, not the leaving path. ArtLight keeps a Remote Monitor's display
+ * alive across a disconnect on purpose — that is what lets the same panel come back on the
+ * next join, exactly as the game's own display does — so releasing it here and only here is
+ * what makes "Stop" the sole thing that destroys a display. Pressing it on every disconnect
+ * is what made a rejoin impossible: the release recomposed a one-node topology, that apply
+ * failed against the just-departed display, and the recovery left the monitor with no display
+ * at all, so the next join was refused with 503 "existing owners and their displays were
+ * retained" (2026-11-04 17:39:52).
+ */
+void stopSecondScreenOnHost(NvComputer* computer)
+{
+    closeSecondScreenWindow();
 
     if (computer == nullptr) {
         return;
