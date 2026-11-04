@@ -1,4 +1,5 @@
 #include <QNetworkInterface>
+#include <QThread>
 #include <QSysInfo>
 #include "session.h"
 #include "settings/observedplaytime.h"
@@ -3029,6 +3030,26 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
  */
 void closeSecondScreenWindow()
 {
+    // QProcess is not thread-safe, and this one belongs to the main thread: its
+    // QWinEventNotifier is registered against that thread's event dispatcher, so the child's
+    // exit and output notifications are delivered there. Shutting it down from the session
+    // cleanup — which runs on a QThreadPool worker — let those notifications arrive after the
+    // object had started dying, and Qt delivered them into freed memory:
+    //
+    //   c0000005 in Qt6Core!QObject::~QObject+0x76
+    //     <- QProcess::qt_static_metacall <- QMetaObject::activate
+    //     <- QWinEventNotifier::event <- QCoreApplication::exec     (2026-11-04, page heap)
+    //
+    // So a caller that cannot prove it is on the main thread gets queued rather than served.
+    // The session closes the window itself, on the main thread, before handing cleanup to the
+    // worker; this guard is here so a future caller cannot put it back on the wrong thread.
+    if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
+        secondScreenLog(QStringLiteral("close requested from a worker thread; queueing it to the main thread"));
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [] { closeSecondScreenWindow(); },
+                                  Qt::QueuedConnection);
+        return;
+    }
+
     if (!g_SecondScreenStarted) {
         return;
     }
@@ -3048,7 +3069,11 @@ void closeSecondScreenWindow()
                 child->waitForFinished(2000);
             }
         }
-        child->deleteLater();
+        // Deleted here and now rather than left to the event loop: the child is not running,
+        // and a deferred delete would keep the object alive for one more turn of the loop —
+        // long enough for a notifier event already in the queue to be delivered into it. We are
+        // on the main thread, outside any event dispatch, which is the only place this is safe.
+        delete child;
         secondScreenLog(QStringLiteral("second-screen window closed"));
     }
 
@@ -3129,6 +3154,10 @@ void Session::exec()
         delete m_InputHandler;
         m_InputHandler = nullptr;
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        // The second screen was opened before the connection was attempted; close it HERE,
+        // on the thread that owns its QProcess, and not from the cleanup task. See the note in
+        // closeSecondScreenWindow() for the crash that comes of doing it the other way round.
+        closeSecondScreenWindow();
         QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
         return;
     }
@@ -3275,6 +3304,7 @@ void Session::exec()
             delete m_InputHandler;
             m_InputHandler = nullptr;
             SDL_QuitSubSystem(SDL_INIT_VIDEO);
+            closeSecondScreenWindow();   // main thread owns it; see closeSecondScreenWindow()
             QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
             return;
         }
@@ -4035,6 +4065,11 @@ DispatchDeferredCleanup:
         delete m_HueSyncManager;
         m_HueSyncManager = nullptr;
     }
+
+    // The second window goes down here, on the main thread, while we still are the ones
+    // holding its QProcess. Handing that job to the cleanup task is what crashed the client on
+    // every disconnect from a session with a second screen up (2026-11-04).
+    closeSecondScreenWindow();
 
     // Cleanup can take a while, so dispatch it to a worker thread.
     // When it is complete, it will release our s_ActiveSessionSemaphore
