@@ -111,6 +111,21 @@ jobs:
             Write-Host "Name matches the tag: $want"
           }
 
+      - name: Upload symbols for crash triage
+        uses: actions/upload-artifact@v4
+        with:
+          # A heap-corruption crash leaves a dump full of addresses. Without the
+          # matching PDB those addresses are noise, and force_debug_info already
+          # produces one - it just used to die with the runner. Kept for the same
+          # 90 days as everything else so a crash reported weeks later still names
+          # the function that caused it instead of an offset.
+          name: ArtMoon-symbols${{ inputs.release_tag && format('-{0}', inputs.release_tag) || '' }}
+          path: |
+            build/build-x64-release/app/release/ArtMoon.pdb
+            build/build-x64-release/app/release/ArtMoon.exe
+          if-no-files-found: warn
+          retention-days: 90
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
