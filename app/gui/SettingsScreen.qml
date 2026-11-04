@@ -2081,7 +2081,9 @@ FocusScope {
                                     Label {
                                         text: StreamingPreferences.secondScreenBitrateKbps > 0
                                               ? qsTr("Its own ceiling. The main stream keeps its own.")
-                                              : qsTr("Same as the main stream.")
+                                              : (StreamingPreferences.secondScreenVideoCodec === StreamingPreferences.VCC_FORCE_PYROWAVE
+                                                 ? qsTr("Auto: PyroWave's own recommendation, not the main stream's number.")
+                                                 : qsTr("Same as the main stream."))
                                         font.family: Theme.family
                                         font.pixelSize: settingsScreen._px(Theme.fontSmall)
                                         color: settingsScreen._textDim
@@ -2117,7 +2119,12 @@ FocusScope {
                                     // separate switch: "let it follow the main stream" belongs on
                                     // the same control as the number it replaces.
                                     from: 0
-                                    to: StreamingPreferences.getMaxBitrate(StreamingPreferences.videoCodecConfig)
+                                    // Its own codec's ceiling, not the main stream's: PyroWave
+                                    // carries 3,000 Mbps where AV1 and HEVC stop at 500.
+                                    to: StreamingPreferences.getMaxBitrate(
+                                            StreamingPreferences.secondScreenVideoCodec >= 0
+                                            ? StreamingPreferences.secondScreenVideoCodec
+                                            : StreamingPreferences.videoCodecConfig)
                                     stepSize: 500
                                     snapMode: Slider.SnapAlways
                                     value: StreamingPreferences.secondScreenBitrateKbps
@@ -2246,6 +2253,88 @@ FocusScope {
                                     }
                                     onActivated: function(idx) {
                                         StreamingPreferences.secondScreenFps = secondFpsSelector._values[idx]
+                                        StreamingPreferences.save()
+                                    }
+                                }
+                            }
+
+                            RowSeparator { }
+
+                            // ── Codec ─────────────────────────────────────────────
+                            Item {
+                                width: parent.width
+                                height: settingsScreen._rowHeightTall
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: settingsScreen._px(3)
+
+                                    Label {
+                                        text: qsTr("Second screen codec")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontBody)
+                                        font.bold: true
+                                        color: settingsScreen._text
+                                    }
+                                    Label {
+                                        // The one reason to split them: PyroWave is 4:4:4 and
+                                        // the game is not, so text on the desk panel can be
+                                        // crisp while the game keeps AV1's picture.
+                                        text: StreamingPreferences.secondScreenVideoCodec >= 0
+                                              ? qsTr("Its own codec, independent of the main stream.")
+                                              : qsTr("Same as the main stream.")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                        color: settingsScreen._textDim
+                                    }
+                                }
+
+                                SegmentedSelector {
+                                    id: secondCodecSelector
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    // -1 first: "follow the main stream", which is what every
+                                    // existing setup does. PyroWave only where this build can
+                                    // decode it, exactly like the main codec row.
+                                    readonly property var _values: SystemProperties.hasPyroWave
+                                        ? [-1,
+                                           StreamingPreferences.VCC_AUTO,
+                                           StreamingPreferences.VCC_FORCE_H264,
+                                           StreamingPreferences.VCC_FORCE_HEVC,
+                                           StreamingPreferences.VCC_FORCE_AV1,
+                                           StreamingPreferences.VCC_FORCE_PYROWAVE]
+                                        : [-1,
+                                           StreamingPreferences.VCC_AUTO,
+                                           StreamingPreferences.VCC_FORCE_H264,
+                                           StreamingPreferences.VCC_FORCE_HEVC,
+                                           StreamingPreferences.VCC_FORCE_AV1]
+                                    labels: SystemProperties.hasPyroWave
+                                        ? [qsTr("Auto"), qsTr("Host"), qsTr("H.264"), qsTr("HEVC"), qsTr("AV1"), qsTr("PyroWave")]
+                                        : [qsTr("Auto"), qsTr("Host"), qsTr("H.264"), qsTr("HEVC"), qsTr("AV1")]
+
+                                    Binding on currentIndex {
+                                        value: {
+                                            var v = StreamingPreferences.secondScreenVideoCodec
+                                            var idx = secondCodecSelector._values.indexOf(v)
+                                            return idx === -1 ? 0 : idx
+                                        }
+                                    }
+                                    onActivated: function(idx) {
+                                        StreamingPreferences.secondScreenVideoCodec = secondCodecSelector._values[idx]
+                                        // A stored bitrate above the new codec's ceiling comes
+                                        // down to it here, so the number on screen is the number
+                                        // the stream will use.
+                                        var codec = secondCodecSelector._values[idx]
+                                        if (codec < 0) codec = StreamingPreferences.videoCodecConfig
+                                        var maxKbps = StreamingPreferences.getMaxBitrate(codec)
+                                        if (StreamingPreferences.secondScreenBitrateKbps > maxKbps) {
+                                            StreamingPreferences.secondScreenBitrateKbps = maxKbps
+                                            secondBitrateSlider.value = maxKbps
+                                        }
                                         StreamingPreferences.save()
                                     }
                                 }

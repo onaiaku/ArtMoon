@@ -12,6 +12,24 @@
 #define COMPUTER_SEEK_TIMEOUT 30000
 #define APP_SEEK_TIMEOUT 10000
 
+// Names a codec in the second-screen log the way the settings row names it, so the file reads
+// like the choice that was made instead of like an enum.
+static QString secondScreenCodecName(StreamingPreferences::VideoCodecConfig codec)
+{
+    switch (codec) {
+    case StreamingPreferences::VCC_FORCE_H264:
+        return QStringLiteral("H.264");
+    case StreamingPreferences::VCC_FORCE_HEVC:
+        return QStringLiteral("HEVC");
+    case StreamingPreferences::VCC_FORCE_AV1:
+        return QStringLiteral("AV1");
+    case StreamingPreferences::VCC_FORCE_PYROWAVE:
+        return QStringLiteral("PyroWave");
+    default:
+        return QStringLiteral("Auto");
+    }
+}
+
 namespace CliStartStream
 {
 
@@ -153,12 +171,28 @@ public:
                 if (prefs->secondScreenFps > 0) {
                     prefs->fps = prefs->secondScreenFps;
                 }
+                /*
+                 * Codec before bitrate, because the ceiling depends on it: PyroWave carries
+                 * 3,000 Mbps where AV1 and HEVC stop at 500, and a window left at the other
+                 * codec's number makes PyroWave look worse than the codecs it is meant to
+                 * beat. -1 means "follow the main stream" and is not a codec value.
+                 */
+                if (prefs->secondScreenVideoCodec >= 0) {
+                    prefs->videoCodecConfig =
+                        static_cast<StreamingPreferences::VideoCodecConfig>(prefs->secondScreenVideoCodec);
+                }
                 if (prefs->secondScreenBitrateKbps > 0) {
                     prefs->bitrateKbps = prefs->secondScreenBitrateKbps;
+                } else if (prefs->videoCodecConfig == StreamingPreferences::VCC_FORCE_PYROWAVE) {
+                    // Auto bitrate on a PyroWave second screen: its own recommendation, not the
+                    // main stream's number, which was sized for a different codec.
+                    prefs->bitrateKbps = StreamingPreferences::getDefaultPyroWaveBitrate(
+                        prefs->width, prefs->height, prefs->fps, prefs->enableYUV444, prefs->enableHdr);
                 }
-                logSecondScreen(QStringLiteral("stream settings: %1x%2 @ %3 fps, %4 Mbps")
+                logSecondScreen(QStringLiteral("stream settings: %1x%2 @ %3 fps, %4 Mbps, %5")
                                     .arg(prefs->width).arg(prefs->height).arg(prefs->fps)
-                                    .arg(prefs->bitrateKbps / 1000.0, 0, 'f', 1));
+                                    .arg(prefs->bitrateKbps / 1000.0, 0, 'f', 1)
+                                    .arg(secondScreenCodecName(prefs->videoCodecConfig)));
             }
 
             session = new Session(m_Computer, app, prefs);

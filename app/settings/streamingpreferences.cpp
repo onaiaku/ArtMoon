@@ -71,6 +71,7 @@
 #define SER_SECONDSCREEN_WIDTH "secondscreenwidth"
 #define SER_SECONDSCREEN_HEIGHT "secondscreenheight"
 #define SER_SECONDSCREEN_FPS "secondscreenfps"
+#define SER_SECONDSCREEN_CODEC "secondscreencodec"
 #define SER_USBIPWANTED "usbipwanted"
 #define SER_USBIPREMEMBERED "usbipremembered"
 #define SER_SWAPMOUSEBUTTONS "swapmousebuttons"
@@ -216,6 +217,7 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
     p->secondScreenWidth = secondScreenWidth;
     p->secondScreenHeight = secondScreenHeight;
     p->secondScreenFps = secondScreenFps;
+    p->secondScreenVideoCodec = secondScreenVideoCodec;
 
     p->setParent(parent);
     return p;
@@ -332,6 +334,7 @@ void StreamingPreferences::reload()
     secondScreenWidth = settings.value(SER_SECONDSCREEN_WIDTH, 0).toInt();
     secondScreenHeight = settings.value(SER_SECONDSCREEN_HEIGHT, 0).toInt();
     secondScreenFps = settings.value(SER_SECONDSCREEN_FPS, 0).toInt();
+    secondScreenVideoCodec = settings.value(SER_SECONDSCREEN_CODEC, -1).toInt();
     usbIpWantedBusids = settings.value(SER_USBIPWANTED, QStringList()).toStringList();
     usbIpRememberedDevices = settings.value(SER_USBIPREMEMBERED, QStringList()).toStringList();
     // ── Performance overlay ──────────────────────────────────────────────────
@@ -480,6 +483,7 @@ void StreamingPreferences::save()
     settings.setValue(SER_SECONDSCREEN_WIDTH, secondScreenWidth);
     settings.setValue(SER_SECONDSCREEN_HEIGHT, secondScreenHeight);
     settings.setValue(SER_SECONDSCREEN_FPS, secondScreenFps);
+    settings.setValue(SER_SECONDSCREEN_CODEC, secondScreenVideoCodec);
     settings.setValue(SER_USBIPWANTED, usbIpWantedBusids);
     settings.setValue(SER_USBIPREMEMBERED, usbIpRememberedDevices);
     settings.setValue(SER_HDR, enableHdr);

@@ -10,9 +10,10 @@ https://github.com/onaiaku/ArtMoon
 
 The second screen gets its own picture settings, so the two windows stop sharing one number between them.
 
-**New — 4**
+**New — 5**
 
 **Display**
+- **Second screen codec** is chosen on its own, so the desk panel can run PyroWave for 4:4:4 text while the game keeps AV1's picture. Auto follows the main stream, and picking PyroWave with the bitrate left on Auto uses PyroWave's own recommendation rather than the number that was sized for a different codec.
 - **Second screen bitrate** has its own slider. The two streams are two sessions and each one negotiates its own bitrate, so a second screen set to 500 Mbps is another 500 Mbps on the wire rather than a share of the first - and now that is a decision you make in Settings instead of discovering it in your router graph.
 - **Second screen resolution** is chosen separately, with Auto following the mode of the panel the window opens on. This is the size the host builds the second virtual display at, not a window scaled to fit afterwards.
 - **Second screen frame rate** is chosen separately too, from 30 up to 240, with Auto taking the panel's own rate.
