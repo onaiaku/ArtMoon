@@ -451,6 +451,13 @@ public:
      * Empty means "wherever the app window is", which is the behaviour everything had before.
      */
     QString streamOnDisplay;
+
+    /*
+     * In-memory only: this process was launched to draw the second screen. Not a saved setting
+     * and not a preference — it is a fact about which window this is, and it decides what the
+     * exit combo means (leave the stream, rather than close this picture).
+     */
+    bool secondScreenInstance = false;
     QStringList usbIpWantedBusids;
 
     // Devices the user has asked to share, by identity (serial, else vid:pid). See above.

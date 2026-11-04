@@ -95,6 +95,25 @@ CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
 
 Session* Session::s_ActiveSession;
 QSemaphore Session::s_ActiveSessionSemaphore(1);
+bool Session::s_SecondScreenInstance = false;
+
+/*
+ * How the second-screen process asks the stream to leave.
+ *
+ * It has to cross a process boundary, and the parent cannot be interrupted by Qt: while a
+ * stream is running the Qt event loop is suspended, so a QProcess::finished signal would not
+ * be delivered until the stream had already ended. A file the parent checks once a second —
+ * the same tick the telemetry sampler rides — needs no event loop, no thread, no pipe and no
+ * platform code, and it is obvious to read in a log when it fires.
+ *
+ * Keyed on the child's own pid, which the parent already holds from its QProcess: the child
+ * never has to be told who its parent is.
+ */
+QString Session::secondScreenLeaveRequestPath(qint64 childPid)
+{
+    return QDir(QDir::tempPath())
+        .filePath(QStringLiteral("artmoon-second-screen-leave-%1").arg(childPid));
+}
 
 void Session::clStageStarting(int stage)
 {
@@ -2864,6 +2883,8 @@ void secondScreenLog(const QString& line)
 QProcess* g_SecondScreenProcess = nullptr;
 bool      g_SecondScreenStarted = false;
 
+
+
 void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* prefs)
 {
     const QString wanted = prefs->secondScreenDisplay;
@@ -2945,7 +2966,10 @@ void launchSecondScreenIfConfigured(NvComputer* computer, StreamingPreferences* 
          << computer->uuid
          << appName
          << QStringLiteral("--display-mode") << QStringLiteral("fullscreen")
-         << QStringLiteral("--on-display") << wanted;
+         << QStringLiteral("--on-display") << wanted
+         // Says which window this process is. Without it the child is indistinguishable from a
+         // stream, and the exit combo in it closes the picture instead of leaving the game.
+         << QStringLiteral("--second-screen-instance");
 
     secondScreenLog(QStringLiteral("opening %1 %2")
                         .arg(QCoreApplication::applicationFilePath(),
@@ -3383,7 +3407,34 @@ void Session::exec()
     // declaration one scope too deep.
     Uint32 lastTelemetryTickMs = SDL_GetTicks();
 
+    // Same reason as the telemetry tick above: time-based, because a busy event queue means the
+    // 1s timeout branch is never reached.
+    Uint32 lastSecondScreenTickMs = SDL_GetTicks();
+
     for (;;) {
+        /*
+         * The second-screen process asks to leave by touching a file. Pressed there, the exit
+         * combo means "leave the stream", not "close this picture" — so this process ends and
+         * the shutdown path below closes the second window and puts its host session down in
+         * one pass, instead of the child tearing its own transport down first and leaving the
+         * host to reconcile two disconnects.
+         */
+        if (g_SecondScreenProcess != nullptr &&
+            SDL_GetTicks() - lastSecondScreenTickMs >= 1000) {
+            lastSecondScreenTickMs = SDL_GetTicks();
+            const QString request =
+                secondScreenLeaveRequestPath(g_SecondScreenProcess->processId());
+            if (QFile::exists(request)) {
+                QFile::remove(request);
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "the second-screen window asked to leave: ending the stream");
+                SDL_Event leaveEvent = {};
+                leaveEvent.type = SDL_QUIT;
+                leaveEvent.quit.timestamp = SDL_GetTicks();
+                SDL_PushEvent(&leaveEvent);
+            }
+        }
+
         // The Qt event loop is suspended while we own this thread, so the
         // telemetry sampler's QTimer cannot fire during a stream. Drive one
         // sample+send tick per second from this loop instead. Time-based, not

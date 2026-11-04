@@ -195,6 +195,11 @@ public:
                                     .arg(secondScreenCodecName(prefs->videoCodecConfig)));
             }
 
+            // Tells the input handler which window this process is, so the exit combo in the
+            // second screen asks the stream to leave instead of closing the picture and
+            // leaving the game running.
+            Session::setSecondScreenInstance(prefs->secondScreenInstance);
+
             session = new Session(m_Computer, app, prefs);
             prefs->setParent(session);
             emit q->sessionCreated(app.name, session);

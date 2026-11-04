@@ -199,6 +199,26 @@ public:
         return s_ActiveSession;
     }
 
+    /*
+     * True in the process ArtMoon launched to draw the second screen.
+     *
+     * That window is a second process: its own SDL window, its own input handler, its own copy
+     * of the quit combo. So the combo acts on whichever window holds the keyboard — and the
+     * second screen is the window that opened last, so it is the one that has it. Pressed
+     * there, exit used to close that window and leave the game streaming, which reads as the
+     * exit key doing something other than leaving. That process now asks the stream to leave,
+     * and this flag is how it knows it is the second window and not the stream.
+     */
+    static bool isSecondScreenInstance() { return s_SecondScreenInstance; }
+    static void setSecondScreenInstance(bool value) { s_SecondScreenInstance = value; }
+
+    // The file the second-screen process touches to ask this one to leave. Keyed on the child's
+    // pid, which the parent already holds from its QProcess. Declared here because both sides
+    // of the conversation are in different processes and must agree on the name exactly.
+    static QString secondScreenLeaveRequestPath(qint64 childPid);
+
+    static bool s_SecondScreenInstance;
+
     Overlay::OverlayManager& getOverlayManager()
     {
         return m_OverlayManager;

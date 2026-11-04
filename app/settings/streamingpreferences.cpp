@@ -210,6 +210,10 @@ StreamingPreferences* StreamingPreferences::clone(QObject* parent) const
      * --on-display, and inheriting it would make every session think it was the second screen.
      */
     p->secondScreenDisplay = secondScreenDisplay;
+    // Which window this is, and it must survive a reconfigure: a second-screen session that
+    // reconnects is still the second screen, and forgetting would turn its exit key back into
+    // "close this picture".
+    p->secondScreenInstance = secondScreenInstance;
     // The second screen's own numbers ride the clone for the same reason the display name does:
     // the session is handed a copy, and a field left out here is a settings row that saves,
     // displays, and changes nothing. Absent (0) still means inherit.

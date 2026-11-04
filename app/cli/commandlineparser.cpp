@@ -357,6 +357,8 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     // Which of this machine's displays the stream window belongs on, by name. Used by the
     // second-screen launch (ArtMoon starts the extra instance itself); harmless otherwise.
     parser.addValueOption("on-display", "open the stream window on this display name");
+    parser.addFlagOption("second-screen-instance",
+                         "this window is the second screen (set by the stream that opens it)");
     parser.addChoiceOption("audio-config", "audio config", m_AudioConfigMap.keys());
     parser.addToggleOption("multi-controller", "multiple controller support");
     parser.addToggleOption("quit-after", "quit app after session");
@@ -438,6 +440,13 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     // rewrite what the person has saved in the settings page.
     if (parser.isSet("on-display")) {
         preferences->streamOnDisplay = parser.value("on-display");
+    }
+
+    // Not a placement option: it says which window this process is, so the exit combo can mean
+    // "leave the stream" instead of "close this picture". Only the stream sets it, when it
+    // launches the second screen.
+    if (parser.isSet("second-screen-instance")) {
+        preferences->secondScreenInstance = true;
     }
 
     // Resolve --display option

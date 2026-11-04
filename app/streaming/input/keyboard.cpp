@@ -5,6 +5,9 @@
 #include <Limelight.h>
 #include "SDL_compat.h"
 
+#include <QCoreApplication>
+#include <QFile>
+
 #define VK_0 0x30
 #define VK_A 0x41
 
@@ -28,6 +31,45 @@ void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
 {
     switch (combo) {
     case KeyComboQuit:
+        /*
+         * In the second-screen process, exit means leave the stream.
+         *
+         * This window is not the stream — it is a picture of one panel that the stream opened.
+         * Quitting here used to close this picture and leave the game running, so the key did
+         * something other than what it says. Ask the process that owns the stream to end
+         * instead, and let its shutdown close this window properly: one teardown, in the order
+         * that already works.
+         *
+         * The request is only a file this process touches; the stream checks for it once a
+         * second. If nothing answers — the stream is gone and this window is an orphan — a
+         * second press of the same combo still closes it, so a window can never be stuck.
+         */
+        if (Session::isSecondScreenInstance()) {
+            const QString request =
+                Session::secondScreenLeaveRequestPath(QCoreApplication::applicationPid());
+
+            QFile marker(request);
+
+            if (marker.exists()) {
+                // Asked already and nobody answered: this window is on its own.
+                marker.remove();
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "Quit combo pressed in the second screen again with the stream "
+                            "still listening to nothing; closing this window only");
+            }
+            else if (marker.open(QIODevice::WriteOnly)) {
+                marker.close();
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "Quit combo in the second screen: asked the stream to leave");
+                break;
+            }
+            else {
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                            "Quit combo in the second screen: could not reach the stream; "
+                            "closing this window only");
+            }
+        }
+
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "Detected quit key combo");
 
