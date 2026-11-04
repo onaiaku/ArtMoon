@@ -195,6 +195,11 @@ QString SessionTelemetrySampler::buildBatchJson() const
     }
 
     QJsonObject root;
+    // Which stream this batch belongs to. The second screen is its own ArtMoon process with its
+    // own sampler, so without this the host cannot tell the two apart and blends their numbers
+    // into one dashboard (and one session record). Additive: older hosts ignore it.
+    root[QStringLiteral("role")] =
+        Session::isSecondScreenInstance() ? QStringLiteral("monitor") : QStringLiteral("game");
     root[QStringLiteral("target_fps")] = m_TargetFps;
     // Same unit as the per-sample bitrate_mbps, so the host can compare the two
     // directly. Additive field: older StreamTweak builds ignore it.
