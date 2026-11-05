@@ -5,6 +5,17 @@ ArtMoon - ChangeLog - Developed by onaiaku & Rias
 https://github.com/onaiaku/ArtMoon
 
 --------------------------------------
+**Version 2.2.1 (05/11/2026)**
+--------------------------------------
+
+The second screen can answer for HDR on its own, instead of the game's answer being applied to a different panel.
+
+**New — 1**
+
+**Display**
+- **Second screen HDR** is its own setting: Follow main, Off, or On. The desk panel and the game display are different panels, so wanting HDR on one no longer forces the other to have it - and Follow main, the default, keeps every existing setup exactly as it was.
+
+--------------------------------------
 **Version 2.2.0 (04/11/2026)**
 --------------------------------------
 

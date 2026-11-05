@@ -181,6 +181,9 @@ public:
                     prefs->videoCodecConfig =
                         static_cast<StreamingPreferences::VideoCodecConfig>(prefs->secondScreenVideoCodec);
                 }
+                if (prefs->secondScreenHdr >= 0) {
+                    prefs->enableHdr = prefs->secondScreenHdr != 0;
+                }
                 if (prefs->secondScreenBitrateKbps > 0) {
                     prefs->bitrateKbps = prefs->secondScreenBitrateKbps;
                 } else if (prefs->videoCodecConfig == StreamingPreferences::VCC_FORCE_PYROWAVE) {

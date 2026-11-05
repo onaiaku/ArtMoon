@@ -347,6 +347,10 @@ public:
     // -1 rather than 0 because 0 is VCC_AUTO, which is a real answer ("let the host pick") and
     // must stay distinguishable from "whatever the other window is using".
     Q_PROPERTY(int secondScreenVideoCodec MEMBER secondScreenVideoCodec NOTIFY secondScreenStreamChanged)
+    // HDR for the second screen: -1 follows the main stream's answer, 0 is off, 1 is on.
+    // The second panel is a different display from the one the game is playing on, so it can
+    // legitimately need a different answer - and until now it blindly inherited the game's.
+    Q_PROPERTY(int secondScreenHdr MEMBER secondScreenHdr NOTIFY secondScreenStreamChanged)
 
     /*
      * The same choice as usbIpWantedBusids, but keyed on the DEVICE rather than on the busid it
@@ -443,6 +447,7 @@ public:
     int secondScreenHeight;
     int secondScreenFps;
     int secondScreenVideoCodec = -1;
+    int secondScreenHdr = -1;
 
     /*
      * Where THIS session's window goes, by display name — set from --on-display and never

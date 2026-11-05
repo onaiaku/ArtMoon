@@ -2352,6 +2352,65 @@ FocusScope {
 
                             RowSeparator { }
 
+                            // ── HDR ───────────────────────────────────────────────
+                            Item {
+                                width: parent.width
+                                height: settingsScreen._rowHeightTall
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: settingsScreen._px(3)
+
+                                    Label {
+                                        text: qsTr("Second screen HDR")
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontBody)
+                                        font.bold: true
+                                        color: settingsScreen._text
+                                    }
+                                    Label {
+                                        // The desk panel and the game display are different
+                                        // panels, so wanting HDR on one says nothing about the
+                                        // other. Inheriting blindly is what made a washed-out
+                                        // second screen look like a host fault.
+                                        text: StreamingPreferences.secondScreenHdr < 0
+                                              ? qsTr("Same as the main stream.")
+                                              : (StreamingPreferences.secondScreenHdr !== 0
+                                                 ? qsTr("HDR on this window only.")
+                                                 : qsTr("SDR on this window only."))
+                                        font.family: Theme.family
+                                        font.pixelSize: settingsScreen._px(Theme.fontSmall)
+                                        color: settingsScreen._textDim
+                                    }
+                                }
+
+                                SegmentedSelector {
+                                    id: secondHdrSelector
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: settingsScreen._px(16)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    // -1 first: every existing setup follows the main stream,
+                                    // and that stays the default. 0 and 1 are explicit answers.
+                                    readonly property var _values: [-1, 0, 1]
+                                    labels: [qsTr("Follow main"), qsTr("Off"), qsTr("On")]
+
+                                    Binding on currentIndex {
+                                        value: {
+                                            var v = StreamingPreferences.secondScreenHdr
+                                            return v < 0 ? 0 : (v === 0 ? 1 : 2)
+                                        }
+                                    }
+                                    onActivated: function(idx) {
+                                        StreamingPreferences.secondScreenHdr = secondHdrSelector._values[idx]
+                                        StreamingPreferences.save()
+                                    }
+                                }
+                            }
+
+                            RowSeparator { }
+
                             // ── Codec ─────────────────────────────────────────────
                             Item {
                                 width: parent.width
