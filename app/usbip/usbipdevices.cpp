@@ -887,6 +887,13 @@ void UsbIpDevices::watchForPeer()
         m_OpenedForStream.clear();
         m_LastPeer.clear();
         m_PeerAttempts = 0;
+        /*
+         * Nothing is being asked for any more, so no request is outstanding. Clearing this also
+         * makes any settle that is still in flight find nothing to complain about, and stops the
+         * timer from reporting a take from a stream that has already ended.
+         */
+        m_SettleExpected.clear();
+        m_SettleTimer.stop();
         if (handBack) {
             reconcileWithService(QStringList(), false);
         }
@@ -974,6 +981,13 @@ void UsbIpDevices::watchForPeer()
 
     if (reconcileWithService(wanted, false)) {
         m_OpenedForStream = opened;
+        /*
+         * A take really was asked for, so a device that is still not shared a few seconds later
+         * is a failure worth naming. This is the moment the settle watcher was built for, and
+         * the only one where its message is true.
+         */
+        m_SettleExpected = wanted;
+        scheduleSettle();
     }
     else {
         ++m_PeerAttempts;
@@ -1148,8 +1162,17 @@ void UsbIpDevices::setWanted(const QString &busid, bool wanted)
      * Turning a device OFF is the opposite case and does reconcile: see below.
      */
     if (wanted) {
+        /*
+         * Nothing is asked of the machine here, so there is nothing to settle.
+         *
+         * The settle watcher exists to catch a request that did not take. Turning a device ON
+         * no longer makes one — the bind waits for the stream (see above) — so scheduling it
+         * here measured `wanted` against `shared`, found them disagreeing exactly as designed,
+         * and seven seconds later announced that the device "did not switch on" about a device
+         * this app had deliberately not switched on. Reproduced on the mini PC, 2026-11-05, on
+         * every tick, while the same devices then shared perfectly at the next stream.
+         */
         refresh();
-        scheduleSettle();
         return;
     }
 
@@ -1171,7 +1194,7 @@ void UsbIpDevices::setWanted(const QString &busid, bool wanted)
             keep.append(other);
         }
     }
-    reconcileWithService(keep, true);
+    const bool asked = reconcileWithService(keep, true);
 
     /*
      * Re-read, not re-mark.
@@ -1189,7 +1212,16 @@ void UsbIpDevices::setWanted(const QString &busid, bool wanted)
      * applied to the aftermath of our own action.
      */
     refresh();
-    scheduleSettle();
+    if (asked) {
+        /*
+         * A request really went out, so now there is something to wait for: `keep` is what the
+         * machine should be holding once it lands. Only the request we made is judged — every
+         * other ticked device is unbound until a stream starts, and reading that as a failure is
+         * the bug this replaces.
+         */
+        m_SettleExpected = keep;
+        scheduleSettle();
+    }
 }
 
 /*
@@ -1520,7 +1552,16 @@ void UsbIpDevices::honourRecordedVendorPause()
 /* True while any device's label disagrees with the machine. */
 bool UsbIpDevices::anyUnsettled() const
 {
-    const QStringList wanted = wantedBusids();
+    /*
+     * Judged against what was ASKED FOR, not against what is ticked.
+     *
+     * Every ticked device is unshared until a stream starts, by design, so comparing the tick
+     * list with the machine's state answers "is anything not bound?" — which is always yes — and
+     * turns a working idle machine into a reported failure. `m_SettleExpected` is the set the
+     * last real request named, and it is empty when no request is outstanding, so this answers
+     * the only question worth asking: did the thing we asked for land?
+     */
+    const QStringList wanted = m_SettleExpected;
 
     for (const auto &entry : m_Devices) {
         const QVariantMap row = entry.toMap();

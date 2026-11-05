@@ -303,6 +303,15 @@ private:
     QTimer m_SettleTimer;
     int m_SettleTries = 0;
 
+    /*
+     * The set the last real request named — what the machine should be holding once it lands.
+     *
+     * Deliberately not the tick list: a ticked device is unbound until a stream starts, so the
+     * tick list is always "unsettled" while idle and cannot be used to judge a request. Empty
+     * means nothing is outstanding.
+     */
+    QStringList m_SettleExpected;
+
     /* Repeating, and never stopped — it is also what re-reads the device list. See refresh(). */
     QTimer m_PeerTimer;
     QElapsedTimer m_PeerSeen;     /* when the helper last named a peer; see kPeerGraceMs */
