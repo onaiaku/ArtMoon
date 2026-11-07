@@ -202,9 +202,13 @@ applied to the aftermath of our own action.
 Verified on the z13, 2026-10-03: toggle on → the row reads **Shared** within a second, toggle off → the device
 is released, and in both directions the kernel agrees with the label.
 
-**Known follow-up, not in this build.** `refresh()` runs once, at construction. Nothing re-reads when the Input
-tab becomes visible, so a device released outside ArtMoon — unplugged, or unbound by hand — reads stale until the
-app restarts. A `refresh()` on the tab becoming visible is the obvious fix.
+**The list re-reads itself — the follow-up this paragraph used to record is closed.** `refresh()` ran once, at
+construction, so a device plugged in or pulled out stayed invisible until the app restarted. The watch timer is
+the fix, and it never stops — it only changes speed: 5 s with nothing switched on (`kIdleListIntervalMs`), 1 s
+while something is wanted but not yet bound (`kPeerWaitIntervalMs`), 5 s while something is shared
+(`kPeerIntervalMs`). Measured on the z13, 2026-10-05: a device plugged in appears, and one pulled out disappears,
+with no restart. There is deliberately no hook on the Input tab becoming visible — the timer is the only thing
+that re-reads, and a visibility hook would be a second path to the same answer.
 
 ### Windows
 
@@ -227,3 +231,37 @@ for itself. The app never binds; the service does.
 On both platforms the service keeps **no state of its own** that can disagree with the Input tab: it reconciles,
 it does not remember. `usbipd list` (Windows) and `/sys/bus/usb/drivers/usbip-host` (Linux) stay the authority on
 what is *actually* shared, which is why the tab can show "not shared yet" and mean it.
+
+## How it shipped — reviewed 2026-11-07
+
+This file was written as a design on 3 October 2026, and the work landed over the month after it. What follows is
+where each piece actually lives and what was deliberately left out, so nobody has to re-derive it from the history.
+
+| Piece | Where it lives | First shipped |
+|---|---|---|
+| Device list and the Off/On switches | ArtMoon → **Settings → Input** (`app/usbip/`) | ArtMoon 1.8.0 |
+| Privileged `bind` on the exporter | `artmoon-input-service` — a pipe on Windows, polkit plus `pkexec` on Linux — carried by both ArtMoon installers | ArtMoon 1.8.0 |
+| Vendor-engine handling | `VendorEngine` in ArtMoon: the engine's processes are stopped for the take and started again after a ten-minute linger, with a record file so a crash still puts it back | ArtMoon 1.8.0 |
+| Take and give-back on the importer | ArtLight Server, `src/usbip_input_session.*` and `src/platform/*/usbip_input.cpp`. The session owns the holder, so every end path releases — a clean stop, a crash, a stop racing a start | ArtLight 1.5.0 |
+| The importer's own switch | Web UI → **Settings → Input → Client input** (`input_usbip_enabled`) | ArtLight 1.5.0 |
+
+**No new control verbs were needed**, which retires the sequencing question with the clipboard work. Two facts
+made the wire extension unnecessary: the exporter is the stream's own source address, so the importer already
+knows where to ask; and the tick in ArtMoon is what makes an export exist at all, so "what the exporter is
+offering" *is* the device list. ArtLight probes `usbip list -r` when the session starts and takes what is offered —
+an empty `input_usbip_busids` means everything offered, and a non-empty one is an allowlist.
+
+**Not built, deliberately:**
+
+- **Per-host device memory.** The remembered toggles are keyed on the device (`usbIpRememberedDevices`), not on the
+  machine being streamed to, so the same devices are offered to every importer. That matches the single-importer
+  case this was designed for; splitting it per host is a preference change, not a bug fix.
+- **A status pane in ArtLight Control.** The importer's switch lives in the Web UI. Control has no USB section.
+- **Phase 3 — removing the last elevation prompts.** Not attempted. Setup is one deliberate approval on each
+  platform, not an approval per use, and nothing since has made that feel expensive.
+
+**Double input needs no rule, because the device moves.** When a device is taken, the exporter's kernel no longer
+has it, so ArtMoon's synthetic input path has nothing to forward for it. The case that would double is *half* a
+device — a keyboard whose second HID interface stayed local — and the answer there is the same one the
+twice-enumerating-mouse trap above already demands: share a multi-interface device whole.
+
